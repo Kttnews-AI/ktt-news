@@ -1,16 +1,14 @@
 // ============================================
-// KTT NEWS APP - COMPLETE FIXED VERSION
+// KTT NEWS APP - FIXED FOR RENDER DEPLOYMENT
 // ============================================
 
-// ✅ IMPORTANT: Replace with your actual Render URL
-// Must be HTTPS and match your Render service name exactly
+// ✅ FIX: Set your actual Render backend URL
+// Replace 'ktt-news' with your actual Render service name
 const API_BASE = "https://ktt-news.onrender.com";
 
 const API_ARTICLES = `${API_BASE}/api/articles`;
 const API_NEWS = `${API_BASE}/api/news`;
 const API_SAVE_EMAIL = `${API_BASE}/api/save-email`;
-const API_SEND_OTP = `${API_BASE}/api/auth/send-otp`;
-const API_VERIFY_OTP = `${API_BASE}/api/auth/verify-otp`;
 
 console.log("🔌 API Base:", API_BASE);
 
@@ -360,36 +358,10 @@ function highlightSizeButton(size) {
 }
 
 /* ============================================
-   FETCH WITH TIMEOUT & ERROR HANDLING
-============================================ */
-async function fetchWithTimeout(url, options = {}, timeout = 15000) {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    
-    try {
-        const response = await fetch(url, {
-            ...options,
-            signal: controller.signal,
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                ...options.headers
-            }
-        });
-        clearTimeout(id);
-        return response;
-    } catch (error) {
-        clearTimeout(id);
-        throw error;
-    }
-}
-
-/* ============================================
-   OTP LOGIN - WITH FALLBACK FOR EMAIL FAILURES
+   OTP LOGIN
 ============================================ */
 let otpTimer = null;
 let otpCountdown = 60;
-let currentOTP = null; // Store OTP temporarily when email fails
 
 function sendOTP() {
     const emailInput = document.getElementById("loginEmail");
@@ -407,46 +379,33 @@ function sendOTP() {
     
     localStorage.setItem("temp_email", email);
     
-    // Generate OTP locally as fallback
-    currentOTP = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log(`🔑 Generated OTP for ${email}: ${currentOTP}`);
-    
-    fetchWithTimeout(API_SEND_OTP, {
+    fetch(`${API_BASE}/api/auth/send-otp`, {
         method: 'POST',
-        body: JSON.stringify({ email: email, otp: currentOTP })
-    }, 20000)
-    .then(async response => {
-        const data = await response.json();
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email })
+    })
+    .then(response => response.json())
+    .then(data => {
         btn.classList.remove("loading");
         btn.disabled = false;
         
         if (data.success) {
             showOTPStep(email);
-            // If server provides different OTP, use that
-            if (data.otp) currentOTP = data.otp;
-            
-            // Show OTP in toast for testing (remove in production)
-            if (data.message && data.message.includes('console')) {
-                showToast(`📧 Check console/logs for OTP`);
+            // ✅ FIX: Show OTP in toast if email failed (for testing)
+            if (data.otp) {
+                showToast(`📱 OTP: ${data.otp}`);
             } else {
-                showToast("📧 OTP sent to email!");
+                showToast("📧 OTP sent!");
             }
         } else {
-            // Fallback: Show OTP locally if email failed
-            showOTPStep(email);
-            showToast(`📱 Your OTP: ${currentOTP}`);
-            console.log(`📱 DISPLAY OTP TO USER: ${currentOTP}`);
+            showToast(data.message || "Failed to send OTP");
         }
     })
     .catch(error => {
         btn.classList.remove("loading");
         btn.disabled = false;
+        showToast("Network error");
         console.error("Send OTP error:", error);
-        
-        // Fallback mode: Show OTP directly
-        showOTPStep(email);
-        showToast(`📱 Your OTP: ${currentOTP}`);
-        console.log(`📱 FALLBACK OTP: ${currentOTP}`);
     });
 }
 
@@ -554,24 +513,37 @@ function verifyOTP() {
     btn.classList.add("loading");
     btn.disabled = true;
     
-    // Check against locally stored OTP first (fallback)
-    if (enteredOTP === currentOTP) {
-        handleSuccessfulLogin(email, 'fallback-token');
-        return;
-    }
-    
-    // Try server verification
-    fetchWithTimeout(API_VERIFY_OTP, {
+    fetch(`${API_BASE}/api/auth/verify-otp`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email, otp: enteredOTP })
-    }, 20000)
+    })
     .then(response => response.json())
     .then(data => {
         btn.classList.remove("loading");
         btn.disabled = false;
         
         if (data.success) {
-            handleSuccessfulLogin(email, data.token || 'server-token');
+            localStorage.setItem("ktt_logged", "true");
+            localStorage.setItem("user_email", email);
+            localStorage.setItem("auth_token", data.token || '');
+            
+            const userName = data.user?.name || email.split('@')[0];
+            localStorage.setItem("user_name", userName);
+            
+            currentUser = { 
+                email: email, 
+                loggedIn: true,
+                name: userName,
+                token: data.token
+            };
+            
+            updateUserDisplay();
+            showToast("✅ Welcome!");
+            localStorage.removeItem("temp_email");
+            
+            showScreen("home");
+            loadNews();
         } else {
             showToast(data.message || "Invalid OTP");
             inputs.forEach(input => {
@@ -584,38 +556,9 @@ function verifyOTP() {
     .catch(error => {
         btn.classList.remove("loading");
         btn.disabled = false;
-        
-        // If server fails but OTP matches local, allow login
-        if (enteredOTP === currentOTP) {
-            handleSuccessfulLogin(email, 'offline-token');
-        } else {
-            showToast("Network error. Try again.");
-        }
+        showToast("Network error");
+        console.error("Verify OTP error:", error);
     });
-}
-
-function handleSuccessfulLogin(email, token) {
-    localStorage.setItem("ktt_logged", "true");
-    localStorage.setItem("user_email", email);
-    localStorage.setItem("auth_token", token);
-    
-    const userName = email.split('@')[0];
-    localStorage.setItem("user_name", userName);
-    
-    currentUser = { 
-        email: email, 
-        loggedIn: true,
-        name: userName,
-        token: token
-    };
-    
-    updateUserDisplay();
-    showToast("✅ Welcome!");
-    localStorage.removeItem("temp_email");
-    currentOTP = null;
-    
-    showScreen("home");
-    loadNews();
 }
 
 function resetLoginForm() {
@@ -632,115 +575,62 @@ function resetLoginForm() {
     });
     
     if (otpTimer) clearInterval(otpTimer);
-    currentOTP = null;
 }
 
 /* ============================================
-   NEWS LOADING - FIXED FOR ALL NETWORKS
+   NEWS LOADING - FIXED IMAGE URLS
 ============================================ */
 async function loadNews() {
     const container = document.getElementById("newsFeed");
     if(!container) return;
     
-    container.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading news...</p></div>`;
+    container.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading...</p></div>`;
     
     try {
-        console.log("📡 Fetching from:", API_ARTICLES);
-        
-        const response = await fetchWithTimeout(API_ARTICLES, {
-            method: 'GET'
-        }, 20000);
-        
-        console.log("📡 Response status:", response.status);
+        console.log("Fetching from:", API_ARTICLES);
+        const response = await fetch(API_ARTICLES);
         
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(`HTTP ${response.status}`);
         }
         
         const newsArray = await response.json();
-        console.log("📡 Received articles:", newsArray.length);
+        console.log("Received articles:", newsArray.length);
         
-        if (!Array.isArray(newsArray)) {
-            throw new Error("Invalid data format received");
-        }
-        
-        // Save to localStorage for offline mode
         localStorage.setItem("news_backup", JSON.stringify(newsArray));
         isOnline = true;
-        
-        if (newsArray.length === 0) {
-            container.innerHTML = `
-                <div class="empty">
-                    <span>📭</span>
-                    <h3>No news available</h3>
-                    <p>Check back later for updates</p>
-                </div>
-            `;
-        } else {
-            renderNews(newsArray);
-        }
-        
+        renderNews(newsArray);
         updateSavedFolder();
-        
     } catch(error) {
-        console.error("❌ Load news error:", error);
-        
-        // Try to load from backup
+        console.error("Load news error:", error);
         const backup = localStorage.getItem("news_backup");
         if(backup) {
-            try {
-                const backupData = JSON.parse(backup);
-                console.log("📂 Loading from backup:", backupData.length);
-                renderNews(backupData);
-                showToast("📴 Offline mode - showing cached news");
-            } catch(e) {
-                showNoNewsError(container, error.message);
-            }
+            renderNews(JSON.parse(backup));
+            showToast("Offline mode");
         } else {
-            showNoNewsError(container, error.message);
+            container.innerHTML = `
+                <div class="empty">
+                    <span>📡</span>
+                    <h3>Connection Error</h3>
+                    <p>Could not load news</p>
+                    <button onclick="refreshFeed()" style="margin-top:10px;padding:8px 16px;">Retry</button>
+                </div>
+            `;
         }
     }
-}
-
-function showNoNewsError(container, errorMsg) {
-    container.innerHTML = `
-        <div class="empty" style="text-align: center; padding: 40px 20px;">
-            <span style="font-size: 48px;">📡</span>
-            <h3>Connection Error</h3>
-            <p style="color: #888; margin: 10px 0;">${errorMsg || "Unable to load news"}</p>
-            <button onclick="refreshFeed()" class="btn-primary" style="
-                margin-top: 20px;
-                padding: 12px 24px;
-                background: #007bff;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-            ">🔄 Retry</button>
-            <p style="margin-top: 15px; font-size: 12px; color: #666;">
-                API: ${API_BASE}
-            </p>
-        </div>
-    `;
 }
 
 function getImageUrl(imagePath) {
     if (!imagePath) return null;
     
-    // If already full URL, ensure HTTPS
-    if (imagePath.startsWith('http://')) {
-        return imagePath.replace('http://', 'https://');
-    }
-    if (imagePath.startsWith('https://')) {
+    if (imagePath.startsWith('http')) {
         return imagePath;
     }
     
-    // If starts with /uploads/, append to base
     if (imagePath.startsWith('/uploads/')) {
         return API_BASE + imagePath;
     }
     
-    // Otherwise add /uploads/ prefix
     return `${API_BASE}/uploads/${imagePath}`;
 }
 
@@ -749,12 +639,7 @@ function renderNews(newsArray) {
     if(!container) return;
     
     if(!newsArray || newsArray.length === 0) {
-        container.innerHTML = `
-            <div class="empty">
-                <span>📭</span>
-                <h3>No news available</h3>
-            </div>
-        `;
+        container.innerHTML = `<div class="empty"><span>📭</span><h3>No news available</h3></div>`;
         return;
     }
     
@@ -808,7 +693,7 @@ function loadSavedArticles() {
     
     const saved = getSavedArticles();
     if(saved.length === 0) {
-        container.innerHTML = `<div class="empty"><div>📁</div><h3>No saved articles</h3></div>`;
+        container.innerHTML = `<div class="empty"><div>📁</div><h3>No saved</h3></div>`;
         return;
     }
     
@@ -834,28 +719,23 @@ function loadSavedArticles() {
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
     
-    fetchWithTimeout(`${API_ARTICLES}/${cleanId}`, {}, 15000)
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        return response.json();
-    })
-    .then(article => {
-        currentArticle = article;
-        displayArticleDetail();
-    })
-    .catch(() => {
-        // Fallback to cached data
-        const backup = JSON.parse(localStorage.getItem("news_backup") || "[]");
-        currentArticle = backup.find(item => String(item._id || item.id) === cleanId);
-        
-        if(!currentArticle) {
-            const saved = getSavedArticles();
-            currentArticle = saved.find(item => String(item._id || item.id) === cleanId);
-        }
-        
-        if(currentArticle) displayArticleDetail();
-        else showToast("Article not found");
-    });
+    fetch(`${API_ARTICLES}/${cleanId}`)
+        .then(response => response.json())
+        .then(article => {
+            currentArticle = article;
+            displayArticleDetail();
+        })
+        .catch(() => {
+            const backup = JSON.parse(localStorage.getItem("news_backup") || "[]");
+            currentArticle = backup.find(item => String(item._id || item.id) === cleanId);
+            
+            if(!currentArticle) {
+                const saved = getSavedArticles();
+                currentArticle = saved.find(item => String(item._id || item.id) === cleanId);
+            }
+            
+            if(currentArticle) displayArticleDetail();
+        });
 }
 
 function displayArticleDetail() {
@@ -925,7 +805,7 @@ function saveCurrentArticle() {
 function refreshFeed() {
     isOnline = false;
     loadNews();
-    showToast("🔄 Refreshing...");
+    showToast("Refreshing...");
 }
 
 function escapeHtml(text) {
@@ -941,30 +821,12 @@ function showToast(msg) {
         toast = document.createElement('div');
         toast.id = 'toast';
         toast.className = 'toast';
-        toast.style.cssText = `
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 25px;
-            z-index: 10000;
-            font-size: 14px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        `;
         document.body.appendChild(toast);
     }
     if(toastTimeout) clearTimeout(toastTimeout);
     toast.textContent = msg;
-    toast.style.opacity = '1';
-    toastTimeout = setTimeout(() => {
-        toast.style.opacity = '0';
-    }, 3000);
+    toast.classList.add('show');
+    toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-console.log("✅ KTT News App Loaded - Version Mobile-Fixed");
-console.log("📡 API Endpoint:", API_BASE);
+console.log("✅ App loaded - all functions exported");
