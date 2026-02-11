@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KTT News</title>
+    
+    <!-- CRITICAL: Inline styles to hide screens immediately -->
+    <style>
+        /* Hide all screens except splash by default */
+        .screen {
+            display: none !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            background: #f2f2f7;
+        }
+        
+        /* Only show active screen */
+        .screen.active {
+            display: block !important;
+        }
+        
+        /* Splash is flex */
+        #splash.screen.active {
+            display: flex !important;
+        }
+        
+        /* Initially show only splash */
+        #splash {
+            display: flex !important;
+            z-index: 9999;
+        }
+    </style>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- SPLASH SCREEN -->
+    <div id="splash" class="screen active">
+        <div class="splash-wrapper">
+            <div class="splash-logo">📰</div>
+            <h1 class="splash-title">KTT News</h1>
+            <p class="splash-subtitle">Know The Truth</p>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABOUT SCREEN -->
+    <div id="about" class="screen">
+        <div class="about-wrapper">
+            <div class="about-header">
+                <div class="logo-circle">📰</div>
+                <h1>Welcome to<br><span class="highlight">KTT News</span></h1>
+                <p class="tagline">Your daily dose of truth, simplified.</p>
+            </div>
+
+            <div class="features-list">
+                <div class="feature-item">
+                    <span class="feature-emoji">✨</span>
+                    <div class="feature-text">
+                        <h3>Clean Reading</h3>
+                        <p>No clutter, no noise</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-emoji">🔖</span>
+                    <div class="feature-text">
+                        <h3>Save Articles</h3>
+                        <p>Read later offline</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-emoji">🌙</span>
+                    <div class="feature-text">
+                        <h3>Dark Mode</h3>
+                        <p>Easy on your eyes</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-emoji">⚡</span>
+                    <div class="feature-text">
+                        <h3>Lightning Fast</h3>
+                        <p>Loads in milliseconds</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="about-actions">
+                <button class="btn-main" onclick="goToLogin()">Get Started</button>
+                <button class="btn-text" onclick="skipLoginFromAbout()">Continue without account</button>
+            </div>
+            
+            <p class="version">v1.0.0</p>
+        </div>
+    </div>
+
+    <!-- LOGIN SCREEN - STEP 1: EMAIL -->
+<div id="login" class="screen">
+    <div class="login-wrapper">
+        <button class="btn-back" onclick="goBackToAbout()">←</button>
+        
+        <div class="login-header">
+            <h1>Sign In</h1>
+            <p>Enter your email to receive OTP</p>
+        </div>
+
+        <div class="login-form" id="emailStep">
+            <div class="input-wrapper">
+                <label>Email Address</label>
+                <input type="email" id="loginEmail" placeholder="name@example.com" autocomplete="email">
+            </div>
+
+            <button class="btn-main" onclick="sendOTP()" id="sendOtpBtn">
+                <span>Send OTP</span>
+            </button>
+            
+            <div class="divider">
+                <span>or</span>
+            </div>
+
+            <button class="btn-secondary" onclick="skipToHome()">Continue as Guest</button>
+        </div>
+
+        <!-- OTP Step (Hidden initially) -->
+        <div class="login-form hidden" id="otpStep">
+            <div class="otp-info">
+                <p>We've sent a 6-digit code to</p>
+                <p class="otp-email" id="otpEmailDisplay"></p>
+            </div>
+            
+            <div class="otp-input-container">
+                <input type="text" maxlength="1" class="otp-input" data-index="0">
+                <input type="text" maxlength="1" class="otp-input" data-index="1">
+                <input type="text" maxlength="1" class="otp-input" data-index="2">
+                <input type="text" maxlength="1" class="otp-input" data-index="3">
+                <input type="text" maxlength="1" class="otp-input" data-index="4">
+                <input type="text" maxlength="1" class="otp-input" data-index="5">
+            </div>
+
+            <div class="otp-timer">
+                <span id="otpTimer">Resend OTP in 60s</span>
+                <button class="btn-text hidden" id="resendBtn" onclick="sendOTP()">Resend OTP</button>
+            </div>
+
+            <button class="btn-main" onclick="verifyOTP()" id="verifyOtpBtn">
+                <span>Verify & Continue</span>
+            </button>
+        </div>
+
+        <p class="login-footer" id="loginFooter">
+            Don't have an account? <a href="#" onclick="showToast('Enter any email to get started')">Create one</a>
+        </p>
+    </div>
+</div>
+
+    <!-- HOME SCREEN -->
+    <div id="home" class="screen">
+        <header class="main-header">
+            <div class="header-title">
+                <h1>KTT News</h1>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" onclick="refreshFeed()">↻</button>
+            </div>
+        </header>
+
+        <main class="main-body">
+            <div id="savedFolder" class="saved-folder" onclick="showScreen('saved')" style="display: none;">
+                <div class="folder-icon">📁</div>
+                <div class="folder-info">
+                    <h3>Saved Articles</h3>
+                    <p id="savedCount">0 articles saved</p>
+                </div>
+                <span class="folder-arrow">→</span>
+            </div>
+
+            <div id="newsFeed" class="feed-list"></div>
+            
+            <div id="emptyState" class="empty-state hidden">
+                <span class="empty-icon">📭</span>
+                <h3>No stories yet</h3>
+                <p>Check back later for updates</p>
+            </div>
+        </main>
+
+        <nav class="bottom-nav">
+            <button class="nav-btn active" onclick="showScreen('home')">
+                <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span class="nav-label">Home</span>
+            </button>
+            
+            <button class="nav-btn" onclick="showScreen('saved')">
+                <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span class="nav-label">Saved</span>
+            </button>
+            
+            <button class="nav-btn" onclick="showScreen('preferences')">
+                <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span class="nav-label">Settings</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- SAVED ARTICLES SCREEN -->
+    <div id="saved" class="screen">
+        <header class="page-header">
+            <button class="btn-back" onclick="showScreen('home')">← Back</button>
+            <h1>Saved Articles</h1>
+            <div style="width: 60px;"></div>
+        </header>
+        
+        <main class="page-content">
+            <div id="savedList" class="feed-list"></div>
+        </main>
+        
+        <nav class="bottom-nav">
+            <button class="nav-btn" onclick="showScreen('home')">
+                <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span class="nav-label">Home</span>
+            </button>
+            
+            <button class="nav-btn active" onclick="showScreen('saved')">
+                <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span class="nav-label">Saved</span>
+            </button>
+            
+            <button class="nav-btn" onclick="showScreen('preferences')">
+                <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span class="nav-label">Settings</span>
+            </button>
+        </nav>
+    </div>
+
+<!-- PREFERENCES SCREEN -->
+<div id="preferences" class="screen">
+    <header class="page-header">
+        <button class="btn-back" onclick="showScreen('home')">← Settings</button>
+        <h1>Preferences</h1>
+        <div style="width: 60px;"></div>
+    </header>
+
+    <main class="page-content">
+        <section class="pref-section">
+            <h3>Appearance</h3>
+            
+            <div class="pref-card">
+                <!-- FIXED: Dark Mode - Click anywhere on row works -->
+                <div class="pref-row" style="cursor: pointer; position: relative; z-index: 1;">
+                    <div class="pref-label" onclick="toggleDark();" style="flex: 1; pointer-events: auto;">
+                        <span class="pref-title">Dark Mode</span>
+                        <span class="pref-desc">Easier on the eyes at night</span>
+                    </div>
+                    <!-- FIXED: Toggle with proper touch handling -->
+                    <div class="switch-container" style="position: relative; width: 50px; height: 30px;">
+                        <input type="checkbox" id="darkToggle" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; margin: 0;" onchange="toggleDark()">
+                        <span class="switch-slider" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 30px; transition: 0.3s; pointer-events: none;"></span>
+                    </div>
+                </div>
+
+                <div class="pref-row border-top">
+                    <div class="pref-label">
+                        <span class="pref-title">Text Size</span>
+                        <span class="pref-desc">Adjust reading comfort</span>
+                    </div>
+                    <div class="size-picker">
+                        <button onclick="changeTextSize('small')" class="size-btn" data-size="small">A</button>
+                        <button onclick="changeTextSize('medium')" class="size-btn active" data-size="medium">A</button>
+                        <button onclick="changeTextSize('large')" class="size-btn" data-size="large">A</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="pref-section">
+            <h3>Account</h3>
+            <div class="pref-card">
+                <div class="pref-row">
+                    <div class="pref-label">
+                        <span class="pref-title" id="userDisplayName">Guest User</span>
+                        <span class="pref-desc" id="userDisplayEmail">Not signed in</span>
+                    </div>
+                </div>
+            </div>
+            <!-- FIXED: Logout button with Android-compatible onclick -->
+            <button class="btn-logout" id="logoutButton" 
+                ontouchstart="this.style.opacity='0.7'" 
+                ontouchend="this.style.opacity='1'; if(confirm('Logout?')){localStorage.removeItem('ktt_logged');localStorage.removeItem('user_email');localStorage.removeItem('user_name');localStorage.removeItem('auth_token');location.reload();}" 
+                onclick="if(confirm('Logout?')){localStorage.removeItem('ktt_logged');localStorage.removeItem('user_email');localStorage.removeItem('user_name');localStorage.removeItem('auth_token');location.reload();}" 
+                style="display:none; width:100%; padding:15px; margin-top:10px; background:#ff3b30; color:white; border:none; border-radius:12px; font-size:16px; font-weight:600; cursor:pointer; -webkit-tap-highlight-color:rgba(0,0,0,0.1); touch-action:manipulation; user-select:none; -webkit-user-select:none;">
+                Logout
+            </button>
+        </section>
+
+        <section class="pref-section">
+            <h3>Data Management</h3>
+            <!-- FIXED: Delete All Data with Android touch support -->
+            <button class="btn-danger" 
+                ontouchstart="this.style.opacity='0.7'" 
+                ontouchend="this.style.opacity='1'; if(confirm('Delete all data?')){localStorage.clear();location.reload();}" 
+                onclick="if(confirm('Delete all data?')){localStorage.clear();location.reload();}" 
+                style="width:100%; padding:15px; background:#ff3b30; color:white; border:none; border-radius:12px; font-size:16px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; -webkit-tap-highlight-color:rgba(0,0,0,0.1); touch-action:manipulation; user-select:none; -webkit-user-select:none;">
+                <span>🗑</span>
+                <span>Delete All Data</span>
+            </button>
+        </section>
+    </main>
+    
+    <nav class="bottom-nav">
+        <button class="nav-btn" onclick="showScreen('home')">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            <span class="nav-label">Home</span>
+        </button>
+        
+        <button class="nav-btn" onclick="showScreen('saved')">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span class="nav-label">Saved</span>
+        </button>
+        
+        <button class="nav-btn active" onclick="showScreen('preferences')">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span class="nav-label">Settings</span>
+        </button>
+    </nav>
+</div>
+
+
+    <!-- ARTICLE DETAIL SCREEN -->
+    <div id="detail" class="screen">
+        <header class="page-header">
+            <button class="btn-back" onclick="showScreen('home')">← Back</button>
+            <h1 style="font-size: 18px; font-weight: 600;">Article</h1>
+            <button class="btn-save" onclick="saveCurrentArticle()" id="saveBtn">💾 Save</button>
+        </header>
+        
+        <main class="detail-content" id="detailContent">
+            <div id="articleBody"></div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

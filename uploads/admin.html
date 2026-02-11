@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>KTT Admin Upload</title>
+</head>
+<body>
+
+<h2>Upload News</h2>
+
+<form id="newsForm">
+  <input type="text" name="title" placeholder="Title" required><br><br>
+  <textarea name="content" placeholder="News content" required></textarea><br><br>
+  <input type="file" name="image"><br><br>
+  <button type="submit">Upload</button>
+</form>
+
+<script>
+document.getElementById("newsForm").onsubmit = async (e) => {
+  e.preventDefault();
+
+  const formData = new FormData(e.target);
+
+  const res = await fetch("http://192.168.29.116:3000/news", {
+    method: "POST",
+    body: formData
+  });
+
+  if (res.ok) {
+    alert("News uploaded");
+    e.target.reset();
+  } else {
+    alert("Upload failed");
+  }
+};
+</script>
+
+</body>
+</html>
