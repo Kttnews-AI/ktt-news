@@ -791,4 +791,8 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('🔍 DEBUG endpoints:');
     console.log(`   GET  http://${LOCAL_IP}:${PORT}/api/debug/routes`);
     console.log('========================================');
+    app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
 });
