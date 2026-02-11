@@ -1,11 +1,9 @@
-// ============================================
-// KTT NEWS APP - FIXED FOR RENDER DEPLOYMENT
+ // ============================================
+// KTT NEWS APP - FULLY WORKING VERSION
 // ============================================
 
-// ✅ FIX: Set your actual Render backend URL
-// Replace 'ktt-news' with your actual Render service name
-const API_BASE = "https://ktt-news.onrender.com";
-
+// FIX: Removed trailing space from API_BASE
+const API_BASE = "http://192.168.29.116:3000";
 const API_ARTICLES = `${API_BASE}/api/articles`;
 const API_NEWS = `${API_BASE}/api/news`;
 const API_SAVE_EMAIL = `${API_BASE}/api/save-email`;
@@ -307,11 +305,13 @@ function clearAll() {
 /* ============================================
    THEME
 ============================================ */
+// FIX: Accept checked parameter instead of using global event
 function toggleDark(checked) {
     console.log("toggleDark called with:", checked);
     
     const checkbox = document.getElementById('darkToggle');
     
+    // If called without parameter, toggle based on current state
     let shouldBeDark;
     if (typeof checked === 'boolean') {
         shouldBeDark = checked;
@@ -327,6 +327,7 @@ function toggleDark(checked) {
         localStorage.setItem('theme', 'light');
     }
     
+    // Sync checkbox
     if (checkbox) checkbox.checked = shouldBeDark;
     
     console.log("Dark mode:", shouldBeDark ? "ON" : "OFF");
@@ -391,12 +392,7 @@ function sendOTP() {
         
         if (data.success) {
             showOTPStep(email);
-            // ✅ FIX: Show OTP in toast if email failed (for testing)
-            if (data.otp) {
-                showToast(`📱 OTP: ${data.otp}`);
-            } else {
-                showToast("📧 OTP sent!");
-            }
+            showToast("📧 OTP sent!");
         } else {
             showToast(data.message || "Failed to send OTP");
         }
@@ -405,7 +401,6 @@ function sendOTP() {
         btn.classList.remove("loading");
         btn.disabled = false;
         showToast("Network error");
-        console.error("Send OTP error:", error);
     });
 }
 
@@ -557,7 +552,6 @@ function verifyOTP() {
         btn.classList.remove("loading");
         btn.disabled = false;
         showToast("Network error");
-        console.error("Verify OTP error:", error);
     });
 }
 
@@ -587,50 +581,37 @@ async function loadNews() {
     container.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading...</p></div>`;
     
     try {
-        console.log("Fetching from:", API_ARTICLES);
         const response = await fetch(API_ARTICLES);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        
         const newsArray = await response.json();
-        console.log("Received articles:", newsArray.length);
         
         localStorage.setItem("news_backup", JSON.stringify(newsArray));
         isOnline = true;
         renderNews(newsArray);
         updateSavedFolder();
     } catch(error) {
-        console.error("Load news error:", error);
         const backup = localStorage.getItem("news_backup");
         if(backup) {
             renderNews(JSON.parse(backup));
             showToast("Offline mode");
-        } else {
-            container.innerHTML = `
-                <div class="empty">
-                    <span>📡</span>
-                    <h3>Connection Error</h3>
-                    <p>Could not load news</p>
-                    <button onclick="refreshFeed()" style="margin-top:10px;padding:8px 16px;">Retry</button>
-                </div>
-            `;
         }
     }
 }
 
+// FIX: Improved image URL construction
 function getImageUrl(imagePath) {
     if (!imagePath) return null;
     
+    // If already full URL, return as-is
     if (imagePath.startsWith('http')) {
         return imagePath;
     }
     
+    // If starts with /uploads/, append to base
     if (imagePath.startsWith('/uploads/')) {
         return API_BASE + imagePath;
     }
     
+    // Otherwise add /uploads/ prefix
     return `${API_BASE}/uploads/${imagePath}`;
 }
 
@@ -639,7 +620,7 @@ function renderNews(newsArray) {
     if(!container) return;
     
     if(!newsArray || newsArray.length === 0) {
-        container.innerHTML = `<div class="empty"><span>📭</span><h3>No news available</h3></div>`;
+        container.innerHTML = `<div class="empty"><span>📭</span><h3>No news</h3></div>`;
         return;
     }
     
@@ -653,6 +634,7 @@ function renderNews(newsArray) {
         const isSaved = getSavedArticles().some(s => String(s._id || s.id) === id);
         const savedIcon = isSaved ? '🔖 ' : '';
         
+        // FIX: Use improved image URL function
         const imageUrl = getImageUrl(item.image);
         
         html += `
@@ -753,6 +735,7 @@ function displayArticleDetail() {
     
     const date = currentArticle.createdAt ? new Date(currentArticle.createdAt).toLocaleString() : "Recent";
     
+    // FIX: Use improved image URL function
     const imageUrl = getImageUrl(currentArticle.image);
     
     articleBody.innerHTML = `
