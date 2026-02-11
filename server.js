@@ -1,5 +1,5 @@
 // ============================================
-// KTT NEWS SERVER - FIXED & WORKING VERSION WITH GMAIL OTP
+// KTT NEWS SERVER - FIXED FOR RENDER.COM
 // ============================================
 
 const express = require('express');
@@ -49,7 +49,7 @@ console.log('📡 Local IP detected:', LOCAL_IP);
 // ============================================
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ktt_news';
 
-console.log('🔌 Connecting to MongoDB:', MONGODB_URI);
+console.log('🔌 Connecting to MongoDB...');
 
 mongoose.connect(MONGODB_URI)
     .then(() => {
@@ -74,27 +74,23 @@ mongoose.connection.on('disconnected', () => {
 // EMAIL SETUP (Gmail SMTP)
 // ============================================
 
-// Gmail configuration - USE APP PASSWORD, NOT YOUR GMAIL PASSWORD!
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.GMAIL_USER || 'kttknowthetruth@gmail.com',     // ⬅️ CHANGE THIS TO YOUR GMAIL
-        pass: process.env.GMAIL_PASS || 'eaqm vfon ukmp kcqt'       // ⬅️ APP PASSWORD HERE (16 chars with spaces)
+        user: process.env.GMAIL_USER || 'kttknowthetruth@gmail.com',
+        pass: process.env.GMAIL_PASS || 'eaqm vfon ukmp kcqt'
     }
 });
 
-// Temporary OTP storage (in production, use Redis or database)
-const otpStore = new Map(); // email -> { otp, expiresAt }
+const otpStore = new Map();
 
-// Generate 6-digit OTP
 function generateOTP() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Send OTP email
 async function sendOTPEmail(toEmail, otp) {
     const mailOptions = {
-        from: '"KTT News" <kttknowthetruth@gmail.com>',                  // ⬅️ CHANGE THIS TO YOUR GMAIL
+        from: '"KTT News" <kttknowthetruth@gmail.com>',
         to: toEmail,
         subject: 'Your KTT News Login Code',
         html: `
@@ -125,7 +121,6 @@ async function sendOTPEmail(toEmail, otp) {
     }
 }
 
-// Cleanup expired OTPs every 5 minutes
 setInterval(() => {
     const now = Date.now();
     for (const [email, data] of otpStore.entries()) {
@@ -182,7 +177,6 @@ app.use(cors({
     credentials: true
 }));
 
-// Handle preflight
 app.use((req, res, next) => {
     if (req.method === 'OPTIONS') {
         res.header('Access-Control-Allow-Origin', '*');
@@ -196,21 +190,17 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logger - ENHANCED FOR DEBUGGING
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} | ${req.method} ${req.path}`);
-    console.log('  Headers:', JSON.stringify(req.headers, null, 2));
     next();
 });
 
-// Static files
 app.use('/uploads', express.static('uploads'));
 
 if (!fs.existsSync('uploads')) {
     fs.mkdirSync('uploads', { recursive: true });
 }
 
-// Frontend static files - MUST be before API routes
 app.use(express.static(path.join(__dirname, 'front-end')));
 
 // ============================================
@@ -239,20 +229,16 @@ const upload = multer({
 });
 
 // ============================================
-// AUTH MIDDLEWARE (FIXED - More Robust)
+// AUTH MIDDLEWARE
 // ============================================
 const authMiddleware = (req, res, next) => {
-    // Check multiple possible header sources (case-insensitive)
     const authHeader = req.headers['authorization'] || req.headers['Authorization'];
     
     if (!authHeader) {
         return res.status(401).json({ error: 'No token provided' });
     }
     
-    // Handle "Bearer <token>" format properly
-    const token = authHeader.startsWith('Bearer ') 
-        ? authHeader.slice(7) 
-        : authHeader;
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
     
     if (!token) {
         return res.status(401).json({ error: 'Token format invalid' });
@@ -273,7 +259,6 @@ const authMiddleware = (req, res, next) => {
 // API ROUTES
 // ============================================
 
-// Health check
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'OK', 
@@ -282,7 +267,6 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Get all articles (PUBLIC)
 app.get('/api/articles', async (req, res) => {
     try {
         const articles = await Article.find().sort({ created_at: -1 });
@@ -292,7 +276,6 @@ app.get('/api/articles', async (req, res) => {
     }
 });
 
-// Get single article (PUBLIC)
 app.get('/api/articles/:id', async (req, res) => {
     try {
         const article = await Article.findById(req.params.id);
@@ -304,12 +287,10 @@ app.get('/api/articles/:id', async (req, res) => {
 });
 
 // ============================================
-// OTP AUTH ENDPOINTS (NEW - ADDED HERE)
+// OTP AUTH ENDPOINTS
 // ============================================
 
-// Request OTP
 app.post('/api/auth/send-otp', async (req, res) => {
-    console.log('📧 Send OTP request received:', req.body);
     const { email } = req.body;
     
     if (!email || !email.includes('@')) {
@@ -317,24 +298,18 @@ app.post('/api/auth/send-otp', async (req, res) => {
     }
     
     try {
-        // Generate OTP
         const otp = generateOTP();
-        const expiresAt = Date.now() + (5 * 60 * 1000); // 5 minutes
+        const expiresAt = Date.now() + (5 * 60 * 1000);
         
-        // Store OTP
         otpStore.set(email, { otp, expiresAt });
         
-        // Send email
         const sent = await sendOTPEmail(email, otp);
         
         if (!sent) {
             return res.status(500).json({ success: false, message: 'Failed to send email' });
         }
         
-        res.json({ 
-            success: true, 
-            message: 'OTP sent successfully'
-        });
+        res.json({ success: true, message: 'OTP sent successfully' });
         
     } catch (err) {
         console.error('Send OTP error:', err);
@@ -342,9 +317,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
     }
 });
 
-// Verify OTP and Login
 app.post('/api/auth/verify-otp', async (req, res) => {
-    console.log('🔐 Verify OTP request received:', req.body);
     const { email, otp } = req.body;
     
     if (!email || !otp) {
@@ -354,7 +327,6 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     try {
         const stored = otpStore.get(email);
         
-        // Check if OTP exists and is valid
         if (!stored) {
             return res.status(400).json({ success: false, message: 'OTP expired or not requested' });
         }
@@ -368,10 +340,8 @@ app.post('/api/auth/verify-otp', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid OTP' });
         }
         
-        // OTP verified - clear it
         otpStore.delete(email);
         
-        // Get or create user
         let user = await User.findOne({ email: email.toLowerCase().trim() });
         let isNewUser = false;
         
@@ -390,7 +360,6 @@ app.post('/api/auth/verify-otp', async (req, res) => {
             isNewUser = true;
         }
         
-        // Save to UserEmail collection
         await UserEmail.findOneAndUpdate(
             { email: user.email },
             { 
@@ -401,7 +370,6 @@ app.post('/api/auth/verify-otp', async (req, res) => {
             { upsert: true, new: true }
         );
         
-        // Generate JWT token
         const token = jwt.sign({ userId: user._id, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
         
         res.json({
@@ -422,7 +390,6 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     }
 });
 
-// Save email / Login / Register combined (KEEP EXISTING)
 app.post('/api/save-email', async (req, res) => {
     console.log('\n========== SAVE EMAIL REQUEST ==========');
     console.log('Body:', req.body);
@@ -442,7 +409,6 @@ app.post('/api/save-email', async (req, res) => {
         const userName = name || cleanEmail.split('@')[0];
         const userPassword = password || Math.random().toString(36).slice(-8);
         
-        // Save to UserEmail
         await UserEmail.findOneAndUpdate(
             { email: cleanEmail },
             { 
@@ -453,7 +419,6 @@ app.post('/api/save-email', async (req, res) => {
             { upsert: true, new: true }
         );
         
-        // Handle User
         let user = await User.findOne({ email: cleanEmail });
         let isNewUser = false;
         
@@ -489,9 +454,7 @@ app.post('/api/save-email', async (req, res) => {
     }
 });
 
-// Traditional auth routes (KEEP EXISTING)
 app.post('/api/auth/register', async (req, res) => {
-    console.log('📝 Register request received:', req.body);
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
         return res.status(400).json({ error: 'All fields required' });
@@ -515,7 +478,6 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-    console.log('🔑 Login request received:', req.body);
     const { email, password } = req.body;
     
     try {
@@ -532,10 +494,6 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// ============================================
-// TEMPORARY TEST ROUTE (NO AUTH - FOR DEBUGGING)
-// ============================================
-// Use this to test if file upload works without authentication issues
 app.post('/api/news-test', upload.single('image'), async (req, res) => {
     console.log('📸 News Test Upload:', req.body);
     console.log('📁 File:', req.file);
@@ -572,7 +530,6 @@ app.post('/api/news-test', upload.single('image'), async (req, res) => {
     }
 });
 
-// Protected routes (KEEP EXISTING)
 app.post('/api/articles', authMiddleware, upload.single('image'), async (req, res) => {
     const { title, content } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
@@ -595,7 +552,6 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
     }
 });
 
-// Alternative news endpoint (KEEP EXISTING)
 app.post('/api/news', authMiddleware, upload.single('image'), async (req, res) => {
     const { title, content } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
@@ -618,7 +574,6 @@ app.post('/api/news', authMiddleware, upload.single('image'), async (req, res) =
     }
 });
 
-// Bookmarks (KEEP EXISTING)
 app.get('/api/bookmarks', authMiddleware, async (req, res) => {
     try {
         const bookmarks = await Bookmark.find({ user_id: req.userId })
@@ -647,7 +602,6 @@ app.post('/api/bookmarks', authMiddleware, async (req, res) => {
     }
 });
 
-// User emails list (KEEP EXISTING)
 app.get('/api/user-emails', async (req, res) => {
     try {
         const emails = await UserEmail.find().sort({ created_at: -1 });
@@ -657,9 +611,6 @@ app.get('/api/user-emails', async (req, res) => {
     }
 });
 
-// ============================================
-// DEBUG ENDPOINTS (Development only)
-// ============================================
 if (DEBUG) {
     app.get('/api/debug/db-status', async (req, res) => {
         try {
@@ -694,30 +645,6 @@ if (DEBUG) {
         }
     });
 
-    // List all registered routes
-    app.get('/api/debug/routes', (req, res) => {
-        const routes = [];
-        app._router.stack.forEach((middleware) => {
-            if (middleware.route) {
-                routes.push({
-                    path: middleware.route.path,
-                    methods: Object.keys(middleware.route.methods)
-                });
-            } else if (middleware.name === 'router') {
-                middleware.handle.stack.forEach((handler) => {
-                    if (handler.route) {
-                        routes.push({
-                            path: handler.route.path,
-                            methods: Object.keys(handler.route.methods)
-                        });
-                    }
-                });
-            }
-        });
-        res.json({ routes: routes });
-    });
-
-    // Admin panel (KEEP EXISTING)
     app.get('/admin', (req, res) => {
         res.send(`
             <!DOCTYPE html>
@@ -735,7 +662,6 @@ if (DEBUG) {
                 <div class="card">
                     <button onclick="location.href='/api/debug/db-status'">Check DB Status</button>
                     <button onclick="location.href='/api/debug/list-users'">List All Users</button>
-                    <button onclick="location.href='/api/debug/routes'">List All Routes</button>
                 </div>
             </body>
             </html>
@@ -743,12 +669,8 @@ if (DEBUG) {
     });
 }
 
-// ============================================
-// CATCH-ALL ROUTE (SPA support) - MOVED TO END
-// ============================================
 app.use((req, res, next) => {
     if (req.path.startsWith('/api')) {
-        console.log('❌ API route not found:', req.path);
         return res.status(404).json({ error: 'API endpoint not found', path: req.path });
     }
     res.sendFile(path.join(__dirname, 'front-end', 'index.html'), (err) => {
@@ -759,9 +681,6 @@ app.use((req, res, next) => {
     });
 });
 
-// ============================================
-// ERROR HANDLER
-// ============================================
 app.use((err, req, res, next) => {
     console.error('Error:', err);
     if (err instanceof multer.MulterError) {
@@ -771,28 +690,19 @@ app.use((err, req, res, next) => {
 });
 
 // ============================================
-// START SERVER
+// START SERVER - FIXED FOR RENDER (No '0.0.0.0')
 // ============================================
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
     console.log('========================================');
     console.log('🚀 SERVER STARTED WITH GMAIL OTP');
     console.log('========================================');
-    console.log(`Local:    http://localhost:${PORT}`);
-    console.log(`Network:  http://${LOCAL_IP}:${PORT}`);
-    console.log(`Debug:    http://${LOCAL_IP}:${PORT}/admin`);
+    console.log(`Port:     ${PORT}`);
     console.log('========================================');
     console.log('📧 Email OTP endpoints:');
-    console.log(`   POST http://${LOCAL_IP}:${PORT}/api/auth/send-otp`);
-    console.log(`   POST http://${LOCAL_IP}:${PORT}/api/auth/verify-otp`);
+    console.log(`   POST /api/auth/send-otp`);
+    console.log(`   POST /api/auth/verify-otp`);
     console.log('========================================');
     console.log('🧪 TEST endpoint (no auth):');
-    console.log(`   POST http://${LOCAL_IP}:${PORT}/api/news-test`);
+    console.log(`   POST /api/news-test`);
     console.log('========================================');
-    console.log('🔍 DEBUG endpoints:');
-    console.log(`   GET  http://${LOCAL_IP}:${PORT}/api/debug/routes`);
-    console.log('========================================');
-    app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
 });
