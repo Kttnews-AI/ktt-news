@@ -1,9 +1,12 @@
 // ============================================
-// KTT NEWS APP - FULLY WORKING VERSION
+// KTT NEWS APP - MOBILE NETWORK COMPATIBLE VERSION
 // ============================================
 
-// FIX: Removed trailing space from API_BASE
-const API_BASE = "";
+// ✅ FIX: Use your actual Render backend URL
+// IMPORTANT: Replace 'your-service-name' with your actual Render service name
+// Example: "https://ktt-news-api.onrender.com"
+const API_BASE = "https://ktt-news.onrender.com";
+
 const API_ARTICLES = `${API_BASE}/api/articles`;
 const API_NEWS = `${API_BASE}/api/news`;
 const API_SAVE_EMAIL = `${API_BASE}/api/save-email`;
@@ -305,13 +308,11 @@ function clearAll() {
 /* ============================================
    THEME
 ============================================ */
-// FIX: Accept checked parameter instead of using global event
 function toggleDark(checked) {
     console.log("toggleDark called with:", checked);
     
     const checkbox = document.getElementById('darkToggle');
     
-    // If called without parameter, toggle based on current state
     let shouldBeDark;
     if (typeof checked === 'boolean') {
         shouldBeDark = checked;
@@ -327,7 +328,6 @@ function toggleDark(checked) {
         localStorage.setItem('theme', 'light');
     }
     
-    // Sync checkbox
     if (checkbox) checkbox.checked = shouldBeDark;
     
     console.log("Dark mode:", shouldBeDark ? "ON" : "OFF");
@@ -359,6 +359,27 @@ function highlightSizeButton(size) {
 }
 
 /* ============================================
+   FETCH WITH TIMEOUT (For Mobile Networks)
+============================================ */
+// ✅ FIX: Added timeout wrapper for slow mobile networks
+async function fetchWithTimeout(url, options = {}, timeout = 15000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+    } catch (error) {
+        clearTimeout(id);
+        throw error;
+    }
+}
+
+/* ============================================
    OTP LOGIN
 ============================================ */
 let otpTimer = null;
@@ -380,11 +401,15 @@ function sendOTP() {
     
     localStorage.setItem("temp_email", email);
     
-    fetch(`${API_BASE}/api/auth/send-otp`, {
+    // ✅ FIX: Added Accept header and timeout
+    fetchWithTimeout(`${API_BASE}/api/auth/send-otp`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
         body: JSON.stringify({ email: email })
-    })
+    }, 20000) // 20s timeout for OTP send
     .then(response => response.json())
     .then(data => {
         btn.classList.remove("loading");
@@ -400,7 +425,8 @@ function sendOTP() {
     .catch(error => {
         btn.classList.remove("loading");
         btn.disabled = false;
-        showToast("Network error");
+        console.error("Send OTP error:", error);
+        showToast("Network error. Check connection.");
     });
 }
 
@@ -508,11 +534,15 @@ function verifyOTP() {
     btn.classList.add("loading");
     btn.disabled = true;
     
-    fetch(`${API_BASE}/api/auth/verify-otp`, {
+    // ✅ FIX: Added Accept header and timeout
+    fetchWithTimeout(`${API_BASE}/api/auth/verify-otp`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
         body: JSON.stringify({ email: email, otp: enteredOTP })
-    })
+    }, 20000)
     .then(response => response.json())
     .then(data => {
         btn.classList.remove("loading");
@@ -551,7 +581,8 @@ function verifyOTP() {
     .catch(error => {
         btn.classList.remove("loading");
         btn.disabled = false;
-        showToast("Network error");
+        console.error("Verify OTP error:", error);
+        showToast("Network error. Check connection.");
     });
 }
 
@@ -572,7 +603,7 @@ function resetLoginForm() {
 }
 
 /* ============================================
-   NEWS LOADING - FIXED IMAGE URLS
+   NEWS LOADING - FIXED FOR MOBILE
 ============================================ */
 async function loadNews() {
     const container = document.getElementById("newsFeed");
@@ -581,7 +612,17 @@ async function loadNews() {
     container.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading...</p></div>`;
     
     try {
-        const response = await fetch(API_ARTICLES);
+        // ✅ FIX: Using fetchWithTimeout for mobile networks
+        const response = await fetchWithTimeout(API_ARTICLES, {
+            headers: {
+                'Accept': 'application/json'
+            }
+        }, 20000); // 20 second timeout for slow mobile
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
         const newsArray = await response.json();
         
         localStorage.setItem("news_backup", JSON.stringify(newsArray));
@@ -589,20 +630,33 @@ async function loadNews() {
         renderNews(newsArray);
         updateSavedFolder();
     } catch(error) {
+        console.error("Load news error:", error);
         const backup = localStorage.getItem("news_backup");
         if(backup) {
             renderNews(JSON.parse(backup));
-            showToast("Offline mode");
+            showToast("Offline mode - showing cached news");
+        } else {
+            container.innerHTML = `
+                <div class="empty">
+                    <span>📡</span>
+                    <h3>Connection Error</h3>
+                    <p>Please check your internet connection and try again.</p>
+                    <button onclick="refreshFeed()" class="btn-primary" style="margin-top: 15px;">Retry</button>
+                </div>
+            `;
         }
     }
 }
 
-// FIX: Improved image URL construction
+// ✅ FIX: Improved image URL construction with HTTPS enforcement
 function getImageUrl(imagePath) {
     if (!imagePath) return null;
     
-    // If already full URL, return as-is
-    if (imagePath.startsWith('http')) {
+    // If already full URL, ensure HTTPS
+    if (imagePath.startsWith('http://')) {
+        return imagePath.replace('http://', 'https://');
+    }
+    if (imagePath.startsWith('https://')) {
         return imagePath;
     }
     
@@ -620,7 +674,7 @@ function renderNews(newsArray) {
     if(!container) return;
     
     if(!newsArray || newsArray.length === 0) {
-        container.innerHTML = `<div class="empty"><span>📭</span><h3>No news</h3></div>`;
+        container.innerHTML = `<div class="empty"><span>📭</span><h3>No news available</h3></div>`;
         return;
     }
     
@@ -634,7 +688,6 @@ function renderNews(newsArray) {
         const isSaved = getSavedArticles().some(s => String(s._id || s.id) === id);
         const savedIcon = isSaved ? '🔖 ' : '';
         
-        // FIX: Use improved image URL function
         const imageUrl = getImageUrl(item.image);
         
         html += `
@@ -675,7 +728,7 @@ function loadSavedArticles() {
     
     const saved = getSavedArticles();
     if(saved.length === 0) {
-        container.innerHTML = `<div class="empty"><div>📁</div><h3>No saved</h3></div>`;
+        container.innerHTML = `<div class="empty"><div>📁</div><h3>No saved articles</h3></div>`;
         return;
     }
     
@@ -701,23 +754,33 @@ function loadSavedArticles() {
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
     
-    fetch(`${API_ARTICLES}/${cleanId}`)
-        .then(response => response.json())
-        .then(article => {
-            currentArticle = article;
-            displayArticleDetail();
-        })
-        .catch(() => {
-            const backup = JSON.parse(localStorage.getItem("news_backup") || "[]");
-            currentArticle = backup.find(item => String(item._id || item.id) === cleanId);
-            
-            if(!currentArticle) {
-                const saved = getSavedArticles();
-                currentArticle = saved.find(item => String(item._id || item.id) === cleanId);
-            }
-            
-            if(currentArticle) displayArticleDetail();
-        });
+    // ✅ FIX: Using fetchWithTimeout
+    fetchWithTimeout(`${API_ARTICLES}/${cleanId}`, {
+        headers: {
+            'Accept': 'application/json'
+        }
+    }, 15000)
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+    })
+    .then(article => {
+        currentArticle = article;
+        displayArticleDetail();
+    })
+    .catch(() => {
+        // Fallback to cached data
+        const backup = JSON.parse(localStorage.getItem("news_backup") || "[]");
+        currentArticle = backup.find(item => String(item._id || item.id) === cleanId);
+        
+        if(!currentArticle) {
+            const saved = getSavedArticles();
+            currentArticle = saved.find(item => String(item._id || item.id) === cleanId);
+        }
+        
+        if(currentArticle) displayArticleDetail();
+        else showToast("Article not found");
+    });
 }
 
 function displayArticleDetail() {
@@ -735,7 +798,6 @@ function displayArticleDetail() {
     
     const date = currentArticle.createdAt ? new Date(currentArticle.createdAt).toLocaleString() : "Recent";
     
-    // FIX: Use improved image URL function
     const imageUrl = getImageUrl(currentArticle.image);
     
     articleBody.innerHTML = `
@@ -812,4 +874,4 @@ function showToast(msg) {
     toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-console.log("✅ App loaded - all functions exported");
+console.log("✅ App loaded - Mobile network compatible");
