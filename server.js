@@ -1,7 +1,7 @@
 // ============================================
 // KTT NEWS SERVER - FIXED FOR RENDER.COM
 // ============================================
-
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -47,7 +47,7 @@ console.log('📡 Local IP detected:', LOCAL_IP);
 // ============================================
 // MONGODB CONNECTION
 // ============================================
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ktt_news';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 console.log('🔌 Connecting to MongoDB...');
 
