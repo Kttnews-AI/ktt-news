@@ -73,13 +73,21 @@ mongoose.connection.on('disconnected', () => {
 // ============================================
 // EMAIL SETUP (Gmail SMTP)
 // ============================================
+// ============================================
+// EMAIL SETUP (RENDER SAFE SMTP)
+// ============================================
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: {
-        user: process.env.GMAIL_USER || 'kttknowthetruth@gmail.com',
-        pass: process.env.GMAIL_PASS || 'eaqm vfon ukmp kcqt'
-    }
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS
+    },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000
 });
 
 const otpStore = new Map();
@@ -90,46 +98,34 @@ function generateOTP() {
 
 async function sendOTPEmail(toEmail, otp) {
     const mailOptions = {
-        from: '"KTT News" <kttknowthetruth@gmail.com>',
+        from: `"KTT News" <${process.env.GMAIL_USER}>`,
         to: toEmail,
         subject: 'Your KTT News Login Code',
         html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9;">
-                <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                    <h2 style="color: #007aff; margin-top: 0;">🔐 KTT News Verification</h2>
-                    <p style="font-size: 16px; color: #333;">Hello,</p>
-                    <p style="font-size: 16px; color: #333;">Your one-time login code is:</p>
-                    <div style="background: linear-gradient(135deg, #007aff, #00c6ff); padding: 25px; text-align: center; font-size: 36px; 
-                                font-weight: bold; letter-spacing: 8px; border-radius: 8px; margin: 25px 0; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                        ${otp}
-                    </div>
-                    <p style="color: #666; font-size: 14px;">This code will expire in <strong>5 minutes</strong>.</p>
-                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-                    <p style="color: #999; font-size: 12px; margin-bottom: 0;">If you didn't request this code, please ignore this email.<br>Do not share this code with anyone.</p>
-                </div>
-            </div>
-        `
+        <div style="font-family: Arial; padding:20px">
+            <h2>KTT News Verification</h2>
+            <p>Your OTP:</p>
+            <h1 style="letter-spacing:6px">${otp}</h1>
+            <p>Expires in 5 minutes</p>
+        </div>`
     };
-    
+
     try {
-        await transporter.sendMail(mailOptions);
-        console.log(`✅ OTP sent to ${toEmail}`);
+        await Promise.race([
+            transporter.sendMail(mailOptions),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("SMTP Timeout")), 15000)
+            )
+        ]);
+
+        console.log("✅ OTP sent:", toEmail);
         return true;
+
     } catch (error) {
-        console.error('❌ Email send failed:', error);
+        console.error("❌ OTP EMAIL ERROR:", error.message);
         return false;
     }
 }
-
-setInterval(() => {
-    const now = Date.now();
-    for (const [email, data] of otpStore.entries()) {
-        if (data.expiresAt < now) {
-            otpStore.delete(email);
-            console.log(`🗑️ Expired OTP removed for ${email}`);
-        }
-    }
-}, 5 * 60 * 1000);
 
 // ============================================
 // SCHEMAS
