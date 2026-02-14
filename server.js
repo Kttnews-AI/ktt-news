@@ -74,17 +74,29 @@ mongoose.connection.on('disconnected', () => {
 // EMAIL SETUP (Gmail SMTP)
 // ============================================
 // ============================================
-// EMAIL SETUP (RENDER SAFE SMTP)
+// GMAIL OTP MAILER
 // ============================================
-const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+const nodemailer = require("nodemailer");
 
+// create transporter (Gmail SMTP)
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS
+    }
+});
+
+// send otp email
 async function sendOTPEmail(toEmail, otp) {
     try {
-        await resend.emails.send({
-            from: 'KTT News <onboarding@resend.dev>',
+        await transporter.sendMail({
+            from: `"KTT News" <${process.env.GMAIL_USER}>`,
             to: toEmail,
-            subject: 'Your KTT News Login Code',
+            subject: "Your KTT News Login Code",
             html: `
                 <div style="font-family:Arial;padding:20px">
                     <h2>KTT News Verification</h2>
@@ -95,14 +107,15 @@ async function sendOTPEmail(toEmail, otp) {
             `
         });
 
-        console.log("✅ OTP sent:", toEmail);
+        console.log("✅ OTP SENT TO:", toEmail);
         return true;
 
     } catch (error) {
-        console.error("❌ EMAIL ERROR:", error);
+        console.error("❌ EMAIL ERROR:", error.message);
         return false;
     }
 }
+
 
 // ============================================
 // SCHEMAS
