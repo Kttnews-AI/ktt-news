@@ -1,4 +1,14 @@
  // ============================================
+// KEEP SERVER AWAKE (RENDER SLEEP FIX)
+// ============================================
+const SERVER_URL = window.location.origin;
+
+setInterval(() => {
+    fetch(`${SERVER_URL}/api/health`).catch(() => {});
+}, 240000); // every 4 minutes
+
+ 
+ // ============================================
 // KTT NEWS APP - FULLY WORKING VERSION
 // ============================================
 
