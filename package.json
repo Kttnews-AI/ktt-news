@@ -21,8 +21,7 @@
     "mongodb": "^7.1.0",
     "mongoose": "^9.1.5",
     "multer": "^2.0.2",
-    "nodemailer": "^8.0.0",
-    "resend": "^6.9.2",
+    "nodemailer": "^8.0.1",
     "sqlite3": "^5.1.7"
   }
 }
