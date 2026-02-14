@@ -75,31 +75,22 @@ mongoose.connection.on('disconnected', () => {
 // EMAIL SETUP (Gmail SMTP)
 // ============================================
 // ============================================
-// GMAIL OTP MAILER
+// BREVO OTP MAILER (PRODUCTION SAFE)
 // ============================================
-const nodemailer = require("nodemailer");
+const SibApiV3Sdk = require('sib-api-v3-sdk');
 
-// create transporter (Gmail SMTP)
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS
-    }
-});
+const client = SibApiV3Sdk.ApiClient.instance;
+client.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
 
-// send otp email
+const emailApi = new SibApiV3Sdk.TransactionalEmailsApi();
+
 async function sendOTPEmail(toEmail, otp) {
     try {
-
-        const mailPromise = transporter.sendMail({
-            from: `"KTT News" <${process.env.GMAIL_USER}>`,
-            to: toEmail,
+        await emailApi.sendTransacEmail({
+            sender: { email: "kttknowthetruth@gmail.com", name: "KTT News" },
+            to: [{ email: toEmail }],
             subject: "Your KTT News Login Code",
-            html: `
+            htmlContent: `
                 <div style="font-family:Arial;padding:20px">
                     <h2>KTT News Verification</h2>
                     <p>Your OTP:</p>
@@ -109,19 +100,12 @@ async function sendOTPEmail(toEmail, otp) {
             `
         });
 
-        // ⏱ 10 second timeout protection
-        const timeout = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("SMTP timeout")), 10000)
-        );
-
-        await Promise.race([mailPromise, timeout]);
-
         console.log("✅ OTP SENT:", toEmail);
         return true;
 
     } catch (error) {
-        console.log("⚠️ EMAIL FAILED — but OTP generated locally:", otp);
-        return true; // important → allow login even if mail blocked
+        console.error("❌ BREVO ERROR:", error.response?.text || error.message);
+        return false;
     }
 }
 
