@@ -268,39 +268,43 @@ function updateUserDisplay() {
     }
 }
 
-function logout() {
-    if (!currentUser || !currentUser.loggedIn) {
-        showToast("Not logged in");
-        return;
-    }
-    
-    if (confirm("Are you sure you want to logout?")) {
-        localStorage.removeItem("ktt_logged");
-        localStorage.removeItem("user_email");
-        localStorage.removeItem("user_name");
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("temp_email");
-        
-        currentUser = null;
-        updateUserDisplay();
-        showToast("Logged out successfully");
-        
-        setTimeout(() => {
-            showScreen("about");
-        }, 500);
-    }
+function handleLogout(e){
+    e.preventDefault();
+
+    if(!confirm("Logout?")) return;
+
+    // clear session
+    localStorage.removeItem("ktt_logged");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_name");
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("temp_email");
+
+    currentUser = null;
+
+    showToast("Logged out");
+
+    // 🔥 VERY IMPORTANT (works in APK)
+    setTimeout(()=>{
+        window.location.href = "/";
+    }, 500);
 }
 
-function clearAll() {
-    if (confirm("⚠️ This will delete ALL data. Continue?")) {
-        localStorage.clear();
-        currentUser = null;
-        currentArticle = null;
-        updateUserDisplay();
-        showToast("All data cleared");
-        setTimeout(() => location.reload(), 1500);
-    }
+function handleClearAll(e){
+    e.preventDefault();
+
+    if(!confirm("Delete all data?")) return;
+
+    localStorage.clear();
+
+    showToast("All data cleared");
+
+    // FULL RELOAD REQUIRED IN WEBVIEW
+    setTimeout(()=>{
+        window.location.href = "/";
+    }, 700);
 }
+
 
 /* ============================================
    THEME
@@ -581,6 +585,8 @@ function resetLoginForm() {
     
     if (otpTimer) clearInterval(otpTimer);
 }
+
+
 
 /* ============================================
    NEWS LOADING - FIXED IMAGE URLS
