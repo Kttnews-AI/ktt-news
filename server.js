@@ -11,6 +11,9 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const os = require('os');
+const sharp = require('sharp');
+const fs = require('fs');
+const path = require('path');
 
 
 const app = express();
@@ -532,48 +535,63 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/news-test', upload.single('image'), async (req, res) => {
-    console.log('📸 News Test Upload:', req.body);
-    console.log('📁 File:', req.file);
-    
     const { title, content } = req.body;
-    if (!title || !content) {
-        return res.status(400).json({ error: 'Title and content required' });
-    }
+    if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
 
-    const imagePath = req.file ? '/uploads/' + req.file.filename : (req.body.image || '');
-    
+    let imagePath = '';
+
     try {
-        const article = new Article({
+        if (req.file) {
+            const compressedName = `compressed-${Date.now()}.jpg`;
+            const compressedPath = path.join('uploads', compressedName);
+
+            await sharp(req.file.path)
+                .resize({ width: 900 })
+                .jpeg({ quality: 60 })
+                .toFile(compressedPath);
+
+            fs.unlinkSync(req.file.path);
+
+            imagePath = `/uploads/${compressedName}`;
+        }
+
+        const article = await Article.create({
             title,
             content,
             image: imagePath,
-            author_id: null,
-            author_name: 'Test User (No Auth)'
+            author_name: 'Test User'
         });
-        await article.save();
-        
-        res.json({ 
-            success: true, 
-            articleId: article._id, 
-            message: 'Article saved via /api/news-test (NO AUTH)',
-            fileInfo: req.file ? {
-                originalname: req.file.originalname,
-                filename: req.file.filename,
-                size: req.file.size
-            } : null
-        });
+
+        res.json({ success: true, articleId: article._id });
+
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.log(err);
+        res.status(500).json({ error: 'Upload failed' });
     }
 });
+
 
 app.post('/api/articles', authMiddleware, upload.single('image'), async (req, res) => {
     const { title, content } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
 
-    const imagePath = req.file ? '/uploads/' + req.file.filename : (req.body.image || '');
-    
+    let imagePath = '';
+
     try {
+        if (req.file) {
+            const compressedName = `compressed-${Date.now()}.jpg`;
+            const compressedPath = path.join('uploads', compressedName);
+
+            await sharp(req.file.path)
+                .resize({ width: 900 })
+                .jpeg({ quality: 60 })
+                .toFile(compressedPath);
+
+            fs.unlinkSync(req.file.path);
+
+            imagePath = `/uploads/${compressedName}`;
+        }
+
         const article = new Article({
             title,
             content,
@@ -581,21 +599,38 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
             author_id: req.userId,
             author_name: req.userName || 'Anonymous'
         });
+
         await article.save();
-        
-        res.json({ success: true, articleId: article._id, message: 'Article saved' });
+        res.json({ success: true });
+
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'Upload failed' });
     }
 });
+
 
 app.post('/api/news', authMiddleware, upload.single('image'), async (req, res) => {
     const { title, content } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
 
-    const imagePath = req.file ? '/uploads/' + req.file.filename : (req.body.image || '');
-    
+    let imagePath = '';
+
     try {
+        if (req.file) {
+            const compressedName = `compressed-${Date.now()}.jpg`;
+            const compressedPath = path.join('uploads', compressedName);
+
+            await sharp(req.file.path)
+                .resize({ width: 900 })
+                .jpeg({ quality: 60 })
+                .toFile(compressedPath);
+
+            fs.unlinkSync(req.file.path);
+
+            imagePath = `/uploads/${compressedName}`;
+        }
+
         const article = new Article({
             title,
             content,
@@ -603,13 +638,16 @@ app.post('/api/news', authMiddleware, upload.single('image'), async (req, res) =
             author_id: req.userId,
             author_name: req.userName || 'Anonymous'
         });
+
         await article.save();
-        
-        res.json({ success: true, articleId: article._id, message: 'Article saved via /api/news' });
+        res.json({ success: true });
+
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: 'Upload failed' });
     }
 });
+
 
 app.get('/api/bookmarks', authMiddleware, async (req, res) => {
     try {
