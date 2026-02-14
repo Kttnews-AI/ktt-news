@@ -1,19 +1,9 @@
  // ============================================
-// KEEP SERVER AWAKE (RENDER SLEEP FIX)
-// ============================================
-const SERVER_URL = window.location.origin;
-
-setInterval(() => {
-    fetch(`${SERVER_URL}/api/health`).catch(() => {});
-}, 240000); // every 4 minutes
-
- 
- // ============================================
 // KTT NEWS APP - FULLY WORKING VERSION
 // ============================================
 
 // FIX: Removed trailing space from API_BASE
-const API_BASE = window.location.origin;
+const API_BASE = "http://192.168.29.116:3000";
 const API_ARTICLES = `${API_BASE}/api/articles`;
 const API_NEWS = `${API_BASE}/api/news`;
 const API_SAVE_EMAIL = `${API_BASE}/api/save-email`;
@@ -373,23 +363,29 @@ function highlightSizeButton(size) {
 ============================================ */
 let otpTimer = null;
 let otpCountdown = 60;
+let otpRequestInProgress = false;
+
 
 function sendOTP() {
+    if (otpRequestInProgress) return; // 🚫 BLOCK DUPLICATE
+
     const emailInput = document.getElementById("loginEmail");
     const email = emailInput.value.trim();
     const btn = document.getElementById("sendOtpBtn");
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email)) {
         showToast("Please enter a valid email");
         return;
     }
-    
+
+    otpRequestInProgress = true;
     btn.classList.add("loading");
     btn.disabled = true;
-    
+    btn.innerText = "Sending...";
+
     localStorage.setItem("temp_email", email);
-    
+
     fetch(`${API_BASE}/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -397,9 +393,11 @@ function sendOTP() {
     })
     .then(response => response.json())
     .then(data => {
+        otpRequestInProgress = false;
         btn.classList.remove("loading");
         btn.disabled = false;
-        
+        btn.innerText = "Send OTP";
+
         if (data.success) {
             showOTPStep(email);
             showToast("📧 OTP sent!");
@@ -408,11 +406,14 @@ function sendOTP() {
         }
     })
     .catch(error => {
+        otpRequestInProgress = false;
         btn.classList.remove("loading");
         btn.disabled = false;
+        btn.innerText = "Send OTP";
         showToast("Network error");
     });
 }
+
 
 function showOTPStep(email) {
     document.getElementById("emailStep")?.classList.add("hidden");
