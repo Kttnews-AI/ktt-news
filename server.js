@@ -12,8 +12,6 @@ const fs = require('fs');
 const multer = require('multer');
 const os = require('os');
 const sharp = require('sharp');
-const fs = require('fs');
-const path = require('path');
 
 
 const app = express();
