@@ -82,7 +82,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 async function sendOTPEmail(toEmail, otp) {
     try {
         await resend.emails.send({
-            from: 'KTT News <kttknowthetruth@gmail.com>',
+            from: 'KTT News <onboarding@resend.dev>',
             to: toEmail,
             subject: 'Your KTT News Login Code',
             html: `
