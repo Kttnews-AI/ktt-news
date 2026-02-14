@@ -1461,3 +1461,21 @@ body.dark #saved .page-header {
     background: #1c1c1e !important;
     color: #ffffff !important;
 }
+button {
+    position: relative;
+    z-index: 9999;
+    pointer-events: auto;
+}
+
+.pref-section {
+    position: relative;
+    z-index: 9999;
+}
+
+.screen {
+    pointer-events: auto;
+}
+
+.bottom-nav {
+    z-index: 1;
+}
