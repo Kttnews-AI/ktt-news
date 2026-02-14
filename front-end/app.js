@@ -824,3 +824,28 @@ function showToast(msg) {
 }
 
 console.log("✅ App loaded - all functions exported");
+function attachLogoutListener() {
+    const btn = document.getElementById("logoutButton");
+    if (!btn) return;
+
+    btn.onclick = null; // prevent duplicate binding
+
+    btn.addEventListener("click", function () {
+
+        if (!confirm("Are you sure you want to logout?")) return;
+
+        localStorage.removeItem("ktt_logged");
+        localStorage.removeItem("user_email");
+        localStorage.removeItem("user_name");
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("temp_email");
+
+        currentUser = null;
+
+        showToast("Logged out successfully");
+
+        setTimeout(() => {
+            showScreen("about");
+        }, 500);
+    });
+}

@@ -303,27 +303,15 @@
                     </div>
                 </div>
             </div>
-            <!-- FIXED: Logout button with Android-compatible onclick -->
-            <button class="btn-logout" id="logoutButton" 
-                ontouchstart="this.style.opacity='0.7'" 
-                ontouchend="this.style.opacity='1'; if(confirm('Logout?')){localStorage.removeItem('ktt_logged');localStorage.removeItem('user_email');localStorage.removeItem('user_name');localStorage.removeItem('auth_token');location.reload();}" 
-                onclick="if(confirm('Logout?')){localStorage.removeItem('ktt_logged');localStorage.removeItem('user_email');localStorage.removeItem('user_name');localStorage.removeItem('auth_token');location.reload();}" 
-                style="display:none; width:100%; padding:15px; margin-top:10px; background:#ff3b30; color:white; border:none; border-radius:12px; font-size:16px; font-weight:600; cursor:pointer; -webkit-tap-highlight-color:rgba(0,0,0,0.1); touch-action:manipulation; user-select:none; -webkit-user-select:none;">
-                Logout
-            </button>
-        </section>
+            <button class="btn-logout" id="logoutBtn">
+    Logout
+</button>
 
-        <section class="pref-section">
-            <h3>Data Management</h3>
-            <!-- FIXED: Delete All Data with Android touch support -->
-            <button class="btn-danger" 
-                ontouchstart="this.style.opacity='0.7'" 
-                ontouchend="this.style.opacity='1'; if(confirm('Delete all data?')){localStorage.clear();location.reload();}" 
-                onclick="if(confirm('Delete all data?')){localStorage.clear();location.reload();}" 
-                style="width:100%; padding:15px; background:#ff3b30; color:white; border:none; border-radius:12px; font-size:16px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; -webkit-tap-highlight-color:rgba(0,0,0,0.1); touch-action:manipulation; user-select:none; -webkit-user-select:none;">
-                <span>🗑</span>
-                <span>Delete All Data</span>
-            </button>
+<button class="btn-danger" id="deleteBtn">
+    <span>🗑</span>
+    <span>Delete All Data</span>
+</button>
+
         </section>
     </main>
     
