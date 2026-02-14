@@ -3,7 +3,7 @@
 // ============================================
 
 // FIX: Removed trailing space from API_BASE
-const API_BASE = "http://192.168.29.116:3000";
+const API_BASE = window.location.origin;
 const API_ARTICLES = `${API_BASE}/api/articles`;
 const API_NEWS = `${API_BASE}/api/news`;
 const API_SAVE_EMAIL = `${API_BASE}/api/save-email`;
