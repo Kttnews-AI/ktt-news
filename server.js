@@ -166,6 +166,10 @@ const UserEmail = mongoose.model('UserEmail', userEmailSchema);
 // ============================================
 // MIDDLEWARE SETUP
 // ============================================
+// ============================================
+// MIDDLEWARE SETUP (FIXED FOR FILE UPLOAD)
+// ============================================
+
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -183,8 +187,23 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+/*
+IMPORTANT FIX:
+Do NOT parse multipart/form-data here
+Otherwise multer cannot read form-data
+*/
+
+app.use((req, res, next) => {
+    const type = req.headers['content-type'] || '';
+    if (type.includes('multipart/form-data')) return next();
+    express.json({ limit: '10mb' })(req, res, next);
+});
+
+app.use((req, res, next) => {
+    const type = req.headers['content-type'] || '';
+    if (type.includes('multipart/form-data')) return next();
+    express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+});
 
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} | ${req.method} ${req.path}`);
@@ -198,6 +217,7 @@ if (!fs.existsSync('uploads')) {
 }
 
 app.use(express.static(path.join(__dirname, 'front-end')));
+
 
 // ============================================
 // MULTER SETUP
