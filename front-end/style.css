@@ -1479,3 +1479,29 @@ button {
 .bottom-nav {
     z-index: 1;
 }
+/* --- ANDROID WEBVIEW TOUCH FIX --- */
+
+button,
+.btn-logout,
+.btn-danger {
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    z-index: 9999;
+    position: relative;
+}
+
+.pref-section {
+    position: relative;
+    z-index: 9999;
+}
+
+.screen {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+}
+
+/* THIS IS THE IMPORTANT ONE */
+body, html {
+    height: auto !important;
+    overflow-x: hidden !important;
+}
