@@ -202,6 +202,8 @@ function showScreen(screenId) {
     }
     
     window.scrollTo(0, 0);
+    setTimeout(bindMobileButtons,200);
+
 }
 
 function goToLogin() {
@@ -268,10 +270,8 @@ function updateUserDisplay() {
     }
 }
 
-function handleLogout(e){
-    e.preventDefault();
+function doLogout(){
 
-    // no confirm in webview
     localStorage.removeItem("ktt_logged");
     localStorage.removeItem("user_email");
     localStorage.removeItem("user_name");
@@ -280,25 +280,25 @@ function handleLogout(e){
 
     currentUser = null;
 
-    showToast("Logged out successfully");
+    showToast("Logged out");
 
     setTimeout(()=>{
-        window.location.reload();
-    }, 600);
+        location.href = location.origin;
+    },500);
 }
 
 
-function handleClearAll(e){
-    e.preventDefault();
+function doClearAll(){
 
     localStorage.clear();
 
-    showToast("All data deleted");
+    showToast("All data cleared");
 
     setTimeout(()=>{
-        window.location.reload();
-    }, 700);
+        location.href = location.origin;
+    },600);
 }
+
 
 
 
@@ -850,4 +850,20 @@ function attachLogoutListener() {
             showScreen("about");
         }, 500);
     });
+}
+function bindMobileButtons(){
+
+    const logoutBtn = document.getElementById("logoutButton");
+    if(logoutBtn){
+        logoutBtn.onpointerup = ()=>{
+            doLogout();
+        };
+    }
+
+    const deleteBtn = document.getElementById("deleteDataButton");
+    if(deleteBtn){
+        deleteBtn.onpointerup = ()=>{
+            doClearAll();
+        };
+    }
 }
