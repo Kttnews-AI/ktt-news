@@ -271,9 +271,7 @@ function updateUserDisplay() {
 function handleLogout(e){
     e.preventDefault();
 
-    if(!confirm("Logout?")) return;
-
-    // clear session
+    // no confirm in webview
     localStorage.removeItem("ktt_logged");
     localStorage.removeItem("user_email");
     localStorage.removeItem("user_name");
@@ -282,28 +280,26 @@ function handleLogout(e){
 
     currentUser = null;
 
-    showToast("Logged out");
+    showToast("Logged out successfully");
 
-    // 🔥 VERY IMPORTANT (works in APK)
     setTimeout(()=>{
-        window.location.href = "/";
-    }, 500);
+        window.location.reload();
+    }, 600);
 }
+
 
 function handleClearAll(e){
     e.preventDefault();
 
-    if(!confirm("Delete all data?")) return;
-
     localStorage.clear();
 
-    showToast("All data cleared");
+    showToast("All data deleted");
 
-    // FULL RELOAD REQUIRED IN WEBVIEW
     setTimeout(()=>{
-        window.location.href = "/";
+        window.location.reload();
     }, 700);
 }
+
 
 
 /* ============================================
