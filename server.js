@@ -104,7 +104,6 @@ async function sendOTPEmail(toEmail, otp) {
     }
 }
 
-
 // ============================================
 // SCHEMAS
 // ============================================
@@ -281,6 +280,29 @@ app.get('/api/articles/:id', async (req, res) => {
 });
 
 // ============================================
+// OTP MEMORY STORAGE
+// ============================================
+
+// temporary storage (RAM)
+const otpStore = new Map();
+
+// generate 6 digit otp
+function generateOTP() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// cleanup expired OTP every 5 minutes
+setInterval(() => {
+    const now = Date.now();
+    for (const [email, data] of otpStore.entries()) {
+        if (data.expiresAt < now) {
+            otpStore.delete(email);
+            console.log("Expired OTP removed:", email);
+        }
+    }
+}, 5 * 60 * 1000);
+
+// ============================================
 // OTP AUTH ENDPOINTS
 // ============================================
 
@@ -432,7 +454,7 @@ app.post('/api/save-email', async (req, res) => {
         
         console.log('✅ User saved:', user._id);
         console.log('========== END REQUEST ==========\n');
-        
+
         res.json({ 
             success: true, 
             message: 'Email saved',
