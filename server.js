@@ -11,7 +11,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const os = require('os');
-const nodemailer = require('nodemailer');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -76,56 +76,34 @@ mongoose.connection.on('disconnected', () => {
 // ============================================
 // EMAIL SETUP (RENDER SAFE SMTP)
 // ============================================
-
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: true,
-    auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS
-    },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000
-});
-
-const otpStore = new Map();
-
-function generateOTP() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-}
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendOTPEmail(toEmail, otp) {
-    const mailOptions = {
-        from: `"KTT News" <${process.env.GMAIL_USER}>`,
-        to: toEmail,
-        subject: 'Your KTT News Login Code',
-        html: `
-        <div style="font-family: Arial; padding:20px">
-            <h2>KTT News Verification</h2>
-            <p>Your OTP:</p>
-            <h1 style="letter-spacing:6px">${otp}</h1>
-            <p>Expires in 5 minutes</p>
-        </div>`
-    };
-
     try {
-        await Promise.race([
-            transporter.sendMail(mailOptions),
-            new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("SMTP Timeout")), 15000)
-            )
-        ]);
+        await resend.emails.send({
+            from: 'KTT News <onboarding@resend.dev>',
+            to: toEmail,
+            subject: 'Your KTT News Login Code',
+            html: `
+                <div style="font-family:Arial;padding:20px">
+                    <h2>KTT News Verification</h2>
+                    <p>Your OTP:</p>
+                    <h1 style="letter-spacing:6px">${otp}</h1>
+                    <p>Expires in 5 minutes</p>
+                </div>
+            `
+        });
 
         console.log("✅ OTP sent:", toEmail);
         return true;
 
     } catch (error) {
-        console.error("❌ OTP EMAIL ERROR:", error.message);
+        console.error("❌ EMAIL ERROR:", error);
         return false;
     }
 }
+
 
 // ============================================
 // SCHEMAS
