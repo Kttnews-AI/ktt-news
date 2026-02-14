@@ -1,3 +1,4 @@
+
 // ============================================
 // KTT NEWS SERVER - FIXED FOR RENDER.COM
 // ============================================
@@ -8,15 +9,17 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
-const fs = require('fs');
-const multer = require('multer');
+const multer = require('multer');   // MUST BE BEFORE CLOUDINARY
 const os = require('os');
-const sharp = require('sharp');
 
+// cloudinary
+const { v2: cloudinary } = require('cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
+
 
 // ============================================
 // DEBUG MODE
@@ -50,6 +53,7 @@ console.log('📡 Local IP detected:', LOCAL_IP);
 // ============================================
 const MONGODB_URI = process.env.MONGODB_URI;
 
+
 console.log('🔌 Connecting to MongoDB...');
 
 mongoose.connect(MONGODB_URI)
@@ -70,6 +74,24 @@ mongoose.connection.on('error', err => {
 mongoose.connection.on('disconnected', () => {
     console.log('⚠️ MongoDB Disconnected');
 });
+/* ========= CLOUDINARY (ONLY ONE CONFIG) ========= */
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const storage = new CloudinaryStorage({
+    cloudinary,
+    params: async (req, file) => ({
+        folder: "ktt-news",
+        format: "jpg",
+        transformation: [{ width: 1000, crop: "limit", quality: "auto" }]
+    })
+});
+
+const upload = multer({ storage });
 
 // ============================================
 // EMAIL SETUP (Gmail SMTP)
@@ -193,39 +215,17 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use('/uploads', express.static('uploads'));
-
-if (!fs.existsSync('uploads')) {
-    fs.mkdirSync('uploads', { recursive: true });
-}
-
 app.use(express.static(path.join(__dirname, 'front-end')));
 
 
 // ============================================
 // MULTER SETUP
 // ============================================
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
-        cb(null, uniqueName);
-    }
-});
+// ============================================
+// CLOUDINARY IMAGE STORAGE (PERMANENT)
+// ============================================
 
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only images allowed'), false);
-        }
-    }
-});
+
 
 // ============================================
 // AUTH MIDDLEWARE
@@ -516,74 +516,25 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-app.post('/api/news-test', upload.single('image'), async (req, res) => {
-    const { title, content } = req.body;
-    if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
 
-    let imagePath = '';
+app.post('/api/articles', authMiddleware, upload.single('image'), async (req, res) => {
+    const { title, content } = req.body;
+
+    if (!title || !content)
+        return res.status(400).json({ error: 'Title and content required' });
 
     try {
-        if (req.file) {
-            const compressedName = `compressed-${Date.now()}.jpg`;
-            const compressedPath = path.join('uploads', compressedName);
-
-            await sharp(req.file.path)
-                .resize({ width: 900 })
-                .jpeg({ quality: 60 })
-                .toFile(compressedPath);
-
-            fs.unlinkSync(req.file.path);
-
-            imagePath = `/uploads/${compressedName}`;
-        }
+        const imageUrl = req.file ? req.file.path : '';
 
         const article = await Article.create({
             title,
             content,
-            image: imagePath,
-            author_name: 'Test User'
-        });
-
-        res.json({ success: true, articleId: article._id });
-
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ error: 'Upload failed' });
-    }
-});
-
-
-app.post('/api/articles', authMiddleware, upload.single('image'), async (req, res) => {
-    const { title, content } = req.body;
-    if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
-
-    let imagePath = '';
-
-    try {
-        if (req.file) {
-            const compressedName = `compressed-${Date.now()}.jpg`;
-            const compressedPath = path.join('uploads', compressedName);
-
-            await sharp(req.file.path)
-                .resize({ width: 900 })
-                .jpeg({ quality: 60 })
-                .toFile(compressedPath);
-
-            fs.unlinkSync(req.file.path);
-
-            imagePath = `/uploads/${compressedName}`;
-        }
-
-        const article = new Article({
-            title,
-            content,
-            image: imagePath,
+            image: imageUrl,
             author_id: req.userId,
             author_name: req.userName || 'Anonymous'
         });
 
-        await article.save();
-        res.json({ success: true });
+        res.json({ success: true, articleId: article._id, image: imageUrl });
 
     } catch (err) {
         console.error(err);
@@ -592,43 +543,6 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
 });
 
 
-app.post('/api/news', authMiddleware, upload.single('image'), async (req, res) => {
-    const { title, content } = req.body;
-    if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
-
-    let imagePath = '';
-
-    try {
-        if (req.file) {
-            const compressedName = `compressed-${Date.now()}.jpg`;
-            const compressedPath = path.join('uploads', compressedName);
-
-            await sharp(req.file.path)
-                .resize({ width: 900 })
-                .jpeg({ quality: 60 })
-                .toFile(compressedPath);
-
-            fs.unlinkSync(req.file.path);
-
-            imagePath = `/uploads/${compressedName}`;
-        }
-
-        const article = new Article({
-            title,
-            content,
-            image: imagePath,
-            author_id: req.userId,
-            author_name: req.userName || 'Anonymous'
-        });
-
-        await article.save();
-        res.json({ success: true });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Upload failed' });
-    }
-});
 
 
 app.get('/api/bookmarks', authMiddleware, async (req, res) => {
