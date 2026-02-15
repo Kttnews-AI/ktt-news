@@ -716,3 +716,53 @@ app.listen(PORT, () => {
     console.log(`   POST /api/news-test`);
     console.log('========================================');
 });
+// ============================================
+// ADMIN: DELETE ALL ARTICLES + IMAGES
+// ============================================
+app.delete('/api/admin/delete-all-news', authMiddleware, async (req, res) => {
+    try {
+
+        // safety check (only you can delete everything)
+        const ADMIN_EMAIL = "yourgmail@gmail.com"; // <-- change to your email
+
+        const user = await User.findById(req.userId);
+        if (!user || user.email !== ADMIN_EMAIL) {
+            return res.status(403).json({ error: "Only admin allowed" });
+        }
+
+        console.log("⚠️ ADMIN deleting ALL articles...");
+
+        // 1️⃣ Get all articles
+        const articles = await Article.find();
+
+        // 2️⃣ Delete images from cloudinary
+        for (const article of articles) {
+            if (article.image && article.image.includes('cloudinary')) {
+                try {
+                    const parts = article.image.split('/');
+                    const fileName = parts[parts.length - 1];
+                    const folder = parts[parts.length - 2];
+                    const publicId = `${folder}/${fileName.split('.')[0]}`;
+
+                    await cloudinary.uploader.destroy(publicId);
+                    console.log("Deleted:", publicId);
+
+                } catch (err) {
+                    console.log("Image delete failed:", err.message);
+                }
+            }
+        }
+
+        // 3️⃣ Delete DB records
+        await Article.deleteMany({});
+        await Bookmark.deleteMany({});
+
+        res.json({
+            success: true,
+            message: "ALL NEWS + IMAGES DELETED"
+        });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
