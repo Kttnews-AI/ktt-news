@@ -679,6 +679,43 @@ if (DEBUG) {
     });
 }
 
+
+// ============================================
+// ADMIN DELETE ALL NEWS
+// ============================================
+app.delete('/api/admin/delete-all-news', authMiddleware, async (req, res) => {
+    try {
+
+        const ADMIN_EMAIL = "dheerajexperiment8@gmail.com"; // your login email
+
+        const user = await User.findById(req.userId);
+        if (!user || user.email !== ADMIN_EMAIL) {
+            return res.status(403).json({ error: "Only admin allowed" });
+        }
+
+        const articles = await Article.find();
+
+        for (const article of articles) {
+            if (article.image && article.image.includes('cloudinary')) {
+                const parts = article.image.split('/');
+                const fileName = parts[parts.length - 1];
+                const folder = parts[parts.length - 2];
+                const publicId = `${folder}/${fileName.split('.')[0]}`;
+
+                await cloudinary.uploader.destroy(publicId);
+            }
+        }
+
+        await Article.deleteMany({});
+        await Bookmark.deleteMany({});
+
+        res.json({ success: true, message: "All news deleted" });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.use((req, res, next) => {
     if (req.path.startsWith('/api')) {
         return res.status(404).json({ error: 'API endpoint not found', path: req.path });
