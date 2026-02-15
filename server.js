@@ -543,6 +543,45 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
 });
 
 
+// DELETE ARTICLE + CLOUDINARY IMAGE
+app.delete('/api/articles/:id', authMiddleware, async (req, res) => {
+    try {
+        const article = await Article.findById(req.params.id);
+
+        if (!article)
+            return res.status(404).json({ error: 'Article not found' });
+
+        if (article.author_id.toString() !== req.userId)
+            return res.status(403).json({ error: 'Not allowed' });
+
+        // ---- DELETE IMAGE FROM CLOUDINARY ----
+        if (article.image && article.image.includes('cloudinary')) {
+
+            try {
+                const parts = article.image.split('/');
+                const fileName = parts[parts.length - 1];       // abcxyz.jpg
+                const folder = parts[parts.length - 2];         // ktt-news
+                const publicId = `${folder}/${fileName.split('.')[0]}`;
+
+                await cloudinary.uploader.destroy(publicId);
+                console.log('🗑 Cloudinary image deleted:', publicId);
+
+            } catch (err) {
+                console.log('Cloudinary delete failed:', err.message);
+            }
+        }
+
+        // ---- DELETE FROM DATABASE ----
+        await Article.findByIdAndDelete(req.params.id);
+
+        res.json({ success: true, message: 'Article + image deleted' });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
 
 
 app.get('/api/bookmarks', authMiddleware, async (req, res) => {
