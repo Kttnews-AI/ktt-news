@@ -1505,29 +1505,34 @@ body, html {
     height: auto !important;
     overflow-x: hidden !important;
 }
-/* BIG LOGOUT BUTTON */
-.btn-logout {
-    width: 100%;
-    padding: 16px;
-    margin-top: 12px;
-    background: #2b2b2b;
-    color: #ff3b30;
-    border: none;
-    border-radius: 16px;
-    font-size: 18px;
-    font-weight: 600;
-    text-align: center;
+.settings-actions{
+    padding:16px;
 }
 
-/* BIG DELETE BUTTON */
-.btn-danger {
-    width: 100%;
-    padding: 16px;
-    margin-top: 12px;
-    background: #3a0000;
-    color: #ff3b30;
-    border: none;
-    border-radius: 16px;
-    font-size: 18px;
-    font-weight: 600;
+#logoutButton{
+    display:block !important;
+    width:100% !important;
+    padding:18px !important;
+    margin-top:14px !important;
+    background:#2a2a2a !important;
+    color:#ff3b30 !important;
+    border:none !important;
+    border-radius:16px !important;
+    font-size:18px !important;
+    font-weight:600 !important;
+    text-align:center !important;
+}
+
+#deleteDataButton{
+    display:block !important;
+    width:100% !important;
+    padding:18px !important;
+    margin-top:14px !important;
+    background:#3a0000 !important;
+    color:#ff3b30 !important;
+    border:none !important;
+    border-radius:16px !important;
+    font-size:18px !important;
+    font-weight:600 !important;
+    text-align:center !important;
 }
