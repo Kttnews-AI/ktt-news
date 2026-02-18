@@ -906,7 +906,7 @@ app.get("/contact", (req, res) => {
       or content removal requests, contact us:
       </p>
 
-      <p><b>Email:</b> kttnewshelp@gmail.com</p>
+      <p><b>Email:</b> kttknowthetruth@gmail.com</p>
 
       <p>Response time: 24 – 48 hours</p>
 
