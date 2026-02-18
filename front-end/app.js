@@ -867,3 +867,54 @@ function bindMobileButtons(){
         };
     }
 }
+
+app.get("/contact", (req, res) => {
+  res.send(`
+  <html>
+  <head>
+      <title>Contact - KTT NEWS</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body{
+          font-family: Arial, sans-serif;
+          background:#0f0f14;
+          color:white;
+          padding:30px;
+          line-height:1.7;
+        }
+        .card{
+          max-width:600px;
+          margin:auto;
+          background:#1b1b24;
+          padding:25px;
+          border-radius:12px;
+          box-shadow:0 0 20px rgba(0,0,0,0.4);
+        }
+        h1{color:#8a5cff;}
+        a{color:#4da3ff;}
+      </style>
+  </head>
+
+  <body>
+    <div class="card">
+      <h1>KTT NEWS - Contact</h1>
+
+      <p><b>Developer:</b> Dheeraj Pawar</p>
+
+      <p>
+      If you have any questions, feedback, copyright issues,
+      or content removal requests, contact us:
+      </p>
+
+      <p><b>Email:</b> kttnewshelp@gmail.com</p>
+
+      <p>Response time: 24 – 48 hours</p>
+
+      <hr>
+
+      <p>This app provides AI-organized news updates for educational and informational purposes.</p>
+    </div>
+  </body>
+  </html>
+  `);
+});
