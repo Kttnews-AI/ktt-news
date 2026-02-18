@@ -288,6 +288,41 @@ app.get('/api/articles/:id', async (req, res) => {
 });
 
 // ============================================
+// ONE TIME: FIX OLD ARTICLE DATES
+// ============================================
+app.get('/api/admin/fix-dates', async (req, res) => {
+    try {
+
+        const articles = await Article.find();
+
+        let updated = 0;
+
+        for (const article of articles) {
+
+            // if new field not exists but old exists
+            if (!article.createdAt && article.created_at) {
+
+                await Article.updateOne(
+                    { _id: article._id },
+                    { $set: { createdAt: article.created_at } }
+                );
+
+                updated++;
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `Updated ${updated} articles`
+        });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// ============================================
 // OTP MEMORY STORAGE
 // ============================================
 
