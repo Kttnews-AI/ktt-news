@@ -803,3 +803,4 @@ app.delete('/api/admin/delete-all-news', authMiddleware, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+require("./scheduler");
