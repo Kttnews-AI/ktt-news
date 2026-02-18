@@ -47,7 +47,7 @@ async function generateAINews() {
 
 // 🔥 IMPORTANT: Render uses UTC
 // 8:00 AM IST = 2:30 AM UTC
-cron.schedule("*/2 * * * *", async () => {
+cron.schedule("*/1 * * * *", async () => {
   console.log("⏰ Running Daily Automation...");
   await generateAINews();
 });
