@@ -147,9 +147,11 @@ const articleSchema = new mongoose.Schema({
     content: { type: String, required: true },
     image: String,
     author_id: mongoose.Schema.Types.ObjectId,
-    author_name: String,
-    created_at: { type: Date, default: Date.now }
+    author_name: String
+}, {
+    timestamps: true
 });
+
 
 const bookmarkSchema = new mongoose.Schema({
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
