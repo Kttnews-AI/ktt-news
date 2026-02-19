@@ -1536,3 +1536,8 @@ body, html {
     font-weight:600 !important;
     text-align:center !important;
 }
+.date {
+    color: #9aa0a6;
+    font-size: 13px;
+    font-weight: 500;
+}

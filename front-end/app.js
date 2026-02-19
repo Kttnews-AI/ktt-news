@@ -655,7 +655,7 @@ function renderNews(newsArray) {
                 <div class="news-content">
                     <h3 class="news-title">${savedIcon}${escapeHtml(title)}</h3>
                     <p class="news-excerpt">${escapeHtml(excerpt)}</p>
-                    <div class="news-meta"><span>📅 ${escapeHtml(date)}</span></div>
+                    <div class="news-meta"><span> ${escapeHtml(date)}</span></div>
                 </div>
                 ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" class="news-thumb" loading="lazy" onerror="this.style.display='none'; this.parentElement.classList.add('no-image');">` : ""}
             </article>
@@ -702,7 +702,7 @@ function loadSavedArticles() {
             <article class="news-card" onclick="openArticle('${escapeHtml(id)}')">
                 <div class="news-content">
                     <h3 class="news-title">🔖 ${escapeHtml(title)}</h3>
-                    <p class="news-meta"><span>📅 ${escapeHtml(date)}</span></p>
+                    <p class="news-meta"><span> ${escapeHtml(date)}</span></p>
                 </div>
             </article>
         `;
@@ -755,7 +755,7 @@ function displayArticleDetail() {
         ${imageUrl ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
         <div class="article-text-content">
             <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
-            <div class="article-meta">📅 ${escapeHtml(date)}</div>
+            <div class="article-meta"> ${escapeHtml(date)}</div>
             <div class="article-body-text">${escapeHtml(currentArticle.content || "No content available")}</div>
         </div>
     `;
