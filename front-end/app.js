@@ -755,7 +755,10 @@ function displayArticleDetail() {
         ${imageUrl ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
         <div class="article-text-content">
             <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
-            <div class="article-meta"> ${escapeHtml(date)}</div>
+            <div class="article-meta-row">
+                <span class="article-date">${escapeHtml(date)}</span>
+                <button class="btn-share-inline" onclick="shareCurrentArticle()" title="Share Article">📤 Share</button>
+            </div>
             <div class="article-body-text">${escapeHtml(currentArticle.content || "No content available")}</div>
         </div>
     `;
@@ -764,7 +767,6 @@ function displayArticleDetail() {
     const detailContent = document.getElementById("detailContent");
     if(detailContent) detailContent.scrollTop = 0;
 }
-
 function saveCurrentArticle() {
     if(!currentArticle) return;
     
@@ -796,50 +798,6 @@ function saveCurrentArticle() {
     if(homeScreen && homeScreen.classList.contains('active')) {
         loadNews();
     }
-}
-
-async function shareCurrentArticle() {
-    if (!currentArticle) return;
-    
-    const shareData = {
-        title: currentArticle.title || "Check out this article",
-        text: currentArticle.content ? currentArticle.content.substring(0, 100) + "..." : "",
-        url: window.location.href
-    };
-
-    // Check if Web Share API is supported
-    if (navigator.share) {
-        try {
-            await navigator.share(shareData);
-            console.log("Article shared successfully");
-        } catch (err) {
-            console.log("Share cancelled or failed:", err);
-        }
-    } else {
-        // Fallback: Copy to clipboard
-        const textToCopy = `${shareData.title}\n\n${shareData.text}\n\n${shareData.url}`;
-        
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                alert("Article link copied to clipboard!");
-            }).catch(() => {
-                fallbackCopy(textToCopy);
-            });
-        } else {
-            fallbackCopy(textToCopy);
-        }
-    }
-}
-
-// Fallback copy function
-function fallbackCopy(text) {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textarea);
-    alert("Article link copied to clipboard!");
 }
 
 function refreshFeed() {
