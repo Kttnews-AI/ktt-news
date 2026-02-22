@@ -18,7 +18,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'ktt_news_super_secret_123456789';
+const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
 
 
 // ============================================
