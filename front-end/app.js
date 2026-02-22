@@ -800,6 +800,63 @@ function saveCurrentArticle() {
     }
 }
 
+async function shareCurrentArticle() {
+    if (!currentArticle) return;
+    
+    const imageUrl = getImageUrl(currentArticle.image);
+    const appLink = "https://yourapp.com"; // Your app download/link URL
+    
+    // Create rich share content with app link at bottom
+    const shareTitle = currentArticle.title || "Check out this article";
+    const shareText = `${currentArticle.content ? currentArticle.content.substring(0, 200) + "..." : "Read this interesting article!"}
+
+---
+📲 Get our app: ${appLink}
+🌐 ${window.location.href}`;
+
+    // For mobile: Try to share image + text
+    if (navigator.share) {
+        try {
+            // If we have an image, try to convert it to a file
+            if (imageUrl) {
+                try {
+                    const response = await fetch(imageUrl);
+                    const blob = await response.blob();
+                    const imageFile = new File([blob], 'article.jpg', { type: 'image/jpeg' });
+                    
+                    const shareData = {
+                        title: shareTitle,
+                        text: shareText,
+                        files: [imageFile]
+                    };
+
+                    if (navigator.canShare && navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                        return;
+                    }
+                } catch (e) {
+                    console.log("Could not share image file:", e);
+                }
+            }
+            
+            // Fallback to text-only share
+            await navigator.share({
+                title: shareTitle,
+                text: shareText
+            });
+            
+        } catch (err) {
+            console.log("Share cancelled or failed:", err);
+        }
+    } else {
+        // Desktop fallback - copy to clipboard
+        const fullText = `${shareTitle}\n\n${shareText}`;
+        navigator.clipboard.writeText(fullText).then(() => {
+            alert("Article with image link copied to clipboard!");
+        });
+    }
+}
+
 function refreshFeed() {
     isOnline = false;
     loadNews();
