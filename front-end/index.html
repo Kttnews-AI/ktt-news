@@ -338,17 +338,20 @@
 
 
     <!-- ARTICLE DETAIL SCREEN -->
-    <div id="detail" class="screen">
-        <header class="page-header">
-            <button class="btn-back" onclick="showScreen('home')">← Back</button>
-            <h1 style="font-size: 18px; font-weight: 600;">Article</h1>
+<div id="detail" class="screen">
+    <header class="page-header">
+        <button class="btn-back" onclick="showScreen('home')">← Back</button>
+        <h1 style="font-size: 18px; font-weight: 600;">Article</h1>
+        <div class="header-actions">
+            <button class="btn-share" onclick="shareCurrentArticle()" id="shareBtn">📤 Share</button>
             <button class="btn-save" onclick="saveCurrentArticle()" id="saveBtn">💾 Save</button>
-        </header>
-        
-        <main class="detail-content" id="detailContent">
-            <div id="articleBody"></div>
-        </main>
-    </div>
+        </div>
+    </header>
+    
+    <main class="detail-content" id="detailContent">
+        <div id="articleBody"></div>
+    </main>
+</div>
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>

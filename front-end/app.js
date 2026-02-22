@@ -798,6 +798,50 @@ function saveCurrentArticle() {
     }
 }
 
+async function shareCurrentArticle() {
+    if (!currentArticle) return;
+    
+    const shareData = {
+        title: currentArticle.title || "Check out this article",
+        text: currentArticle.content ? currentArticle.content.substring(0, 100) + "..." : "",
+        url: window.location.href
+    };
+
+    // Check if Web Share API is supported
+    if (navigator.share) {
+        try {
+            await navigator.share(shareData);
+            console.log("Article shared successfully");
+        } catch (err) {
+            console.log("Share cancelled or failed:", err);
+        }
+    } else {
+        // Fallback: Copy to clipboard
+        const textToCopy = `${shareData.title}\n\n${shareData.text}\n\n${shareData.url}`;
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                alert("Article link copied to clipboard!");
+            }).catch(() => {
+                fallbackCopy(textToCopy);
+            });
+        } else {
+            fallbackCopy(textToCopy);
+        }
+    }
+}
+
+// Fallback copy function
+function fallbackCopy(text) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    alert("Article link copied to clipboard!");
+}
+
 function refreshFeed() {
     isOnline = false;
     loadNews();

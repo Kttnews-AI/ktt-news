@@ -1146,6 +1146,44 @@ input:checked + .switch-slider:before {
     word-wrap: break-word;
 }
 
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    /* your existing styles */
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.btn-share, .btn-save {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-share:hover, .btn-save:hover {
+    background: #0056b3;
+}
+
+.btn-share {
+    background: #28a745; /* Green color for share */
+}
+
+.btn-share:hover {
+    background: #218838;
+}
 /* ============================================
    TOAST NOTIFICATIONS
 =========================================== */
