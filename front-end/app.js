@@ -739,38 +739,57 @@ function displayArticleDetail() {
     
     if(!articleBody || !currentArticle) return;
     
-    const isSaved = getSavedArticles().some(s => String(s._id || s.id) === String(currentArticle._id || currentArticle.id));
+    const isSaved = getSavedArticles().some(s => String(s._id || s.id || s.articleId) === String(currentArticle._id || currentArticle.id || currentArticle.articleId));
     
     if(saveBtn) {
         saveBtn.innerHTML = isSaved ? '✓ Saved' : '💾 Save';
         saveBtn.classList.toggle('saved', isSaved);
     }
     
-    const date = currentArticle.createdAt ? new Date(currentArticle.createdAt).toLocaleString() : "Recent";
+    // FIX: Handle different date formats
+    const date = currentArticle.createdAt 
+        ? new Date(currentArticle.createdAt).toLocaleString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          }).toLowerCase()
+        : new Date().toLocaleString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          }).toLowerCase();
     
-    // FIX: Use improved image URL function
     const imageUrl = getImageUrl(currentArticle.image);
     
-    // FIX: Get source, category, and original link from article data
+    // FIX: Get fields with fallback for different API response formats
     const source = currentArticle.source || 'Unknown';
     const category = currentArticle.category || 'General';
-    const originalLink = currentArticle['original link'] || currentArticle.originalLink || currentArticle.url || '#';
+    // Handle "original link" with space in field name
+    const originalLink = currentArticle['original link'] || currentArticle.originalLink || currentArticle.original_link || currentArticle.url || '#';
     
+    // FIX: Build article HTML WITHOUT duplicate sections
     articleBody.innerHTML = `
         ${imageUrl ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
         <div class="article-text-content">
             <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
             
-            <!-- NEW: Meta info row with date and share button -->
-            <div class="article-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <!-- Date and Share Button Row -->
+            <div class="article-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px 0; border-bottom: 1px solid #333;">
                 <span class="article-date" style="color: #888; font-size: 14px;">${escapeHtml(date)}</span>
-                <button class="btn-share-inline" onclick="shareCurrentArticle()" title="Share Article" style="background: #4CAF50; border: none; border-radius: 8px; color: white; padding: 8px 16px; font-size: 14px; cursor: pointer;">📤 Share</button>
+                <button class="btn-share-inline" onclick="shareCurrentArticle()" title="Share Article" style="background: #4CAF50; border: none; border-radius: 8px; color: white; padding: 8px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px;">📤 Share</button>
             </div>
             
-            <div class="article-body-text" style="color: #ccc; line-height: 1.8; margin-bottom: 20px;">${escapeHtml(currentArticle.content || "No content available")}</div>
+            <!-- Article Content -->
+            <div class="article-body-text" style="color: #ccc; line-height: 1.8; margin-bottom: 20px; font-size: 16px;">${escapeHtml(currentArticle.content || "No content available")}</div>
             
-            <!-- NEW: Source, Category, Published info -->
-            <div style="background: #0a0a0a; border-top: 1px solid #222; border-bottom: 1px solid #222; padding: 20px 0; margin: 20px 0;">
+            <!-- Source, Category, Published Info -->
+            <div style="background: #1a1a1a; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #2a2a2a;">
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="color: #888; font-size: 14px; min-width: 80px;">Source:</span>
@@ -787,8 +806,8 @@ function displayArticleDetail() {
                 </div>
             </div>
 
-            <!-- NEW: AI-Generated Summary Card -->
-            <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 20px; border: 1px solid #2a2a4a; margin-bottom: 20px; position: relative; overflow: hidden;">
+            <!-- AI-Generated Summary Card -->
+            <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid #2a2a4a; position: relative; overflow: hidden;">
                 <div style="position: absolute; top: -50px; right: -50px; width: 100px; height: 100px; background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%); border-radius: 50%;"></div>
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; position: relative; z-index: 1;">
                     <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
@@ -806,9 +825,10 @@ function displayArticleDetail() {
                 </p>
             </div>
 
-            <!-- NEW: Read Full Original Article Link -->
-            <div style="margin-bottom: 20px;">
-                <a href="${escapeHtml(originalLink)}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 16px; text-decoration: none; color: #fff; font-size: 15px; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.background='#252525'; this.style.borderColor='#667eea'" onmouseout="this.style.background='#1a1a1a'; this.style.borderColor='#333'">
+            <!-- Read Full Original Article Link -->
+            <div style="margin-bottom: 30px;">
+                ${originalLink !== '#' ? `
+                <a href="${escapeHtml(originalLink)}" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 16px; text-decoration: none; color: #fff; font-size: 15px; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.background='#252525'; this.style.borderColor='#667eea'" onmouseout="this.style.background='#1a1a1a'; this.style.borderColor='#333'">
                     <span>📰</span>
                     <span>Read Full Original Article</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-left: auto;">
@@ -817,6 +837,7 @@ function displayArticleDetail() {
                         <line x1="10" y1="14" x2="21" y2="3"></line>
                     </svg>
                 </a>
+                ` : '<p style="color: #666; text-align: center; font-size: 14px;">Original link not available</p>'}
             </div>
         </div>
     `;
