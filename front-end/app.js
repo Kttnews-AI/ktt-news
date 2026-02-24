@@ -1,5 +1,5 @@
 // ============================================
-// KTT NEWS APP - FULLY WORKING VERSION
+// KTT NEWS APP - SPLIT VIEW (GNEWS + MANUAL)
 // ============================================
 
 const API_BASE = "https://ktt-news.onrender.com";
@@ -15,6 +15,8 @@ let isOnline = false;
 let toastTimeout = null;
 let articlesCache = {};
 let lastUpdatedTime = null;
+let gnewsArticles = [];
+let manualArticles = [];
 
 /* ============================================
    INITIALIZATION
@@ -85,6 +87,7 @@ function exportAllFunctions() {
     window.showToast = showToast;
     window.shareCurrentArticle = shareCurrentArticle;
     window.openExternalLink = openExternalLink;
+    window.handleArticleClick = handleArticleClick;
 }
 
 /* ============================================
@@ -576,7 +579,7 @@ function resetLoginForm() {
 }
 
 /* ============================================
-   NEWS LOADING - GNEWS + MANUAL SUPPORT
+   NEWS LOADING - SPLIT VIEW (GNEWS + MANUAL)
 ============================================ */
 async function loadNews() {
     const container = document.getElementById("newsFeed");
@@ -594,12 +597,16 @@ async function loadNews() {
             throw new Error('Invalid response format');
         }
         
-        // Store last updated time from API
+        // Store last updated time
         if (data.meta && data.meta.lastUpdated) {
             lastUpdatedTime = data.meta.lastUpdated;
         }
         
-        // Cache all articles with complete data
+        // Split articles by source
+        gnewsArticles = newsArray.filter(article => !article.isManual);
+        manualArticles = newsArray.filter(article => article.isManual);
+        
+        // Cache all articles
         newsArray.forEach(article => {
             const id = article._id || article.articleId || article.id;
             if (id) {
@@ -610,21 +617,123 @@ async function loadNews() {
         localStorage.setItem("news_backup", JSON.stringify(newsArray));
         localStorage.setItem("news_meta", JSON.stringify(data.meta || {}));
         isOnline = true;
-        renderNews(newsArray);
+        
+        // Render split view
+        renderSplitView();
         updateSavedFolder();
+        
     } catch(error) {
         console.error('Load news error:', error);
         const backup = localStorage.getItem("news_backup");
         if(backup) {
             const parsed = JSON.parse(backup);
-            parsed.forEach(article => {
-                const id = article._id || article.articleId || article.id;
-                if (id) articlesCache[String(id)] = article;
-            });
-            renderNews(parsed);
+            gnewsArticles = parsed.filter(article => !article.isManual);
+            manualArticles = parsed.filter(article => article.isManual);
+            renderSplitView();
             showToast("Offline mode");
         }
     }
+}
+
+function renderSplitView() {
+    const container = document.getElementById("newsFeed");
+    if(!container) return;
+    
+    let html = '';
+    
+    // Last updated timestamp
+    if (lastUpdatedTime) {
+        const updateDate = new Date(lastUpdatedTime);
+        const timeString = updateDate.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true 
+        });
+        html += `
+            <div style="text-align: center; padding: 10px; color: #888; font-size: 12px; margin-bottom: 10px;">
+                🕐 Updated ${timeString}
+            </div>
+        `;
+    }
+    
+    // SECTION 1: EDITOR'S PICK (Manual Articles)
+    if (manualArticles.length > 0) {
+        html += `
+            <div class="section-header" style="margin: 20px 16px 12px 16px; display: flex; align-items: center; gap: 10px;">
+                <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #667eea 0%, #764ba2 100%); border-radius: 2px;"></div>
+                <h2 style="color: #fff; font-size: 18px; font-weight: 700; margin: 0;">Editor's Pick</h2>
+                <span style="background: #667eea; color: white; font-size: 10px; padding: 3px 8px; border-radius: 12px; margin-left: auto;">${manualArticles.length}</span>
+            </div>
+            <div class="articles-section manual-section" style="margin-bottom: 24px;">
+                ${renderArticleCards(manualArticles, 'manual')}
+            </div>
+        `;
+    }
+    
+    // SECTION 2: TRENDING NEWS (GNews Articles)
+    if (gnewsArticles.length > 0) {
+        html += `
+            <div class="section-header" style="margin: 20px 16px 12px 16px; display: flex; align-items: center; gap: 10px;">
+                <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #4CAF50 0%, #8BC34A 100%); border-radius: 2px;"></div>
+                <h2 style="color: #fff; font-size: 18px; font-weight: 700; margin: 0;">Trending News</h2>
+                <span style="background: #4CAF50; color: white; font-size: 10px; padding: 3px 8px; border-radius: 12px; margin-left: auto;">${gnewsArticles.length}</span>
+            </div>
+            <div class="articles-section gnews-section">
+                ${renderArticleCards(gnewsArticles, 'gnews')}
+            </div>
+        `;
+    }
+    
+    // Empty state
+    if (manualArticles.length === 0 && gnewsArticles.length === 0) {
+        html = `<div class="empty"><span>📭</span><h3>No news available</h3></div>`;
+    }
+    
+    container.innerHTML = html;
+}
+
+function renderArticleCards(articles, type) {
+    if (!articles || articles.length === 0) return '';
+    
+    return articles.map((item, index) => {
+        const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
+        const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent";
+        const excerpt = item.content ? item.content.substring(0, 90) + "..." : "No content";
+        const title = item.title || "Untitled";
+        
+        const isSaved = getSavedArticles().some(s => {
+            const savedId = String(s._id || s.id || s.articleId);
+            return savedId === id;
+        });
+        const savedIcon = isSaved ? '🔖 ' : '';
+        
+        const imageUrl = getImageUrl(item.image);
+        const articleData = encodeURIComponent(JSON.stringify(item));
+        
+        // Different styling for manual vs gnews
+        const cardStyle = type === 'manual' 
+            ? 'border-left: 3px solid #667eea; background: linear-gradient(135deg, #1a1a2e 0%, #1a1a1a 100%);'
+            : 'border-left: 3px solid #4CAF50;';
+        
+        return `
+            <article class="news-card" 
+                data-article-id="${escapeHtml(id)}" 
+                data-article-data="${escapeHtml(articleData)}"
+                onclick="handleArticleClick(this)"
+                style="${cardStyle} margin: 8px 16px; border-radius: 12px; overflow: hidden;">
+                <div class="news-content" style="padding: 16px;">
+                    <h3 class="news-title" style="font-size: 15px; line-height: 1.4; margin-bottom: 8px;">${savedIcon}${escapeHtml(title)}</h3>
+                    <p class="news-excerpt" style="font-size: 13px; color: #aaa; line-height: 1.5; margin-bottom: 10px;">${escapeHtml(excerpt)}</p>
+                    <div class="news-meta" style="display: flex; align-items: center; gap: 8px;">
+                        <span style="color: #666; font-size: 12px;">${escapeHtml(item.source || 'Unknown')}</span>
+                        <span style="color: #444;">•</span>
+                        <span style="color: #666; font-size: 12px;">${escapeHtml(date)}</span>
+                    </div>
+                </div>
+                ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" class="news-thumb" style="width: 100%; height: 180px; object-fit: cover;" loading="lazy" onerror="this.style.display='none'">` : ""}
+            </article>
+        `;
+    }).join('');
 }
 
 function getImageUrl(imagePath) {
@@ -641,82 +750,14 @@ function getImageUrl(imagePath) {
     return `${API_BASE}/uploads/${imagePath}`;
 }
 
-function renderNews(newsArray) {
-    const container = document.getElementById("newsFeed");
-    if(!container) return;
-    
-    if(!newsArray || newsArray.length === 0) {
-        container.innerHTML = `<div class="empty"><span>📭</span><h3>No news</h3></div>`;
-        return;
-    }
-    
-    let html = '';
-    
-    // Add last updated header if available
-    if (lastUpdatedTime) {
-        const updateDate = new Date(lastUpdatedTime);
-        const timeString = updateDate.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: true 
-        });
-        html += `
-            <div style="text-align: center; padding: 10px; color: #888; font-size: 12px; margin-bottom: 10px;">
-                🕐 Updated ${timeString}
-            </div>
-        `;
-    }
-    
-    newsArray.forEach((item, index) => {
-        const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
-        const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent";
-        const excerpt = item.content ? item.content.substring(0, 90) + "..." : "No content";
-        const title = item.title || "Untitled";
-        
-        const isSaved = getSavedArticles().some(s => {
-            const savedId = String(s._id || s.id || s.articleId);
-            return savedId === id;
-        });
-        const savedIcon = isSaved ? '🔖 ' : '';
-        
-        const imageUrl = getImageUrl(item.image);
-        
-        // Show badge for manual articles
-        const manualBadge = item.isManual 
-            ? '<span style="background: #667eea; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-right: 5px;">EDITOR</span>' 
-            : '<span style="background: #4CAF50; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-right: 5px;">GNEWS</span>';
-        
-        // FIX: Store full article data in data attribute for GNews articles
-        const articleData = encodeURIComponent(JSON.stringify(item));
-        
-        html += `
-            <article class="news-card" 
-                data-article-id="${escapeHtml(id)}" 
-                data-article-data="${escapeHtml(articleData)}"
-                onclick="handleArticleClick(this)">
-                <div class="news-content">
-                    <h3 class="news-title">${savedIcon}${manualBadge}${escapeHtml(title)}</h3>
-                    <p class="news-excerpt">${escapeHtml(excerpt)}</p>
-                    <div class="news-meta"><span>${escapeHtml(item.source || 'Unknown')} • ${escapeHtml(date)}</span></div>
-                </div>
-                ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" class="news-thumb" loading="lazy" onerror="this.style.display='none'; this.parentElement.classList.add('no-image');">` : ""}
-            </article>
-        `;
-    });
-    
-    container.innerHTML = html;
-}
-
 // NEW: Handle article click with full data
 function handleArticleClick(element) {
     const articleId = element.getAttribute('data-article-id');
     const articleDataStr = element.getAttribute('data-article-data');
     
     try {
-        // Try to parse the full article data
         const articleData = JSON.parse(decodeURIComponent(articleDataStr));
         
-        // Use the full data directly (for GNews articles)
         if (articleData && articleData.title) {
             currentArticle = articleData;
             displayArticleDetail();
@@ -726,7 +767,6 @@ function handleArticleClick(element) {
         console.log('Failed to parse article data, falling back to cache');
     }
     
-    // Fallback to cache/API fetch (for manual articles)
     openArticle(articleId);
 }
 
@@ -789,7 +829,6 @@ function loadSavedArticles() {
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
     
-    // Check cache first
     if (articlesCache[cleanId]) {
         console.log('Using cached article:', articlesCache[cleanId]);
         currentArticle = articlesCache[cleanId];
@@ -797,7 +836,6 @@ function openArticle(id) {
         return;
     }
     
-    // For manual articles, fetch from API
     if (!cleanId.startsWith('gnews_')) {
         fetch(`${API_ARTICLES}/${cleanId}`)
             .then(response => response.json())
@@ -837,7 +875,6 @@ function displayArticleDetail() {
         saveBtn.classList.toggle('saved', isSaved);
     }
     
-    // Format date
     let date = "Recent";
     if (currentArticle.createdAt || currentArticle.publishedAt) {
         const d = new Date(currentArticle.createdAt || currentArticle.publishedAt);
@@ -855,7 +892,6 @@ function displayArticleDetail() {
     const source = currentArticle.source || 'Unknown';
     const category = currentArticle.category || 'General';
     
-    // Handle original link
     let originalLink = '#';
     if (currentArticle.originalLink) {
         originalLink = currentArticle.originalLink;
@@ -867,7 +903,6 @@ function displayArticleDetail() {
         originalLink = currentArticle.url;
     }
     
-    // Source badge
     const sourceBadge = currentArticle.isManual 
         ? '<span style="background: #667eea; color: white; font-size: 11px; padding: 3px 8px; border-radius: 4px; margin-left: 8px;">Editorial</span>'
         : '<span style="background: #4CAF50; color: white; font-size: 11px; padding: 3px 8px; border-radius: 4px; margin-left: 8px;">GNews</span>';
@@ -956,15 +991,12 @@ function openExternalLink(url) {
         return;
     }
     
-    // For Capacitor apps
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
         window.Capacitor.Plugins.Browser.open({ url: url });
     }
-    // For Cordova apps with InAppBrowser plugin
     else if (window.cordova && window.cordova.InAppBrowser) {
         window.cordova.InAppBrowser.open(url, '_system');
     }
-    // For regular web/PWA - open in new tab
     else {
         window.open(url, '_blank', 'noopener,noreferrer');
     }
