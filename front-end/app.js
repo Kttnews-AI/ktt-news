@@ -1,5 +1,5 @@
 // ============================================
-// KTT NEWS APP - SPLIT VIEW (GNEWS + MANUAL)
+// KTT NEWS APP - SPLIT SCREEN (TABS)
 // ============================================
 
 const API_BASE = "https://ktt-news.onrender.com";
@@ -17,6 +17,7 @@ let articlesCache = {};
 let lastUpdatedTime = null;
 let gnewsArticles = [];
 let manualArticles = [];
+let currentTab = 'gnews'; // 'gnews' or 'manual'
 
 /* ============================================
    INITIALIZATION
@@ -88,6 +89,7 @@ function exportAllFunctions() {
     window.shareCurrentArticle = shareCurrentArticle;
     window.openExternalLink = openExternalLink;
     window.handleArticleClick = handleArticleClick;
+    window.switchTab = switchTab;
 }
 
 /* ============================================
@@ -579,7 +581,7 @@ function resetLoginForm() {
 }
 
 /* ============================================
-   NEWS LOADING - SPLIT VIEW (GNEWS + MANUAL)
+   NEWS LOADING - TAB VIEW
 ============================================ */
 async function loadNews() {
     const container = document.getElementById("newsFeed");
@@ -618,8 +620,8 @@ async function loadNews() {
         localStorage.setItem("news_meta", JSON.stringify(data.meta || {}));
         isOnline = true;
         
-        // Render split view
-        renderSplitView();
+        // Render with tabs
+        renderTabView();
         updateSavedFolder();
         
     } catch(error) {
@@ -629,64 +631,76 @@ async function loadNews() {
             const parsed = JSON.parse(backup);
             gnewsArticles = parsed.filter(article => !article.isManual);
             manualArticles = parsed.filter(article => article.isManual);
-            renderSplitView();
+            renderTabView();
             showToast("Offline mode");
         }
     }
 }
 
-function renderSplitView() {
+function switchTab(tab) {
+    currentTab = tab;
+    renderTabView();
+}
+
+function renderTabView() {
     const container = document.getElementById("newsFeed");
     if(!container) return;
     
+    const isGNews = currentTab === 'gnews';
+    const activeArticles = isGNews ? gnewsArticles : manualArticles;
+    const tabTitle = isGNews ? 'Trending News' : 'Editor\'s Pick';
+    const tabColor = isGNews ? '#4CAF50' : '#667eea';
+    const tabIcon = isGNews ? '📰' : '✍️';
+    
     let html = '';
     
-    // Last updated timestamp
-    if (lastUpdatedTime) {
-        const updateDate = new Date(lastUpdatedTime);
-        const timeString = updateDate.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: true 
-        });
+    // TAB SWITCHER HEADER
+    html += `
+        <div style="position: sticky; top: 0; background: #000; z-index: 100; padding: 10px 16px; border-bottom: 1px solid #222;">
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <button onclick="switchTab('gnews')" 
+                    style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
+                    background: ${isGNews ? '#4CAF50' : '#1a1a1a'}; 
+                    color: ${isGNews ? '#fff' : '#888'};">
+                    📰 GNews
+                </button>
+                <button onclick="switchTab('manual')" 
+                    style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
+                    background: ${!isGNews ? '#667eea' : '#1a1a1a'}; 
+                    color: ${!isGNews ? '#fff' : '#888'};">
+                    ✍️ Editor
+                </button>
+            </div>
+            ${lastUpdatedTime ? `
+            <div style="text-align: center; color: #666; font-size: 11px;">
+                🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', hour12: true})}
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    // SECTION TITLE
+    html += `
+        <div style="margin: 20px 16px 12px 16px; display: flex; align-items: center; gap: 10px;">
+            <div style="width: 4px; height: 24px; background: ${tabColor}; border-radius: 2px;"></div>
+            <h2 style="color: #fff; font-size: 20px; font-weight: 700; margin: 0;">${tabIcon} ${tabTitle}</h2>
+            <span style="background: ${tabColor}; color: white; font-size: 12px; padding: 4px 12px; border-radius: 12px; margin-left: auto;">${activeArticles.length}</span>
+        </div>
+    `;
+    
+    // ARTICLES LIST
+    if (activeArticles.length > 0) {
+        html += `<div class="articles-list" style="padding: 0 16px 20px 16px;">`;
+        html += renderArticleCards(activeArticles, currentTab);
+        html += `</div>`;
+    } else {
         html += `
-            <div style="text-align: center; padding: 10px; color: #888; font-size: 12px; margin-bottom: 10px;">
-                🕐 Updated ${timeString}
+            <div style="text-align: center; padding: 60px 20px; color: #666;">
+                <div style="font-size: 48px; margin-bottom: 16px;">${isGNews ? '📭' : '✍️'}</div>
+                <h3 style="color: #fff; margin-bottom: 8px;">No ${tabTitle}</h3>
+                <p>${isGNews ? 'Check back later for trending news' : 'Editor articles coming soon'}</p>
             </div>
         `;
-    }
-    
-    // SECTION 1: EDITOR'S PICK (Manual Articles)
-    if (manualArticles.length > 0) {
-        html += `
-            <div class="section-header" style="margin: 20px 16px 12px 16px; display: flex; align-items: center; gap: 10px;">
-                <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #667eea 0%, #764ba2 100%); border-radius: 2px;"></div>
-                <h2 style="color: #fff; font-size: 18px; font-weight: 700; margin: 0;">Editor's Pick</h2>
-                <span style="background: #667eea; color: white; font-size: 10px; padding: 3px 8px; border-radius: 12px; margin-left: auto;">${manualArticles.length}</span>
-            </div>
-            <div class="articles-section manual-section" style="margin-bottom: 24px;">
-                ${renderArticleCards(manualArticles, 'manual')}
-            </div>
-        `;
-    }
-    
-    // SECTION 2: TRENDING NEWS (GNews Articles)
-    if (gnewsArticles.length > 0) {
-        html += `
-            <div class="section-header" style="margin: 20px 16px 12px 16px; display: flex; align-items: center; gap: 10px;">
-                <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #4CAF50 0%, #8BC34A 100%); border-radius: 2px;"></div>
-                <h2 style="color: #fff; font-size: 18px; font-weight: 700; margin: 0;">Trending News</h2>
-                <span style="background: #4CAF50; color: white; font-size: 10px; padding: 3px 8px; border-radius: 12px; margin-left: auto;">${gnewsArticles.length}</span>
-            </div>
-            <div class="articles-section gnews-section">
-                ${renderArticleCards(gnewsArticles, 'gnews')}
-            </div>
-        `;
-    }
-    
-    // Empty state
-    if (manualArticles.length === 0 && gnewsArticles.length === 0) {
-        html = `<div class="empty"><span>📭</span><h3>No news available</h3></div>`;
     }
     
     container.innerHTML = html;
@@ -698,7 +712,7 @@ function renderArticleCards(articles, type) {
     return articles.map((item, index) => {
         const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
         const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent";
-        const excerpt = item.content ? item.content.substring(0, 90) + "..." : "No content";
+        const excerpt = item.content ? item.content.substring(0, 100) + "..." : "No content";
         const title = item.title || "Untitled";
         
         const isSaved = getSavedArticles().some(s => {
@@ -710,27 +724,34 @@ function renderArticleCards(articles, type) {
         const imageUrl = getImageUrl(item.image);
         const articleData = encodeURIComponent(JSON.stringify(item));
         
-        // Different styling for manual vs gnews
-        const cardStyle = type === 'manual' 
-            ? 'border-left: 3px solid #667eea; background: linear-gradient(135deg, #1a1a2e 0%, #1a1a1a 100%);'
-            : 'border-left: 3px solid #4CAF50;';
+        const isGNews = type === 'gnews';
+        const accentColor = isGNews ? '#4CAF50' : '#667eea';
         
         return `
             <article class="news-card" 
                 data-article-id="${escapeHtml(id)}" 
                 data-article-data="${escapeHtml(articleData)}"
                 onclick="handleArticleClick(this)"
-                style="${cardStyle} margin: 8px 16px; border-radius: 12px; overflow: hidden;">
+                style="background: #1a1a1a; border-radius: 16px; overflow: hidden; margin-bottom: 16px; border: 1px solid #2a2a2a;">
+                
+                ${imageUrl ? `
+                <div style="position: relative;">
+                    <img src="${escapeHtml(imageUrl)}" style="width: 100%; height: 200px; object-fit: cover;" loading="lazy" onerror="this.style.display='none'">
+                    <div style="position: absolute; top: 12px; left: 12px; background: ${accentColor}; color: white; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600;">
+                        ${isGNews ? 'GNews' : 'Editor'}
+                    </div>
+                </div>
+                ` : ''}
+                
                 <div class="news-content" style="padding: 16px;">
-                    <h3 class="news-title" style="font-size: 15px; line-height: 1.4; margin-bottom: 8px;">${savedIcon}${escapeHtml(title)}</h3>
-                    <p class="news-excerpt" style="font-size: 13px; color: #aaa; line-height: 1.5; margin-bottom: 10px;">${escapeHtml(excerpt)}</p>
-                    <div class="news-meta" style="display: flex; align-items: center; gap: 8px;">
-                        <span style="color: #666; font-size: 12px;">${escapeHtml(item.source || 'Unknown')}</span>
+                    <h3 class="news-title" style="font-size: 16px; line-height: 1.4; margin-bottom: 10px; color: #fff; font-weight: 600;">${savedIcon}${escapeHtml(title)}</h3>
+                    <p class="news-excerpt" style="font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 12px;">${escapeHtml(excerpt)}</p>
+                    <div class="news-meta" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="color: ${accentColor}; font-size: 12px; font-weight: 600;">${escapeHtml(item.source || 'Unknown')}</span>
                         <span style="color: #444;">•</span>
                         <span style="color: #666; font-size: 12px;">${escapeHtml(date)}</span>
                     </div>
                 </div>
-                ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" class="news-thumb" style="width: 100%; height: 180px; object-fit: cover;" loading="lazy" onerror="this.style.display='none'">` : ""}
             </article>
         `;
     }).join('');
@@ -750,7 +771,7 @@ function getImageUrl(imagePath) {
     return `${API_BASE}/uploads/${imagePath}`;
 }
 
-// NEW: Handle article click with full data
+// Handle article click
 function handleArticleClick(element) {
     const articleId = element.getAttribute('data-article-id');
     const articleDataStr = element.getAttribute('data-article-data');
