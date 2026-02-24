@@ -2,7 +2,6 @@
 // KTT NEWS APP - FULLY WORKING VERSION
 // ============================================
 
-// FIX: Removed trailing space from API_BASE
 const API_BASE = "https://ktt-news.onrender.com";
 const API_ARTICLES = `${API_BASE}/api/articles`;
 const API_NEWS = `${API_BASE}/api/news`;
@@ -14,8 +13,6 @@ let currentUser = null;
 let currentArticle = null;
 let isOnline = false;
 let toastTimeout = null;
-
-// FIX: Added articles cache to store complete article data
 let articlesCache = {};
 
 /* ============================================
@@ -86,6 +83,7 @@ function exportAllFunctions() {
     window.toggleDark = toggleDark;
     window.showToast = showToast;
     window.shareCurrentArticle = shareCurrentArticle;
+    window.openExternalLink = openExternalLink;
 }
 
 /* ============================================
@@ -577,7 +575,7 @@ function resetLoginForm() {
 }
 
 /* ============================================
-   NEWS LOADING - FIXED WITH CACHE
+   NEWS LOADING - GNEWS + MANUAL SUPPORT
 ============================================ */
 async function loadNews() {
     const container = document.getElementById("newsFeed");
@@ -589,14 +587,13 @@ async function loadNews() {
         const response = await fetch(API_ARTICLES);
         const data = await response.json();
         
-        // Handle different response formats
         const newsArray = data.articles || data.data || data;
         
         if (!Array.isArray(newsArray)) {
             throw new Error('Invalid response format');
         }
         
-        // FIX: Cache all articles with complete data
+        // Cache all articles with complete data
         newsArray.forEach(article => {
             const id = article._id || article.articleId || article.id;
             if (id) {
@@ -661,12 +658,15 @@ function renderNews(newsArray) {
         
         const imageUrl = getImageUrl(item.image);
         
+        // Show badge for manual articles
+        const manualBadge = item.isManual ? '<span style="background: #667eea; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-right: 5px;">EDITOR</span>' : '';
+        
         html += `
             <article class="news-card" onclick="openArticle('${escapeHtml(id)}')">
                 <div class="news-content">
-                    <h3 class="news-title">${savedIcon}${escapeHtml(title)}</h3>
+                    <h3 class="news-title">${savedIcon}${manualBadge}${escapeHtml(title)}</h3>
                     <p class="news-excerpt">${escapeHtml(excerpt)}</p>
-                    <div class="news-meta"><span>${escapeHtml(date)}</span></div>
+                    <div class="news-meta"><span>${escapeHtml(item.source || 'Unknown')} • ${escapeHtml(date)}</span></div>
                 </div>
                 ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" class="news-thumb" loading="lazy" onerror="this.style.display='none'; this.parentElement.classList.add('no-image');">` : ""}
             </article>
@@ -725,12 +725,11 @@ function loadSavedArticles() {
 }
 
 /* ============================================
-   ARTICLE DETAIL - FIXED WITH CACHE
+   ARTICLE DETAIL
 ============================================ */
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
     
-    // FIX: First check if we have complete data in cache
     if (articlesCache[cleanId]) {
         console.log('Using cached article:', articlesCache[cleanId]);
         currentArticle = articlesCache[cleanId];
@@ -738,7 +737,6 @@ function openArticle(id) {
         return;
     }
     
-    // Otherwise fetch from API
     fetch(`${API_ARTICLES}/${cleanId}`)
         .then(response => response.json())
         .then(article => {
@@ -785,7 +783,6 @@ function displayArticleDetail() {
         saveBtn.classList.toggle('saved', isSaved);
     }
     
-    // Format date
     let date = "Recent";
     if (currentArticle.createdAt) {
         const d = new Date(currentArticle.createdAt);
@@ -800,12 +797,10 @@ function displayArticleDetail() {
     }
     
     const imageUrl = getImageUrl(currentArticle.image);
-    
-    // FIX: Read all fields with proper fallbacks
     const source = currentArticle.source || 'Unknown';
     const category = currentArticle.category || 'General';
     
-    // FIX: Handle "original link" with space in field name
+    // Handle original link from GNews or manual
     let originalLink = '#';
     if (currentArticle['original link']) {
         originalLink = currentArticle['original link'];
@@ -817,12 +812,17 @@ function displayArticleDetail() {
         originalLink = currentArticle.url;
     }
     
+    // Badge for manual/GNews
+    const sourceBadge = currentArticle.isManual 
+        ? '<span style="background: #667eea; color: white; font-size: 11px; padding: 3px 8px; border-radius: 4px; margin-left: 8px;">Editorial</span>'
+        : '<span style="background: #4CAF50; color: white; font-size: 11px; padding: 3px 8px; border-radius: 4px; margin-left: 8px;">GNews</span>';
+    
     console.log('Source:', source, 'Category:', category, 'Link:', originalLink);
     
     articleBody.innerHTML = `
         ${imageUrl ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
         <div class="article-text-content">
-            <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
+            <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}${sourceBadge}</h1>
             
             <div class="article-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px 0; border-bottom: 1px solid #333;">
                 <span class="article-date" style="color: #888; font-size: 14px;">${escapeHtml(date)}</span>
@@ -871,7 +871,7 @@ function displayArticleDetail() {
             <!-- Read Full Original Article Link -->
             <div style="margin-bottom: 30px;">
                 ${originalLink !== '#' ? `
-                <a href="${escapeHtml(originalLink)}" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 16px; text-decoration: none; color: #fff; font-size: 15px; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.background='#252525'; this.style.borderColor='#667eea'" onmouseout="this.style.background='#1a1a1a'; this.style.borderColor='#333'">
+                <button onclick="openExternalLink('${escapeHtml(originalLink)}')" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 16px; text-decoration: none; color: #fff; font-size: 15px; font-weight: 500; transition: all 0.2s; width: 100%; cursor: pointer;" onmouseover="this.style.background='#252525'; this.style.borderColor='#667eea'" onmouseout="this.style.background='#1a1a1a'; this.style.borderColor='#333'">
                     <span>📰</span>
                     <span>Read Full Original Article</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-left: auto;">
@@ -879,7 +879,7 @@ function displayArticleDetail() {
                         <polyline points="15 3 21 3 21 9"></polyline>
                         <line x1="10" y1="14" x2="21" y2="3"></line>
                     </svg>
-                </a>
+                </button>
                 ` : '<p style="color: #666; text-align: center; font-size: 14px;">Original link not available</p>'}
             </div>
         </div>
@@ -888,6 +888,29 @@ function displayArticleDetail() {
     showScreen("detail");
     const detailContent = document.getElementById("detailContent");
     if(detailContent) detailContent.scrollTop = 0;
+}
+
+/* ============================================
+   EXTERNAL LINK HANDLER
+============================================ */
+function openExternalLink(url) {
+    if (!url || url === '#') {
+        showToast("Link not available");
+        return;
+    }
+    
+    // For Capacitor apps
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+        window.Capacitor.Plugins.Browser.open({ url: url });
+    }
+    // For Cordova apps with InAppBrowser plugin
+    else if (window.cordova && window.cordova.InAppBrowser) {
+        window.cordova.InAppBrowser.open(url, '_system');
+    }
+    // For regular web/PWA - open in new tab
+    else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
 }
 
 function saveCurrentArticle() {

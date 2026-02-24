@@ -1,5 +1,5 @@
 // ============================================
-// KTT NEWS SERVER - FIXED FOR RENDER.COM
+// KTT NEWS SERVER - GNEWS + MANUAL SUPPORT
 // ============================================
 require('dotenv').config();
 const express = require('express');
@@ -10,6 +10,7 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const multer = require('multer');
 const os = require('os');
+const axios = require('axios');
 
 // cloudinary
 const { v2: cloudinary } = require('cloudinary');
@@ -18,6 +19,10 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
+
+// GNEWS CONFIG
+const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
+const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
 
 // ============================================
 // DEBUG MODE
@@ -135,14 +140,17 @@ const userSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now }
 });
 
-// FIX: Added source, category, and originalLink fields
+// Manual article schema (for admin added content)
 const articleSchema = new mongoose.Schema({
     title: { type: String, required: true },
     content: { type: String, required: true },
     image: String,
-    source: { type: String, default: 'Unknown' },           // ADDED
-    category: { type: String, default: 'General' },         // ADDED
-    originalLink: { type: String, default: '' },            // ADDED (camelCase)
+    source: { type: String, default: 'KTT News' },
+    category: { type: String, default: 'General' },
+    originalLink: { type: String, default: '' },
+    isManual: { type: Boolean, default: true }, // Flag for manual articles
+    status: { type: String, enum: ['draft', 'published'], default: 'published' },
+    expiresAt: { type: Date },
     author_id: mongoose.Schema.Types.ObjectId,
     author_name: String
 }, {
@@ -225,30 +233,150 @@ const authMiddleware = async (req, res, next) => {
 };
 
 // ============================================
+// GNEWS FETCH HELPER
+// ============================================
+async function fetchGNewsArticles() {
+    if (!GNEWS_API_KEY) {
+        console.log('⚠️ GNEWS_API_KEY not set, skipping GNews fetch');
+        return [];
+    }
+
+    try {
+        console.log('🌐 Fetching from GNews...');
+        const response = await axios.get(`${GNEWS_BASE_URL}/top-headlines`, {
+            params: {
+                token: GNEWS_API_KEY,
+                lang: 'en',
+                country: 'us',
+                max: 20
+            },
+            timeout: 10000
+        });
+
+        if (!response.data || !response.data.articles) {
+            console.log('⚠️ GNews returned no articles');
+            return [];
+        }
+
+        // Transform GNews format to match app format
+        const articles = response.data.articles.map((article, index) => ({
+            _id: `gnews_${Date.now()}_${index}`,
+            title: article.title,
+            content: article.content || article.description || 'No content available',
+            description: article.description,
+            image: article.image || null,
+            url: article.url,
+            source: article.source?.name || 'GNews',
+            category: 'General',
+            publishedAt: article.publishedAt,
+            createdAt: article.publishedAt,
+            isManual: false, // Mark as GNews (not manual)
+            originalLink: article.url
+        }));
+
+        console.log(`✅ GNews fetched: ${articles.length} articles`);
+        return articles;
+
+    } catch (error) {
+        console.error('❌ GNews fetch error:', error.message);
+        return [];
+    }
+}
+
+// ============================================
 // API ROUTES
 // ============================================
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'OK', 
         timestamp: new Date().toISOString(),
-        dbConnected: mongoose.connection.readyState === 1
+        dbConnected: mongoose.connection.readyState === 1,
+        gnewsConfigured: !!GNEWS_API_KEY
     });
 });
 
+// ============================================
+// GET ARTICLES - COMBINED GNEWS + MANUAL
+// ============================================
 app.get('/api/articles', async (req, res) => {
     try {
-        const articles = await Article.find().sort({ createdAt: -1 });
-        res.json(articles);
+        let allArticles = [];
+
+        // 1. Fetch GNews articles (automated)
+        const gnewsArticles = await fetchGNewsArticles();
+        allArticles = [...gnewsArticles];
+
+        // 2. Fetch manual articles from database
+        const manualArticles = await Article.find({ 
+            status: 'published',
+            $or: [
+                { expiresAt: { $gt: new Date() } },
+                { expiresAt: { $exists: false } }
+            ]
+        }).sort({ createdAt: -1 }).limit(10);
+
+        // Format manual articles
+        const formattedManual = manualArticles.map(article => ({
+            _id: article._id.toString(),
+            title: article.title,
+            content: article.content,
+            image: article.image,
+            source: article.source || 'KTT News',
+            category: article.category || 'General',
+            originalLink: article.originalLink || '',
+            createdAt: article.createdAt,
+            updatedAt: article.updatedAt,
+            isManual: true,
+            author_name: article.author_name
+        }));
+
+        // 3. Combine both sources
+        allArticles = [...formattedManual, ...allArticles];
+
+        // 4. Sort by date (newest first)
+        allArticles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        // 5. Limit total articles
+        allArticles = allArticles.slice(0, 30);
+
+        res.json({
+            success: true,
+            articles: allArticles,
+            meta: {
+                total: allArticles.length,
+                gnewsCount: gnewsArticles.length,
+                manualCount: formattedManual.length
+            }
+        });
+
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Get articles error:', err);
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
+// Get single article (check cache first, then DB for manual)
 app.get('/api/articles/:id', async (req, res) => {
     try {
-        const article = await Article.findById(req.params.id);
+        const { id } = req.params;
+
+        // If it's a GNews article (starts with 'gnews_'), return from memory/cache logic needed in app
+        if (id.startsWith('gnews_')) {
+            return res.json({ 
+                _id: id,
+                message: 'GNews article - use cached version from /api/articles list'
+            });
+        }
+
+        // Otherwise fetch from database (manual article)
+        const article = await Article.findById(id);
         if (!article) return res.status(404).json({ error: 'Article not found' });
-        res.json(article);
+        
+        res.json({
+            ...article.toObject(),
+            isManual: true
+        });
+
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -481,11 +609,10 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ============================================
-// CREATE ARTICLE - FIXED TO SAVE SOURCE, CATEGORY, ORIGINAL LINK
+// CREATE MANUAL ARTICLE
 // ============================================
 app.post('/api/articles', authMiddleware, upload.single('image'), async (req, res) => {
-    // FIX: Extract all fields from form-data
-    const { title, content, source, category, originalLink } = req.body;
+    const { title, content, source, category, originalLink, expiresAt } = req.body;
 
     if (!title || !content) {
         return res.status(400).json({ error: 'Title and content required' });
@@ -494,14 +621,16 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
     try {
         const imageUrl = req.file ? req.file.path : '';
 
-        // FIX: Create article with all fields including source, category, originalLink
         const article = await Article.create({
             title,
             content,
             image: imageUrl,
-            source: source || 'Unknown',                    // SAVE SOURCE
-            category: category || 'General',                // SAVE CATEGORY
-            originalLink: originalLink || req.body['original link'] || '', // SAVE LINK (handle both formats)
+            source: source || 'KTT News',
+            category: category || 'General',
+            originalLink: originalLink || req.body['original link'] || '',
+            isManual: true,
+            status: 'published',
+            expiresAt: expiresAt ? new Date(expiresAt) : undefined,
             author_id: req.userId,
             author_name: req.userName || 'Anonymous'
         });
@@ -510,7 +639,7 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
             success: true, 
             articleId: article._id, 
             image: imageUrl,
-            article: article // Return full article
+            article: article
         });
 
     } catch (err) {
@@ -520,11 +649,11 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
 });
 
 // ============================================
-// UPDATE ARTICLE - ADDED FOR EDITING
+// UPDATE ARTICLE
 // ============================================
 app.put('/api/articles/:id', authMiddleware, upload.single('image'), async (req, res) => {
     try {
-        const { title, content, source, category, originalLink } = req.body;
+        const { title, content, source, category, originalLink, status, expiresAt } = req.body;
         
         const article = await Article.findById(req.params.id);
         if (!article) {
@@ -542,6 +671,8 @@ app.put('/api/articles/:id', authMiddleware, upload.single('image'), async (req,
         article.source = source || article.source;
         article.category = category || article.category;
         article.originalLink = originalLink || req.body['original link'] || article.originalLink;
+        article.status = status || article.status;
+        article.expiresAt = expiresAt ? new Date(expiresAt) : article.expiresAt;
         
         if (req.file) {
             article.image = req.file.path;
@@ -556,7 +687,9 @@ app.put('/api/articles/:id', authMiddleware, upload.single('image'), async (req,
     }
 });
 
+// ============================================
 // DELETE ARTICLE + CLOUDINARY IMAGE
+// ============================================
 app.delete('/api/articles/:id', authMiddleware, async (req, res) => {
     try {
         const article = await Article.findById(req.params.id);
@@ -589,6 +722,9 @@ app.delete('/api/articles/:id', authMiddleware, async (req, res) => {
     }
 });
 
+// ============================================
+// BOOKMARKS
+// ============================================
 app.get('/api/bookmarks', authMiddleware, async (req, res) => {
     try {
         const bookmarks = await Bookmark.find({ user_id: req.userId })
@@ -627,7 +763,7 @@ app.get('/api/user-emails', async (req, res) => {
 });
 
 // ============================================
-// ADMIN DELETE ALL NEWS
+// ADMIN ROUTES
 // ============================================
 app.delete('/api/admin/delete-all-news', authMiddleware, async (req, res) => {
     try {
@@ -658,8 +794,18 @@ app.delete('/api/admin/delete-all-news', authMiddleware, async (req, res) => {
         await Article.deleteMany({});
         await Bookmark.deleteMany({});
 
-        res.json({ success: true, message: "All news deleted" });
+        res.json({ success: true, message: "All manual news deleted" });
 
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get all manual articles (for admin)
+app.get('/api/admin/articles', authMiddleware, async (req, res) => {
+    try {
+        const articles = await Article.find().sort({ createdAt: -1 });
+        res.json({ success: true, count: articles.length, articles });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -675,6 +821,7 @@ if (DEBUG) {
             res.json({
                 mongoConnection: states[mongoose.connection.readyState] || 'unknown',
                 databaseName: mongoose.connection.name,
+                gnewsConfigured: !!GNEWS_API_KEY,
                 collections: {
                     users: await User.countDocuments(),
                     useremails: await UserEmail.countDocuments(),
@@ -712,13 +859,23 @@ if (DEBUG) {
                     body { font-family: Arial; padding: 20px; background: #f5f5f5; }
                     .card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; }
                     button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #007aff; color: white; border: none; border-radius: 5px; }
+                    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+                    .stat-box { background: #007aff; color: white; padding: 15px; border-radius: 8px; text-align: center; }
                 </style>
             </head>
             <body>
-                <h1>📊 KTT Admin</h1>
+                <h1>📊 KTT Admin Dashboard</h1>
                 <div class="card">
+                    <h3>Quick Actions</h3>
                     <button onclick="location.href='/api/debug/db-status'">Check DB Status</button>
                     <button onclick="location.href='/api/debug/list-users'">List All Users</button>
+                    <button onclick="location.href='/api/admin/articles'">List Manual Articles</button>
+                    <button onclick="location.href='/api/articles'">View Combined Feed</button>
+                </div>
+                <div class="card">
+                    <h3>News Sources</h3>
+                    <p>✅ GNews API: ${GNEWS_API_KEY ? 'Configured' : 'Not Configured'}</p>
+                    <p>✅ Manual Articles: MongoDB</p>
                 </div>
             </body>
             </html>
@@ -754,8 +911,9 @@ app.use((err, req, res, next) => {
 // ============================================
 app.listen(PORT, () => {
     console.log('========================================');
-    console.log('🚀 SERVER STARTED');
+    console.log('🚀 KTT NEWS SERVER STARTED');
     console.log('========================================');
     console.log(`Port: ${PORT}`);
+    console.log(`GNews API: ${GNEWS_API_KEY ? '✅ Configured' : '❌ Not Configured'}`);
     console.log('========================================');
 });
