@@ -644,68 +644,53 @@ function switchTab(tab) {
 
 function renderTabView() {
     const container = document.getElementById("newsFeed");
-    if(!container) return;
-    
-    const isGNews = currentTab === 'AI-S';
-    const activeArticles = isGNews ? AI-S : AI-D;
-    const tabTitle = isGNews ? 'Trending News' : 'Editor\'s Pick';
-    const tabColor = isGNews ? '#4CAF50' : '#667eea';
-    const tabIcon = isGNews ? '📰' : '✍️';
-    
+    if (!container) return;
+
+    const isAIS = currentTab === 'AI-S';
+    const isAID = currentTab === 'AI-D';
+
+    const activeArticles = isAIS ? aiSArticles : aiDArticles;
+    const tabTitle = isAIS ? 'Trending News' : 'Editor\'s Pick';
+    const tabColor = isAIS ? '#4CAF50' : '#667eea';
+    const tabIcon = isAIS ? '📰' : '✍️';
+
     let html = '';
-    
-    // TAB SWITCHER HEADER
+
     html += `
         <div style="position: sticky; top: 0; background: #000; z-index: 100; padding: 10px 16px; border-bottom: 1px solid #222;">
             <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                 <button onclick="switchTab('AI-S')" 
-                    style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
-                    background: ${isAI-S ? '#4CAF50' : '#1a1a1a'}; 
-                    color: ${isAI-S ? '#fff' : '#888'};">
+                    style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer;
+                    background: ${isAIS ? '#4CAF50' : '#1a1a1a'}; 
+                    color: ${isAIS ? '#fff' : '#888'};">
                     📰 AI-S
                 </button>
                 <button onclick="switchTab('AI-D')" 
-                    style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
-                    background: ${!isAI-D ? '#667eea' : '#1a1a1a'}; 
-                    color: ${!isAI-D ? '#fff' : '#888'};">
+                    style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer;
+                    background: ${isAID ? '#667eea' : '#1a1a1a'}; 
+                    color: ${isAID ? '#fff' : '#888'};">
                     ✍️ AI-D
                 </button>
             </div>
-            ${lastUpdatedTime ? `
-            <div style="text-align: center; color: #666; font-size: 11px;">
-                🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', hour12: true})}
-            </div>
-            ` : ''}
         </div>
     `;
-    
-    // SECTION TITLE
-    html += `
-        <div style="margin: 20px 16px 12px 16px; display: flex; align-items: center; gap: 10px;">
-            <div style="width: 4px; height: 24px; background: ${tabColor}; border-radius: 2px;"></div>
-            <h2 style="color: #fff; font-size: 20px; font-weight: 700; margin: 0;">${tabIcon} ${tabTitle}</h2>
-            <span style="background: ${tabColor}; color: white; font-size: 12px; padding: 4px 12px; border-radius: 12px; margin-left: auto;">${activeArticles.length}</span>
-        </div>
-    `;
-    
-    // ARTICLES LIST
-    if (activeArticles.length > 0) {
-        html += `<div class="articles-list" style="padding: 0 16px 20px 16px;">`;
-        html += renderArticleCards(activeArticles, currentTab);
+
+    if (activeArticles && activeArticles.length > 0) {
+        html += `<div style="padding: 0 16px 20px 16px;">`;
+        html += renderArticleCards(activeArticles);
         html += `</div>`;
     } else {
         html += `
             <div style="text-align: center; padding: 60px 20px; color: #666;">
-                <div style="font-size: 48px; margin-bottom: 16px;">${isAI-S ? '📭' : '✍️'}</div>
+                <div style="font-size: 48px; margin-bottom: 16px;">${isAIS ? '📭' : '✍️'}</div>
                 <h3 style="color: #fff; margin-bottom: 8px;">No ${tabTitle}</h3>
-                <p>${isGNews ? 'Check back later for trending news' : 'Editor articles coming soon'}</p>
+                <p>${isAIS ? 'Check back later for trending news' : 'Editor articles coming soon'}</p>
             </div>
         `;
     }
-    
+
     container.innerHTML = html;
 }
-
 function renderArticleCards(articles, type) {
     if (!articles || articles.length === 0) return '';
     
