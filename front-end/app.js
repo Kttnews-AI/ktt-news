@@ -652,13 +652,13 @@ function renderTabView() {
     // CUSTOMIZE NAMES HERE ↓↓↓
     const gnewsTabName = 'AI-S';      // Change this
     const manualTabName = 'AI-D';      // Change this
-    const gnewsSectionTitle = 'AI-S';     // Change this
-    const manualSectionTitle = 'AI-D';    // Change this
+    const gnewsSectionTitle = '🟣 Short AI card';     // Change this
+    const manualSectionTitle = '🔵 Detailed AI card';    // Change this
     // CUSTOMIZE NAMES HERE ↑↑↑
     
     const tabTitle = isGNews ? gnewsSectionTitle : manualSectionTitle;
     const tabColor = isGNews ? '#4CAF50' : '#667eea';
-    const tabIcon = isGNews ? '🌍' : '📍';
+    const tabIcon = isGNews ? '🩳' : '👖';
     
     let html = '';
     
