@@ -1,4 +1,3 @@
-
 // ============================================
 // KTT NEWS SERVER - FIXED FOR RENDER.COM
 // ============================================
@@ -9,7 +8,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
-const multer = require('multer');   // MUST BE BEFORE CLOUDINARY
+const multer = require('multer');
 const os = require('os');
 
 // cloudinary
@@ -19,7 +18,6 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
-
 
 // ============================================
 // DEBUG MODE
@@ -53,7 +51,6 @@ console.log('📡 Local IP detected:', LOCAL_IP);
 // ============================================
 const MONGODB_URI = process.env.MONGODB_URI;
 
-
 console.log('🔌 Connecting to MongoDB...');
 
 mongoose.connect(MONGODB_URI)
@@ -74,8 +71,8 @@ mongoose.connection.on('error', err => {
 mongoose.connection.on('disconnected', () => {
     console.log('⚠️ MongoDB Disconnected');
 });
-/* ========= CLOUDINARY (ONLY ONE CONFIG) ========= */
 
+/* ========= CLOUDINARY (ONLY ONE CONFIG) ========= */
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -93,9 +90,6 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage });
 
-// ============================================
-// EMAIL SETUP (Gmail SMTP)
-// ============================================
 // ============================================
 // BREVO OTP MAILER (PRODUCTION SAFE)
 // ============================================
@@ -131,9 +125,8 @@ async function sendOTPEmail(toEmail, otp) {
     }
 }
 
-
 // ============================================
-// SCHEMAS
+// SCHEMAS - FIXED WITH SOURCE, CATEGORY, ORIGINAL LINK
 // ============================================
 const userSchema = new mongoose.Schema({
     name: String,
@@ -142,17 +135,19 @@ const userSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now }
 });
 
+// FIX: Added source, category, and originalLink fields
 const articleSchema = new mongoose.Schema({
     title: { type: String, required: true },
     content: { type: String, required: true },
     image: String,
+    source: { type: String, default: 'Unknown' },           // ADDED
+    category: { type: String, default: 'General' },         // ADDED
+    originalLink: { type: String, default: '' },            // ADDED (camelCase)
     author_id: mongoose.Schema.Types.ObjectId,
     author_name: String
 }, {
     timestamps: true
 });
-
-
 
 const bookmarkSchema = new mongoose.Schema({
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -172,12 +167,8 @@ const Bookmark = mongoose.model('Bookmark', bookmarkSchema);
 const UserEmail = mongoose.model('UserEmail', userEmailSchema);
 
 // ============================================
-// MIDDLEWARE SETUP
-// ============================================
-// ============================================
 // MIDDLEWARE SETUP (FIXED FOR FILE UPLOAD)
 // ============================================
-
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -194,12 +185,6 @@ app.use((req, res, next) => {
     }
     next();
 });
-
-/*
-IMPORTANT FIX:
-Do NOT parse multipart/form-data here
-Otherwise multer cannot read form-data
-*/
 
 app.use((req, res, next) => {
     const type = req.headers['content-type'] || '';
@@ -220,47 +205,28 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'front-end')));
 
-
-// ============================================
-// MULTER SETUP
-// ============================================
-// ============================================
-// CLOUDINARY IMAGE STORAGE (PERMANENT)
-// ============================================
-
-
-
 // ============================================
 // AUTH MIDDLEWARE
 // ============================================
-const authMiddleware = (req, res, next) => {
-    const authHeader = req.headers['authorization'] || req.headers['Authorization'];
-    
-    if (!authHeader) {
-        return res.status(401).json({ error: 'No token provided' });
-    }
-    
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-    
-    if (!token) {
-        return res.status(401).json({ error: 'Token format invalid' });
-    }
-    
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
-        if (err) {
-            console.error('JWT Verify Error:', err.message);
-            return res.status(401).json({ error: 'Invalid token' });
+const authMiddleware = async (req, res, next) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
         }
+
+        const decoded = jwt.verify(token, JWT_SECRET);
         req.userId = decoded.userId;
         req.userName = decoded.name;
         next();
-    });
+    } catch (err) {
+        res.status(401).json({ error: 'Invalid token' });
+    }
 };
 
 // ============================================
 // API ROUTES
 // ============================================
-
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'OK', 
@@ -271,7 +237,7 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/articles', async (req, res) => {
     try {
-        const articles = await Article.find().sort({ created_at: -1 });
+        const articles = await Article.find().sort({ createdAt: -1 });
         res.json(articles);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -288,22 +254,15 @@ app.get('/api/articles/:id', async (req, res) => {
     }
 });
 
-
-
-
 // ============================================
 // OTP MEMORY STORAGE
 // ============================================
-
-// temporary storage (RAM)
 const otpStore = new Map();
 
-// generate 6 digit otp
 function generateOTP() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// cleanup expired OTP every 5 minutes
 setInterval(() => {
     const now = Date.now();
     for (const [email, data] of otpStore.entries()) {
@@ -317,7 +276,6 @@ setInterval(() => {
 // ============================================
 // OTP AUTH ENDPOINTS
 // ============================================
-
 app.post('/api/auth/send-otp', async (req, res) => {
     const { email } = req.body;
     
@@ -522,32 +480,81 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-
+// ============================================
+// CREATE ARTICLE - FIXED TO SAVE SOURCE, CATEGORY, ORIGINAL LINK
+// ============================================
 app.post('/api/articles', authMiddleware, upload.single('image'), async (req, res) => {
-    const { title, content } = req.body;
+    // FIX: Extract all fields from form-data
+    const { title, content, source, category, originalLink } = req.body;
 
-    if (!title || !content)
+    if (!title || !content) {
         return res.status(400).json({ error: 'Title and content required' });
+    }
 
     try {
         const imageUrl = req.file ? req.file.path : '';
 
+        // FIX: Create article with all fields including source, category, originalLink
         const article = await Article.create({
             title,
             content,
             image: imageUrl,
+            source: source || 'Unknown',                    // SAVE SOURCE
+            category: category || 'General',                // SAVE CATEGORY
+            originalLink: originalLink || req.body['original link'] || '', // SAVE LINK (handle both formats)
             author_id: req.userId,
             author_name: req.userName || 'Anonymous'
         });
 
-        res.json({ success: true, articleId: article._id, image: imageUrl });
+        res.json({ 
+            success: true, 
+            articleId: article._id, 
+            image: imageUrl,
+            article: article // Return full article
+        });
 
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Upload failed' });
+        console.error('Create article error:', err);
+        res.status(500).json({ error: 'Upload failed', details: err.message });
     }
 });
 
+// ============================================
+// UPDATE ARTICLE - ADDED FOR EDITING
+// ============================================
+app.put('/api/articles/:id', authMiddleware, upload.single('image'), async (req, res) => {
+    try {
+        const { title, content, source, category, originalLink } = req.body;
+        
+        const article = await Article.findById(req.params.id);
+        if (!article) {
+            return res.status(404).json({ error: 'Article not found' });
+        }
+
+        // Check ownership
+        if (article.author_id.toString() !== req.userId) {
+            return res.status(403).json({ error: 'Not authorized' });
+        }
+
+        // Update fields
+        article.title = title || article.title;
+        article.content = content || article.content;
+        article.source = source || article.source;
+        article.category = category || article.category;
+        article.originalLink = originalLink || req.body['original link'] || article.originalLink;
+        
+        if (req.file) {
+            article.image = req.file.path;
+        }
+
+        await article.save();
+        res.json({ success: true, article: article });
+
+    } catch (err) {
+        console.error('Update article error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // DELETE ARTICLE + CLOUDINARY IMAGE
 app.delete('/api/articles/:id', authMiddleware, async (req, res) => {
@@ -560,35 +567,27 @@ app.delete('/api/articles/:id', authMiddleware, async (req, res) => {
         if (article.author_id.toString() !== req.userId)
             return res.status(403).json({ error: 'Not allowed' });
 
-        // ---- DELETE IMAGE FROM CLOUDINARY ----
         if (article.image && article.image.includes('cloudinary')) {
-
             try {
                 const parts = article.image.split('/');
-                const fileName = parts[parts.length - 1];       // abcxyz.jpg
-                const folder = parts[parts.length - 2];         // ktt-news
+                const fileName = parts[parts.length - 1];
+                const folder = parts[parts.length - 2];
                 const publicId = `${folder}/${fileName.split('.')[0]}`;
 
                 await cloudinary.uploader.destroy(publicId);
                 console.log('🗑 Cloudinary image deleted:', publicId);
-
             } catch (err) {
                 console.log('Cloudinary delete failed:', err.message);
             }
         }
 
-        // ---- DELETE FROM DATABASE ----
         await Article.findByIdAndDelete(req.params.id);
-
         res.json({ success: true, message: 'Article + image deleted' });
 
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
-
-
-
 
 app.get('/api/bookmarks', authMiddleware, async (req, res) => {
     try {
@@ -627,6 +626,48 @@ app.get('/api/user-emails', async (req, res) => {
     }
 });
 
+// ============================================
+// ADMIN DELETE ALL NEWS
+// ============================================
+app.delete('/api/admin/delete-all-news', authMiddleware, async (req, res) => {
+    try {
+        const ADMIN_EMAIL = "dheerajexperiment8@gmail.com";
+
+        const user = await User.findById(req.userId);
+        if (!user || user.email !== ADMIN_EMAIL) {
+            return res.status(403).json({ error: "Only admin allowed" });
+        }
+
+        const articles = await Article.find();
+
+        for (const article of articles) {
+            if (article.image && article.image.includes('cloudinary')) {
+                try {
+                    const parts = article.image.split('/');
+                    const fileName = parts[parts.length - 1];
+                    const folder = parts[parts.length - 2];
+                    const publicId = `${folder}/${fileName.split('.')[0]}`;
+
+                    await cloudinary.uploader.destroy(publicId);
+                } catch (err) {
+                    console.log('Image delete failed:', err.message);
+                }
+            }
+        }
+
+        await Article.deleteMany({});
+        await Bookmark.deleteMany({});
+
+        res.json({ success: true, message: "All news deleted" });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================
+// DEBUG ROUTES
+// ============================================
 if (DEBUG) {
     app.get('/api/debug/db-status', async (req, res) => {
         try {
@@ -685,43 +726,9 @@ if (DEBUG) {
     });
 }
 
-
 // ============================================
-// ADMIN DELETE ALL NEWS
+// ERROR HANDLING
 // ============================================
-app.delete('/api/admin/delete-all-news', authMiddleware, async (req, res) => {
-    try {
-
-        const ADMIN_EMAIL = "dheerajexperiment8@gmail.com"; // your login email
-
-        const user = await User.findById(req.userId);
-        if (!user || user.email !== ADMIN_EMAIL) {
-            return res.status(403).json({ error: "Only admin allowed" });
-        }
-
-        const articles = await Article.find();
-
-        for (const article of articles) {
-            if (article.image && article.image.includes('cloudinary')) {
-                const parts = article.image.split('/');
-                const fileName = parts[parts.length - 1];
-                const folder = parts[parts.length - 2];
-                const publicId = `${folder}/${fileName.split('.')[0]}`;
-
-                await cloudinary.uploader.destroy(publicId);
-            }
-        }
-
-        await Article.deleteMany({});
-        await Bookmark.deleteMany({});
-
-        res.json({ success: true, message: "All news deleted" });
-
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
 app.use((req, res, next) => {
     if (req.path.startsWith('/api')) {
         return res.status(404).json({ error: 'API endpoint not found', path: req.path });
@@ -743,70 +750,12 @@ app.use((err, req, res, next) => {
 });
 
 // ============================================
-// START SERVER - FIXED FOR RENDER (No '0.0.0.0')
+// START SERVER
 // ============================================
 app.listen(PORT, () => {
     console.log('========================================');
-    console.log('🚀 SERVER STARTED WITH GMAIL OTP');
+    console.log('🚀 SERVER STARTED');
     console.log('========================================');
-    console.log(`Port:     ${PORT}`);
-    console.log('========================================');
-    console.log('📧 Email OTP endpoints:');
-    console.log(`   POST /api/auth/send-otp`);
-    console.log(`   POST /api/auth/verify-otp`);
-    console.log('========================================');
-    console.log('🧪 TEST endpoint (no auth):');
-    console.log(`   POST /api/news-test`);
+    console.log(`Port: ${PORT}`);
     console.log('========================================');
 });
-// ============================================
-// ADMIN: DELETE ALL ARTICLES + IMAGES
-// ============================================
-app.delete('/api/admin/delete-all-news', authMiddleware, async (req, res) => {
-    try {
-
-        // safety check (only you can delete everything)
-        const ADMIN_EMAIL = "yourgmail@gmail.com"; // <-- change to your email
-
-        const user = await User.findById(req.userId);
-        if (!user || user.email !== ADMIN_EMAIL) {
-            return res.status(403).json({ error: "Only admin allowed" });
-        }
-
-        console.log("⚠️ ADMIN deleting ALL articles...");
-
-        // 1️⃣ Get all articles
-        const articles = await Article.find();
-
-        // 2️⃣ Delete images from cloudinary
-        for (const article of articles) {
-            if (article.image && article.image.includes('cloudinary')) {
-                try {
-                    const parts = article.image.split('/');
-                    const fileName = parts[parts.length - 1];
-                    const folder = parts[parts.length - 2];
-                    const publicId = `${folder}/${fileName.split('.')[0]}`;
-
-                    await cloudinary.uploader.destroy(publicId);
-                    console.log("Deleted:", publicId);
-
-                } catch (err) {
-                    console.log("Image delete failed:", err.message);
-                }
-            }
-        }
-
-        // 3️⃣ Delete DB records
-        await Article.deleteMany({});
-        await Bookmark.deleteMany({});
-
-        res.json({
-            success: true,
-            message: "ALL NEWS + IMAGES DELETED"
-        });
-
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
