@@ -562,18 +562,140 @@ function handleContactSubmit(e) {
 }
 </script>
 
-     <!-- ARTICLE DETAIL SCREEN --> 
-    <div id="detail" class="screen">
-        <header class="page-header">
-            <button class="btn-back" onclick="showScreen('home')">← Back</button>
-            <h1 style="font-size: 18px; font-weight: 600;">Article</h1>
-            <button class="btn-save" onclick="saveCurrentArticle()" id="saveBtn">💾 Save</button>
-        </header>
+     <!-- ARTICLE DETAIL SCREEN -->
+<div id="detail" class="screen" style="background-color: #0a0a0a; min-height: 100vh;">
+    <header class="page-header" style="background-color: #0a0a0a; border-bottom: 1px solid #222; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100;">
+        <button class="btn-back" onclick="showScreen('home')" style="color: #667eea; background: none; border: none; font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 5px;">← Back</button>
+        <h1 style="font-size: 18px; font-weight: 600; color: #fff; margin: 0;">Article</h1>
+        <button class="btn-save" onclick="saveCurrentArticle()" id="saveBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; color: white; padding: 8px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+            <span>💾</span>
+            <span>Save</span>
+        </button>
+    </header>
+    
+    <main class="detail-content" id="detailContent" style="padding: 0; background-color: #0a0a0a;">
+        <div id="articleBody"></div>
         
-        <main class="detail-content" id="detailContent">
-            <div id="articleBody"></div>
-        </main>
-    </div>
+        <!-- Article Meta Info (Source & Category) -->
+        <div id="articleMeta" style="padding: 20px; background: #0a0a0a; border-bottom: 1px solid #222;">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- Source -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="color: #888; font-size: 14px; min-width: 70px;">Source:</span>
+                    <span id="articleSource" style="color: #667eea; font-size: 14px; font-weight: 500;">Loading...</span>
+                </div>
+                
+                <!-- Category -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="color: #888; font-size: 14px; min-width: 70px;">Category:</span>
+                    <span id="articleCategory" style="color: #4CAF50; font-size: 14px; font-weight: 500;">Loading...</span>
+                </div>
+                
+                <!-- Date -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="color: #888; font-size: 14px; min-width: 70px;">Published:</span>
+                    <span id="articleDate" style="color: #aaa; font-size: 14px;">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI-Generated Card -->
+        <div style="margin: 20px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 20px; border: 1px solid #2a2a4a; position: relative; overflow: hidden;">
+            <!-- Decorative gradient orb -->
+            <div style="position: absolute; top: -50px; right: -50px; width: 100px; height: 100px; background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%); border-radius: 50%;"></div>
+            
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                    <svg viewBox="0 0 24 24" fill="white" style="width: 24px; height: 24px;">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 style="color: #fff; font-size: 16px; font-weight: 600; margin: 0;">AI-Generated Summary</h3>
+                    <p style="color: #888; font-size: 12px; margin: 4px 0 0 0;">Powered by Advanced AI</p>
+                </div>
+            </div>
+            
+            <p id="aiSummary" style="color: #ccc; font-size: 14px; line-height: 1.6; margin: 0; position: relative; z-index: 1;">
+                This article has been processed by our AI to provide you with key insights and a concise summary of the main points.
+            </p>
+        </div>
+
+        <!-- Read Full Original Article -->
+        <div style="padding: 20px; background: #0a0a0a;">
+            <a id="originalArticleLink" href="#" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 16px; text-decoration: none; color: #fff; font-size: 15px; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.background='#252525'; this.style.borderColor='#667eea'" onmouseout="this.style.background='#1a1a1a'; this.style.borderColor='#333'">
+                <span>📰</span>
+                <span>Read Full Original Article</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-left: auto;">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+            </a>
+        </div>
+
+        <!-- Bottom spacing -->
+        <div style="height: 30px;"></div>
+    </main>
+</div>
+
+<script>
+// Function to load article details - call this when opening an article
+function loadArticleDetail(articleData) {
+    // Example articleData structure from your API:
+    // {
+    //     title: "Article Title",
+    //     content: "Article HTML content",
+    //     source: "TechCrunch",
+    //     category: "Technology",
+    //     date: "24/2/2026, 2:01:55 am",
+    //     originalUrl: "https://example.com/full-article",
+    //     aiSummary: "AI generated summary text..."
+    // }
+    
+    // Set article content
+    document.getElementById('articleBody').innerHTML = articleData.content;
+    
+    // Set meta info
+    document.getElementById('articleSource').textContent = articleData.source || 'Unknown';
+    document.getElementById('articleCategory').textContent = articleData.category || 'General';
+    document.getElementById('articleDate').textContent = articleData.date || new Date().toLocaleString();
+    
+    // Set AI summary if available
+    if (articleData.aiSummary) {
+        document.getElementById('aiSummary').textContent = articleData.aiSummary;
+    }
+    
+    // Set original article link
+    const originalLink = document.getElementById('originalArticleLink');
+    if (articleData.originalUrl) {
+        originalLink.href = articleData.originalUrl;
+        originalLink.style.display = 'flex';
+    } else {
+        originalLink.style.display = 'none';
+    }
+    
+    // Show the detail screen
+    showScreen('detail');
+}
+
+// Alternative: If you're loading from DOM elements
+function loadArticleFromElement(articleElement) {
+    const source = articleElement.getAttribute('data-source') || 'Unknown';
+    const category = articleElement.getAttribute('data-category') || 'General';
+    const date = articleElement.getAttribute('data-date') || new Date().toLocaleString();
+    const originalUrl = articleElement.getAttribute('data-url') || '#';
+    const aiSummary = articleElement.getAttribute('data-ai-summary') || 'AI summary not available.';
+    
+    document.getElementById('articleSource').textContent = source;
+    document.getElementById('articleCategory').textContent = category;
+    document.getElementById('articleDate').textContent = date;
+    document.getElementById('aiSummary').textContent = aiSummary;
+    document.getElementById('originalArticleLink').href = originalUrl;
+    
+    showScreen('detail');
+}
+</script>
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
