@@ -1,5 +1,5 @@
 // ============================================
-// KTT NEWS SERVER - GNEWS + MANUAL SUPPORT
+// KTT NEWS SERVER - GNEWS + MANUAL + CACHE
 // ============================================
 require('dotenv').config();
 const express = require('express');
@@ -23,6 +23,19 @@ const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
 // GNEWS CONFIG
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
 const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
+const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 30) * 60 * 1000; // 30 minutes default
+
+// ============================================
+// GNEWS CACHE SYSTEM
+// ============================================
+let gnewsCache = [];
+let lastFetchTime = 0;
+let cacheStatus = {
+    lastSuccessfulFetch: null,
+    lastError: null,
+    totalFetches: 0,
+    isStale: false
+};
 
 // ============================================
 // DEBUG MODE
@@ -148,7 +161,7 @@ const articleSchema = new mongoose.Schema({
     source: { type: String, default: 'KTT News' },
     category: { type: String, default: 'General' },
     originalLink: { type: String, default: '' },
-    isManual: { type: Boolean, default: true }, // Flag for manual articles
+    isManual: { type: Boolean, default: true },
     status: { type: String, enum: ['draft', 'published'], default: 'published' },
     expiresAt: { type: Date },
     author_id: mongoose.Schema.Types.ObjectId,
@@ -233,16 +246,27 @@ const authMiddleware = async (req, res, next) => {
 };
 
 // ============================================
-// GNEWS FETCH HELPER
+// GNEWS FETCH HELPER WITH CACHE
 // ============================================
 async function fetchGNewsArticles() {
+    const now = Date.now();
+    
+    // Return cached data if still valid
+    if (gnewsCache.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
+        const ageMinutes = Math.round((now - lastFetchTime) / 60000);
+        console.log(`📦 Using cached GNews (${ageMinutes}m old)`);
+        cacheStatus.isStale = false;
+        return gnewsCache;
+    }
+    
     if (!GNEWS_API_KEY) {
         console.log('⚠️ GNEWS_API_KEY not set, skipping GNews fetch');
-        return [];
+        cacheStatus.lastError = 'API key not configured';
+        return gnewsCache.length > 0 ? gnewsCache : [];
     }
 
     try {
-        console.log('🌐 Fetching from GNews...');
+        console.log('🌐 Fetching fresh articles from GNews...');
         const response = await axios.get(`${GNEWS_BASE_URL}/top-headlines`, {
             params: {
                 token: GNEWS_API_KEY,
@@ -255,7 +279,8 @@ async function fetchGNewsArticles() {
 
         if (!response.data || !response.data.articles) {
             console.log('⚠️ GNews returned no articles');
-            return [];
+            cacheStatus.lastError = 'Empty response from GNews';
+            return gnewsCache.length > 0 ? gnewsCache : [];
         }
 
         // Transform GNews format to match app format
@@ -270,15 +295,31 @@ async function fetchGNewsArticles() {
             category: 'General',
             publishedAt: article.publishedAt,
             createdAt: article.publishedAt,
-            isManual: false, // Mark as GNews (not manual)
+            isManual: false,
             originalLink: article.url
         }));
 
-        console.log(`✅ GNews fetched: ${articles.length} articles`);
+        // Update cache
+        gnewsCache = articles;
+        lastFetchTime = now;
+        cacheStatus.lastSuccessfulFetch = new Date().toISOString();
+        cacheStatus.totalFetches++;
+        cacheStatus.lastError = null;
+        cacheStatus.isStale = false;
+        
+        console.log(`✅ GNews fetched & cached: ${articles.length} articles`);
         return articles;
 
     } catch (error) {
         console.error('❌ GNews fetch error:', error.message);
+        cacheStatus.lastError = error.message;
+        cacheStatus.isStale = true;
+        
+        // Return stale cache on error (graceful degradation)
+        if (gnewsCache.length > 0) {
+            console.log('📦 Serving stale cache due to error');
+            return gnewsCache;
+        }
         return [];
     }
 }
@@ -291,7 +332,13 @@ app.get('/api/health', (req, res) => {
         status: 'OK', 
         timestamp: new Date().toISOString(),
         dbConnected: mongoose.connection.readyState === 1,
-        gnewsConfigured: !!GNEWS_API_KEY
+        gnewsConfigured: !!GNEWS_API_KEY,
+        cache: {
+            lastFetch: cacheStatus.lastSuccessfulFetch,
+            articlesCached: gnewsCache.length,
+            isStale: cacheStatus.isStale,
+            cacheDurationMinutes: CACHE_DURATION / 60000
+        }
     });
 });
 
@@ -302,7 +349,7 @@ app.get('/api/articles', async (req, res) => {
     try {
         let allArticles = [];
 
-        // 1. Fetch GNews articles (automated)
+        // 1. Fetch GNews articles (cached)
         const gnewsArticles = await fetchGNewsArticles();
         allArticles = [...gnewsArticles];
 
@@ -339,13 +386,20 @@ app.get('/api/articles', async (req, res) => {
         // 5. Limit total articles
         allArticles = allArticles.slice(0, 30);
 
+        // 6. Calculate "Last Updated" timestamp
+        const lastUpdated = cacheStatus.lastSuccessfulFetch || new Date().toISOString();
+        const cacheAgeMinutes = lastFetchTime ? Math.round((Date.now() - lastFetchTime) / 60000) : 0;
+
         res.json({
             success: true,
             articles: allArticles,
             meta: {
                 total: allArticles.length,
                 gnewsCount: gnewsArticles.length,
-                manualCount: formattedManual.length
+                manualCount: formattedManual.length,
+                lastUpdated: lastUpdated,
+                cacheAgeMinutes: cacheAgeMinutes,
+                isCached: cacheAgeMinutes < (CACHE_DURATION / 60000)
             }
         });
 
@@ -360,12 +414,13 @@ app.get('/api/articles/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
-        // If it's a GNews article (starts with 'gnews_'), return from memory/cache logic needed in app
+        // If it's a GNews article (starts with 'gnews_'), return from cache
         if (id.startsWith('gnews_')) {
-            return res.json({ 
-                _id: id,
-                message: 'GNews article - use cached version from /api/articles list'
-            });
+            const cachedArticle = gnewsCache.find(a => a._id === id);
+            if (cachedArticle) {
+                return res.json(cachedArticle);
+            }
+            return res.status(404).json({ error: 'GNews article not found in cache' });
         }
 
         // Otherwise fetch from database (manual article)
@@ -380,6 +435,44 @@ app.get('/api/articles/:id', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// ============================================
+// FORCE REFRESH GNEWS (ADMIN)
+// ============================================
+app.post('/api/admin/refresh-gnews', authMiddleware, async (req, res) => {
+    try {
+        // Check if admin
+        const user = await User.findById(req.userId);
+        const ADMIN_EMAIL = "dheerajexperiment8@gmail.com";
+        
+        if (user.email !== ADMIN_EMAIL) {
+            return res.status(403).json({ error: "Admin only" });
+        }
+
+        lastFetchTime = 0; // Reset cache
+        const fresh = await fetchGNewsArticles();
+        
+        res.json({ 
+            success: true, 
+            count: fresh.length, 
+            lastUpdated: cacheStatus.lastSuccessfulFetch,
+            message: 'Cache refreshed successfully'
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Get cache status (admin/debug)
+app.get('/api/admin/cache-status', async (req, res) => {
+    res.json({
+        cacheStatus,
+        lastFetchTime: lastFetchTime ? new Date(lastFetchTime).toISOString() : null,
+        cacheDurationMinutes: CACHE_DURATION / 60000,
+        articlesInCache: gnewsCache.length,
+        gnewsConfigured: !!GNEWS_API_KEY
+    });
 });
 
 // ============================================
@@ -822,6 +915,12 @@ if (DEBUG) {
                 mongoConnection: states[mongoose.connection.readyState] || 'unknown',
                 databaseName: mongoose.connection.name,
                 gnewsConfigured: !!GNEWS_API_KEY,
+                cache: {
+                    lastFetch: cacheStatus.lastSuccessfulFetch,
+                    articlesCached: gnewsCache.length,
+                    isStale: cacheStatus.isStale,
+                    cacheDurationMinutes: CACHE_DURATION / 60000
+                },
                 collections: {
                     users: await User.countDocuments(),
                     useremails: await UserEmail.countDocuments(),
@@ -850,6 +949,8 @@ if (DEBUG) {
     });
 
     app.get('/admin', (req, res) => {
+        const cacheAge = lastFetchTime ? Math.round((Date.now() - lastFetchTime) / 60000) : 'Never';
+        
         res.send(`
             <!DOCTYPE html>
             <html>
@@ -857,25 +958,60 @@ if (DEBUG) {
                 <title>KTT Admin</title>
                 <style>
                     body { font-family: Arial; padding: 20px; background: #f5f5f5; }
-                    .card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; }
+                    .card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
                     button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #007aff; color: white; border: none; border-radius: 5px; }
+                    button:hover { background: #0056b3; }
                     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
                     .stat-box { background: #007aff; color: white; padding: 15px; border-radius: 8px; text-align: center; }
+                    .warning { background: #ff9800; }
+                    .success { background: #4CAF50; }
+                    .error { background: #f44336; }
+                    .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
                 </style>
             </head>
             <body>
                 <h1>📊 KTT Admin Dashboard</h1>
+                
+                <div class="card">
+                    <h3>Cache Status</h3>
+                    <div class="info-row">
+                        <span>Last Updated:</span>
+                        <strong>${cacheStatus.lastSuccessfulFetch || 'Never'}</strong>
+                    </div>
+                    <div class="info-row">
+                        <span>Cache Age:</span>
+                        <strong>${cacheAge} minutes</strong>
+                    </div>
+                    <div class="info-row">
+                        <span>Articles Cached:</span>
+                        <strong>${gnewsCache.length}</strong>
+                    </div>
+                    <div class="info-row">
+                        <span>Status:</span>
+                        <strong style="color: ${cacheStatus.isStale ? '#f44336' : '#4CAF50'}">
+                            ${cacheStatus.isStale ? '⚠️ Stale' : '✅ Fresh'}
+                        </strong>
+                    </div>
+                    <br>
+                    <button onclick="fetch('/api/admin/refresh-gnews', {method: 'POST'}).then(() => location.reload())">
+                        🔄 Force Refresh
+                    </button>
+                </div>
+
                 <div class="card">
                     <h3>Quick Actions</h3>
                     <button onclick="location.href='/api/debug/db-status'">Check DB Status</button>
                     <button onclick="location.href='/api/debug/list-users'">List All Users</button>
                     <button onclick="location.href='/api/admin/articles'">List Manual Articles</button>
                     <button onclick="location.href='/api/articles'">View Combined Feed</button>
+                    <button onclick="location.href='/api/admin/cache-status'">Cache Details</button>
                 </div>
+
                 <div class="card">
                     <h3>News Sources</h3>
                     <p>✅ GNews API: ${GNEWS_API_KEY ? 'Configured' : 'Not Configured'}</p>
                     <p>✅ Manual Articles: MongoDB</p>
+                    <p>📦 Cache Duration: ${CACHE_DURATION / 60000} minutes</p>
                 </div>
             </body>
             </html>
@@ -915,5 +1051,6 @@ app.listen(PORT, () => {
     console.log('========================================');
     console.log(`Port: ${PORT}`);
     console.log(`GNews API: ${GNEWS_API_KEY ? '✅ Configured' : '❌ Not Configured'}`);
+    console.log(`Cache Duration: ${CACHE_DURATION / 60000} minutes`);
     console.log('========================================');
 });
