@@ -978,21 +978,3 @@ app.get("/contact", (req, res) => {
   `);
 });
 
-function openArticle(article) {
-
-    document.getElementById("articleImage").src = article.image;
-    document.getElementById("articleTitle").innerText = article.title;
-    document.getElementById("articleDate").innerText = article.date;
-
-    document.getElementById("articleSource").innerText = article.source;
-    document.getElementById("articleSource").href = article.url;
-
-    document.getElementById("articleCategory").innerText = "Category: " + article.category;
-
-    document.getElementById("articleContent").innerText = article.summary;
-
-    document.getElementById("articleUrl").innerText = article.url;
-    document.getElementById("articleUrl").href = article.url;
-
-    showScreen("detail");
-}
