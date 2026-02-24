@@ -266,13 +266,11 @@
             <h3>Appearance</h3>
             
             <div class="pref-card">
-                <!-- FIXED: Dark Mode - Click anywhere on row works -->
                 <div class="pref-row" style="cursor: pointer; position: relative; z-index: 1;">
                     <div class="pref-label" onclick="toggleDark();" style="flex: 1; pointer-events: auto;">
                         <span class="pref-title">Dark Mode</span>
                         <span class="pref-desc">Easier on the eyes at night</span>
                     </div>
-                    <!-- FIXED: Toggle with proper touch handling -->
                     <div class="switch-container" style="position: relative; width: 50px; height: 30px;">
                         <input type="checkbox" id="darkToggle" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; margin: 0;" onchange="toggleDark()">
                         <span class="switch-slider" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 30px; transition: 0.3s; pointer-events: none;"></span>
@@ -306,11 +304,11 @@
             <button id="logoutButton" onclick="alert('clicked')">Logout👋</button>
         </section>
 
-        <!-- NEW: About & Contact Section -->
+        <!-- INFORMATION Section -->
         <section class="pref-section">
             <h3>Information</h3>
             <div class="pref-card">
-                <!-- About Us Row -->
+                <!-- About Us Row - Opens new page -->
                 <div class="pref-row" onclick="showScreen('about')" style="cursor: pointer;">
                     <div class="pref-label">
                         <span class="pref-title">About Us</span>
@@ -321,7 +319,7 @@
                     </svg>
                 </div>
 
-                <!-- Contact Us Row -->
+                <!-- Contact Us Row - Opens new page -->
                 <div class="pref-row border-top" onclick="showScreen('contact')" style="cursor: pointer;">
                     <div class="pref-label">
                         <span class="pref-title">Contact Us</span>
@@ -361,7 +359,7 @@
     </nav>
 </div>
 
-<!-- ABOUT US SCREEN -->
+<!-- ABOUT US SCREEN - NEW SEPARATE PAGE -->
 <div id="about" class="screen" style="display: none;">
     <header class="page-header">
         <button class="btn-back" onclick="showScreen('preferences')">← Back</button>
@@ -370,25 +368,29 @@
     </header>
 
     <main class="page-content">
-        <div class="about-container" style="text-align: center; padding: 20px;">
-            <!-- App Logo/Icon Placeholder -->
-            <div class="app-logo" style="width: 100px; height: 100px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 24px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
-                <svg viewBox="0 0 24 24" fill="white" style="width: 50px; height: 50px;">
-                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                </svg>
-            </div>
+        <div class="about-container" style="padding: 20px;">
             
-            <h2 style="margin-bottom: 10px; font-size: 24px;">Your App Name</h2>
-            <p style="color: #888; margin-bottom: 30px;">Version 1.0.0</p>
+            <!-- App Info Section -->
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div class="app-logo" style="width: 100px; height: 100px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 24px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                    <svg viewBox="0 0 24 24" fill="white" style="width: 50px; height: 50px;">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <h2 style="margin-bottom: 5px; font-size: 24px;">Your App Name</h2>
+                <p style="color: #888;">Version 1.0.0</p>
+            </div>
 
-            <div class="about-card" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: left;">
+            <!-- Mission Card -->
+            <div class="about-card" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 20px;">
                 <h3 style="margin-bottom: 15px; font-size: 18px;">Our Mission</h3>
                 <p style="line-height: 1.6; color: #ccc;">
                     We believe in creating simple, beautiful, and powerful tools that help people stay organized and productive. Our app is designed with care to make your daily tasks easier and more enjoyable.
                 </p>
             </div>
 
-            <div class="about-card" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: left;">
+            <!-- What We Offer -->
+            <div class="about-card" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 20px;">
                 <h3 style="margin-bottom: 15px; font-size: 18px;">What We Offer</h3>
                 <ul style="list-style: none; padding: 0; line-height: 2; color: #ccc;">
                     <li>✨ Intuitive and clean interface</li>
@@ -398,7 +400,49 @@
                 </ul>
             </div>
 
-            <div class="team-section" style="margin-top: 30px;">
+            <!-- FOUNDER DETAILS SECTION -->
+            <div class="founder-section" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 20px; font-size: 18px;">Meet the Founder</h3>
+                
+                <div class="founder-card" style="display: flex; align-items: center; margin-bottom: 20px;">
+                    <div class="founder-avatar" style="width: 70px; height: 70px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 28px;">
+                        👨‍💻
+                    </div>
+                    <div>
+                        <h4 style="margin: 0 0 5px 0; font-size: 18px;">Dheeraj Kumar</h4>
+                        <p style="margin: 0; color: #888; font-size: 14px;">Founder & CEO</p>
+                        <p style="margin: 5px 0 0 0; color: #667eea; font-size: 13px;">Visionary & Developer</p>
+                    </div>
+                </div>
+                
+                <p style="line-height: 1.6; color: #ccc; font-size: 14px;">
+                    Passionate about building products that make a difference. With expertise in mobile development and user experience design, Dheeraj started this journey to simplify everyday tasks for millions of users.
+                </p>
+                
+                <!-- Social Links for Founder -->
+                <div style="margin-top: 15px; display: flex; gap: 15px;">
+                    <a href="https://twitter.com/dheeraj" target="_blank" style="color: #1DA1F2; text-decoration: none;">
+                        <svg viewBox="0 0 24 24" fill="currentColor" style="width: 24px; height: 24px;">
+                            <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path>
+                        </svg>
+                    </a>
+                    <a href="https://linkedin.com/in/dheeraj" target="_blank" style="color: #0077b5; text-decoration: none;">
+                        <svg viewBox="0 0 24 24" fill="currentColor" style="width: 24px; height: 24px;">
+                            <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                            <rect x="2" y="9" width="4" height="12"></rect>
+                            <circle cx="4" cy="4" r="2"></circle>
+                        </svg>
+                    </a>
+                    <a href="https://github.com/dheeraj" target="_blank" style="color: #fff; text-decoration: none;">
+                        <svg viewBox="0 0 24 24" fill="currentColor" style="width: 24px; height: 24px;">
+                            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Team Section -->
+            <div style="text-align: center; margin-top: 30px;">
                 <p style="color: #666; font-size: 14px;">Made with ❤️ by Our Team</p>
                 <p style="color: #444; font-size: 12px; margin-top: 20px;">© 2024 Your Company Name. All rights reserved.</p>
             </div>
@@ -418,7 +462,7 @@
         <div class="contact-container" style="padding: 20px;">
             <!-- Contact Methods -->
             <div class="contact-methods" style="margin-bottom: 30px;">
-                <div class="contact-card" onclick="window.location.href='mailto:support@yourapp.com'" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 15px; display: flex; align-items: center; cursor: pointer; transition: transform 0.2s;">
+                <div class="contact-card" onclick="window.location.href='mailto:support@yourapp.com'" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 15px; display: flex; align-items: center; cursor: pointer;">
                     <div class="contact-icon" style="width: 50px; height: 50px; background: #4CAF50; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
                         <svg viewBox="0 0 24 24" fill="white" style="width: 24px; height: 24px;">
                             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
@@ -434,7 +478,7 @@
                     </svg>
                 </div>
 
-                <div class="contact-card" onclick="window.open('https://twitter.com/yourapp', '_blank')" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 15px; display: flex; align-items: center; cursor: pointer; transition: transform 0.2s;">
+                <div class="contact-card" onclick="window.open('https://twitter.com/yourapp', '_blank')" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 15px; display: flex; align-items: center; cursor: pointer;">
                     <div class="contact-icon" style="width: 50px; height: 50px; background: #1DA1F2; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
                         <svg viewBox="0 0 24 24" fill="white" style="width: 24px; height: 24px;">
                             <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path>
@@ -449,7 +493,7 @@
                     </svg>
                 </div>
 
-                <div class="contact-card" onclick="window.open('https://instagram.com/yourapp', '_blank')" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; display: flex; align-items: center; cursor: pointer; transition: transform 0.2s;">
+                <div class="contact-card" onclick="window.open('https://instagram.com/yourapp', '_blank')" style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; display: flex; align-items: center; cursor: pointer;">
                     <div class="contact-icon" style="width: 50px; height: 50px; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
                         <svg viewBox="0 0 24 24" fill="white" style="width: 24px; height: 24px;">
                             <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
@@ -487,7 +531,7 @@
                         <textarea id="contactMessage" rows="4" placeholder="How can we help you?" style="width: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; background: rgba(0,0,0,0.2); color: white; font-size: 16px; box-sizing: border-box; resize: vertical; font-family: inherit;"></textarea>
                     </div>
 
-                    <button type="submit" style="width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+                    <button type="submit" style="width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; cursor: pointer;">
                         Send Message
                     </button>
                 </form>
@@ -516,7 +560,6 @@ function handleContactSubmit(e) {
         return;
     }
     
-    // Here you would normally send to your backend
     alert('Thank you for your message! We\'ll get back to you soon.');
     
     // Clear form
@@ -524,20 +567,7 @@ function handleContactSubmit(e) {
     document.getElementById('contactEmail').value = '';
     document.getElementById('contactMessage').value = '';
 }
-
-// Add hover effects via JS since inline styles don't support hover
-document.querySelectorAll('.contact-card').forEach(card => {
-    card.addEventListener('mouseenter', function() {
-        this.style.transform = 'translateX(5px)';
-        this.style.background = 'rgba(255,255,255,0.08)';
-    });
-    card.addEventListener('mouseleave', function() {
-        this.style.transform = 'translateX(0)';
-        this.style.background = 'rgba(255,255,255,0.05)';
-    });
-});
 </script>
-
 
     <!-- ARTICLE DETAIL SCREEN -->
     <div id="detail" class="screen">
