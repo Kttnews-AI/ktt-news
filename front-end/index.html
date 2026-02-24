@@ -563,17 +563,48 @@ function handleContactSubmit(e) {
 </script>
 
     <!-- ARTICLE DETAIL SCREEN -->
-    <div id="detail" class="screen">
-        <header class="page-header">
-            <button class="btn-back" onclick="showScreen('home')">← Back</button>
-            <h1 style="font-size: 18px; font-weight: 600;">Article</h1>
-            <button class="btn-save" onclick="saveCurrentArticle()" id="saveBtn">💾 Save</button>
-        </header>
-        
-        <main class="detail-content" id="detailContent">
-            <div id="articleBody"></div>
-        </main>
+     <div id="articleBody"></div>
+    <div id="articleBody">
+
+    <!-- Article Image -->
+    <img id="articleImage" class="article-image" />
+
+    <!-- Title -->
+    <h2 id="articleTitle" class="article-title"></h2>
+
+    <!-- Date -->
+    <p id="articleDate" class="article-date"></p>
+
+    <!-- Source + Category -->
+    <div class="article-meta">
+        <span>Source: 
+            <a id="articleSource" href="#" target="_blank"></a>
+        </span>
+        <span id="articleCategory"></span>
     </div>
+
+    <!-- AI Label -->
+    <div class="ai-label">
+        🤖 This is an AI-generated summary of the original article.
+    </div>
+
+    <!-- Article Summary -->
+    <div id="articleContent" class="article-text"></div>
+
+    <!-- Read Full Article -->
+    <div class="read-full">
+        <h4>Read Full Original Article:</h4>
+        <a id="articleUrl" href="#" target="_blank"></a>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="disclaimer">
+        Disclaimer: KTT News does not produce original journalism.
+        This summary is generated using AI based on publicly available content.
+        All rights belong to the respective publisher.
+    </div>
+
+</div>
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
