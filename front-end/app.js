@@ -712,7 +712,7 @@ function renderArticleCards(articles, type) {
     return articles.map((item, index) => {
         const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
         const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent";
-        const excerpt = item.content ? item.content.substring(0, 100) + "..." : "No content";
+        const excerpt = item.content ? item.content.substring(0, 90) + "..." : "No content";
         const title = item.title || "Untitled";
         
         const isSaved = getSavedArticles().some(s => {
@@ -724,34 +724,29 @@ function renderArticleCards(articles, type) {
         const imageUrl = getImageUrl(item.image);
         const articleData = encodeURIComponent(JSON.stringify(item));
         
-        const isGNews = type === 'gnews';
-        const accentColor = isGNews ? '#4CAF50' : '#667eea';
-        
+        // OLD STYLE - Compact horizontal card
         return `
             <article class="news-card" 
                 data-article-id="${escapeHtml(id)}" 
                 data-article-data="${escapeHtml(articleData)}"
                 onclick="handleArticleClick(this)"
-                style="background: #1a1a1a; border-radius: 16px; overflow: hidden; margin-bottom: 16px; border: 1px solid #2a2a2a;">
+                style="display: flex; background: #1a1a1a; border-radius: 12px; margin: 8px 16px; overflow: hidden; border: 1px solid #2a2a2a;">
+                
+                <div class="news-content" style="flex: 1; padding: 12px; display: flex; flex-direction: column; justify-content: center;">
+                    <h3 class="news-title" style="font-size: 14px; line-height: 1.4; margin-bottom: 6px; color: #fff; font-weight: 600;">${savedIcon}${escapeHtml(title)}</h3>
+                    <p class="news-excerpt" style="font-size: 12px; color: #888; line-height: 1.5; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(excerpt)}</p>
+                    <div class="news-meta" style="display: flex; align-items: center; gap: 6px;">
+                        <span style="color: #666; font-size: 11px;">${escapeHtml(item.source || 'Unknown')}</span>
+                        <span style="color: #444;">•</span>
+                        <span style="color: #666; font-size: 11px;">${escapeHtml(date)}</span>
+                    </div>
+                </div>
                 
                 ${imageUrl ? `
-                <div style="position: relative;">
-                    <img src="${escapeHtml(imageUrl)}" style="width: 100%; height: 200px; object-fit: cover;" loading="lazy" onerror="this.style.display='none'">
-                    <div style="position: absolute; top: 12px; left: 12px; background: ${accentColor}; color: white; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600;">
-                        ${isGNews ? 'GNews' : 'Editor'}
-                    </div>
+                <div style="width: 100px; height: 100px; flex-shrink: 0;">
+                    <img src="${escapeHtml(imageUrl)}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy" onerror="this.style.display='none'; this.parentElement.style.display='none';">
                 </div>
                 ` : ''}
-                
-                <div class="news-content" style="padding: 16px;">
-                    <h3 class="news-title" style="font-size: 16px; line-height: 1.4; margin-bottom: 10px; color: #fff; font-weight: 600;">${savedIcon}${escapeHtml(title)}</h3>
-                    <p class="news-excerpt" style="font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 12px;">${escapeHtml(excerpt)}</p>
-                    <div class="news-meta" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span style="color: ${accentColor}; font-size: 12px; font-weight: 600;">${escapeHtml(item.source || 'Unknown')}</span>
-                        <span style="color: #444;">•</span>
-                        <span style="color: #666; font-size: 12px;">${escapeHtml(date)}</span>
-                    </div>
-                </div>
             </article>
         `;
     }).join('');
