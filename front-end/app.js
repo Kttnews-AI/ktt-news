@@ -648,9 +648,17 @@ function renderTabView() {
     
     const isGNews = currentTab === 'gnews';
     const activeArticles = isGNews ? gnewsArticles : manualArticles;
-    const tabTitle = isGNews ? 'Trending News' : 'Editor\'s Pick';
+    
+    // CUSTOMIZE NAMES HERE ↓↓↓
+    const gnewsTabName = 'AI-S';      // Change this
+    const manualTabName = 'AI-D';      // Change this
+    const gnewsSectionTitle = 'AI-S';     // Change this
+    const manualSectionTitle = 'AI-D';    // Change this
+    // CUSTOMIZE NAMES HERE ↑↑↑
+    
+    const tabTitle = isGNews ? gnewsSectionTitle : manualSectionTitle;
     const tabColor = isGNews ? '#4CAF50' : '#667eea';
-    const tabIcon = isGNews ? '📰' : '✍️';
+    const tabIcon = isGNews ? '🌍' : '📍';
     
     let html = '';
     
@@ -662,13 +670,13 @@ function renderTabView() {
                     style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
                     background: ${isGNews ? '#4CAF50' : '#1a1a1a'}; 
                     color: ${isGNews ? '#fff' : '#888'};">
-                    📰 GNews
+                    ${gnewsTabName}
                 </button>
                 <button onclick="switchTab('manual')" 
                     style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
                     background: ${!isGNews ? '#667eea' : '#1a1a1a'}; 
                     color: ${!isGNews ? '#fff' : '#888'};">
-                    ✍️ Editor
+                    ${manualTabName}
                 </button>
             </div>
             ${lastUpdatedTime ? `
@@ -688,7 +696,7 @@ function renderTabView() {
         </div>
     `;
     
-    // ARTICLES LIST
+    // REST OF FUNCTION...
     if (activeArticles.length > 0) {
         html += `<div class="articles-list" style="padding: 0 16px 20px 16px;">`;
         html += renderArticleCards(activeArticles, currentTab);
@@ -698,7 +706,7 @@ function renderTabView() {
             <div style="text-align: center; padding: 60px 20px; color: #666;">
                 <div style="font-size: 48px; margin-bottom: 16px;">${isGNews ? '📭' : '✍️'}</div>
                 <h3 style="color: #fff; margin-bottom: 8px;">No ${tabTitle}</h3>
-                <p>${isGNews ? 'Check back later for trending news' : 'Editor articles coming soon'}</p>
+                <p>${isGNews ? 'Check back later for news' : 'Articles coming soon'}</p>
             </div>
         `;
     }
