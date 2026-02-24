@@ -102,59 +102,53 @@
 
     <!-- LOGIN SCREEN - STEP 1: EMAIL -->
 <div id="login" class="screen">
-    <div class="login-wrapper">
-        <button class="btn-back" onclick="goBackToAbout()">←</button>
+    <div class="login-wrapper" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; box-sizing: border-box;">
+        <button class="btn-back" onclick="goBackToAbout()" style="position: absolute; top: 20px; left: 20px; background: none; border: none; color: #667eea; font-size: 20px; cursor: pointer;">←</button>
         
-        <div class="login-header">
-            <h1>Sign In</h1>
-            <p>Enter your email to receive OTP</p>
+        <div class="login-header" style="text-align: center; margin-bottom: 40px;">
+            <h1 style="color: #fff; font-size: 32px; font-weight: 700; margin-bottom: 10px;">Sign In</h1>
+            <p style="color: #888; font-size: 16px;">Enter your email to receive OTP</p>
         </div>
 
-        <div class="login-form" id="emailStep">
-            <div class="input-wrapper">
-                <label>Email Address</label>
-                <input type="email" id="loginEmail" placeholder="name@example.com" autocomplete="email">
+        <div class="login-form" id="emailStep" style="width: 100%; max-width: 400px;">
+            <div class="input-wrapper" style="margin-bottom: 25px;">
+                <label style="display: block; color: #888; font-size: 14px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Email Address</label>
+                <input type="email" id="loginEmail" placeholder="name@example.com" autocomplete="email" style="width: 100%; padding: 16px; border: 1px solid #333; border-radius: 12px; background: #1a1a1a; color: #fff; font-size: 16px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#333'">
             </div>
 
-            <button class="btn-main" onclick="sendOTP()" id="sendOtpBtn">
+            <button class="btn-main" onclick="sendOTP()" id="sendOtpBtn" style="width: 100%; padding: 16px; background: #007aff; border: none; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                 <span>Send OTP</span>
             </button>
-            
-            <div class="divider">
-                <span>or</span>
-            </div>
-
-            <button class="btn-secondary" onclick="skipToHome()">Continue as Guest</button>
         </div>
 
         <!-- OTP Step (Hidden initially) -->
-        <div class="login-form hidden" id="otpStep">
-            <div class="otp-info">
-                <p>We've sent a 6-digit code to</p>
-                <p class="otp-email" id="otpEmailDisplay"></p>
+        <div class="login-form hidden" id="otpStep" style="width: 100%; max-width: 400px; display: none;">
+            <div class="otp-info" style="text-align: center; margin-bottom: 30px;">
+                <p style="color: #888; font-size: 14px; margin-bottom: 5px;">We've sent a 6-digit code to</p>
+                <p class="otp-email" id="otpEmailDisplay" style="color: #fff; font-size: 16px; font-weight: 600;"></p>
             </div>
             
-            <div class="otp-input-container">
-                <input type="text" maxlength="1" class="otp-input" data-index="0">
-                <input type="text" maxlength="1" class="otp-input" data-index="1">
-                <input type="text" maxlength="1" class="otp-input" data-index="2">
-                <input type="text" maxlength="1" class="otp-input" data-index="3">
-                <input type="text" maxlength="1" class="otp-input" data-index="4">
-                <input type="text" maxlength="1" class="otp-input" data-index="5">
+            <div class="otp-input-container" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 30px;">
+                <input type="text" maxlength="1" class="otp-input" data-index="0" style="width: 50px; height: 60px; border: 1px solid #333; border-radius: 12px; background: #1a1a1a; color: #fff; font-size: 24px; text-align: center; outline: none; transition: all 0.2s;" onfocus="this.style.borderColor='#667eea'; this.style.background='#252525'" onblur="this.style.borderColor='#333'; this.style.background='#1a1a1a'">
+                <input type="text" maxlength="1" class="otp-input" data-index="1" style="width: 50px; height: 60px; border: 1px solid #333; border-radius: 12px; background: #1a1a1a; color: #fff; font-size: 24px; text-align: center; outline: none; transition: all 0.2s;" onfocus="this.style.borderColor='#667eea'; this.style.background='#252525'" onblur="this.style.borderColor='#333'; this.style.background='#1a1a1a'">
+                <input type="text" maxlength="1" class="otp-input" data-index="2" style="width: 50px; height: 60px; border: 1px solid #333; border-radius: 12px; background: #1a1a1a; color: #fff; font-size: 24px; text-align: center; outline: none; transition: all 0.2s;" onfocus="this.style.borderColor='#667eea'; this.style.background='#252525'" onblur="this.style.borderColor='#333'; this.style.background='#1a1a1a'">
+                <input type="text" maxlength="1" class="otp-input" data-index="3" style="width: 50px; height: 60px; border: 1px solid #333; border-radius: 12px; background: #1a1a1a; color: #fff; font-size: 24px; text-align: center; outline: none; transition: all 0.2s;" onfocus="this.style.borderColor='#667eea'; this.style.background='#252525'" onblur="this.style.borderColor='#333'; this.style.background='#1a1a1a'">
+                <input type="text" maxlength="1" class="otp-input" data-index="4" style="width: 50px; height: 60px; border: 1px solid #333; border-radius: 12px; background: #1a1a1a; color: #fff; font-size: 24px; text-align: center; outline: none; transition: all 0.2s;" onfocus="this.style.borderColor='#667eea'; this.style.background='#252525'" onblur="this.style.borderColor='#333'; this.style.background='#1a1a1a'">
+                <input type="text" maxlength="1" class="otp-input" data-index="5" style="width: 50px; height: 60px; border: 1px solid #333; border-radius: 12px; background: #1a1a1a; color: #fff; font-size: 24px; text-align: center; outline: none; transition: all 0.2s;" onfocus="this.style.borderColor='#667eea'; this.style.background='#252525'" onblur="this.style.borderColor='#333'; this.style.background='#1a1a1a'">
             </div>
 
-            <div class="otp-timer">
-                <span id="otpTimer">Resend OTP in 60s</span>
-                <button class="btn-text hidden" id="resendBtn" onclick="sendOTP()">Resend OTP</button>
+            <div class="otp-timer" style="text-align: center; margin-bottom: 25px;">
+                <span id="otpTimer" style="color: #888; font-size: 14px;">Resend OTP in 60s</span>
+                <button class="btn-text hidden" id="resendBtn" onclick="sendOTP()" style="background: none; border: none; color: #667eea; font-size: 14px; cursor: pointer; display: none;">Resend OTP</button>
             </div>
 
-            <button class="btn-main" onclick="verifyOTP()" id="verifyOtpBtn">
+            <button class="btn-main" onclick="verifyOTP()" id="verifyOtpBtn" style="width: 100%; padding: 16px; background: #007aff; border: none; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                 <span>Verify & Continue</span>
             </button>
         </div>
 
-        <p class="login-footer" id="loginFooter">
-            Don't have an account? <a href="#" onclick="showToast('Enter any email to get started')">Create one</a>
+        <p class="login-footer" id="loginFooter" style="position: absolute; bottom: 30px; color: #888; font-size: 14px;">
+            Don't have an account? <a href="#" onclick="showToast('Enter any email to get started')" style="color: #667eea; text-decoration: none; font-weight: 600;">Create one</a>
         </p>
     </div>
 </div>
