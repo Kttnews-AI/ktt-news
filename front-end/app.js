@@ -856,6 +856,17 @@ async function shareCurrentArticle() {
         });
     }
 }
+const articleData = {
+    title: "Android 16 Stability Reach...",
+    content: "<p>Article HTML content...</p>",
+    source: "TechCrunch",           // From your API
+    category: "Technology",          // From your API
+    date: "24/2/2026, 2:01:55 am",  // From your API
+    originalUrl: "https://...",      // From your API
+    aiSummary: "AI summary text..."  // From your API
+};
+
+loadArticleDetail(articleData);
 
 function refreshFeed() {
     isOnline = false;
