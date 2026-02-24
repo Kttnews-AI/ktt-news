@@ -646,8 +646,8 @@ function renderTabView() {
     const container = document.getElementById("newsFeed");
     if(!container) return;
     
-    const isGNews = currentTab === 'gnews';
-    const activeArticles = isGNews ? gnewsArticles : manualArticles;
+    const isGNews = currentTab === 'AI-S';
+    const activeArticles = isGNews ? AI-S : AI-D;
     const tabTitle = isGNews ? 'Trending News' : 'Editor\'s Pick';
     const tabColor = isGNews ? '#4CAF50' : '#667eea';
     const tabIcon = isGNews ? '📰' : '✍️';
@@ -658,17 +658,17 @@ function renderTabView() {
     html += `
         <div style="position: sticky; top: 0; background: #000; z-index: 100; padding: 10px 16px; border-bottom: 1px solid #222;">
             <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <button onclick="switchTab('gnews')" 
+                <button onclick="switchTab('AI-S')" 
                     style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
-                    background: ${isGNews ? '#4CAF50' : '#1a1a1a'}; 
-                    color: ${isGNews ? '#fff' : '#888'};">
-                    📰 GNews
+                    background: ${isAI-S ? '#4CAF50' : '#1a1a1a'}; 
+                    color: ${isAI-S ? '#fff' : '#888'};">
+                    📰 AI-S
                 </button>
-                <button onclick="switchTab('manual')" 
+                <button onclick="switchTab('AI-D')" 
                     style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
-                    background: ${!isGNews ? '#667eea' : '#1a1a1a'}; 
-                    color: ${!isGNews ? '#fff' : '#888'};">
-                    ✍️ Editor
+                    background: ${!isAI-D ? '#667eea' : '#1a1a1a'}; 
+                    color: ${!isAI-D ? '#fff' : '#888'};">
+                    ✍️ AI-D
                 </button>
             </div>
             ${lastUpdatedTime ? `
@@ -696,7 +696,7 @@ function renderTabView() {
     } else {
         html += `
             <div style="text-align: center; padding: 60px 20px; color: #666;">
-                <div style="font-size: 48px; margin-bottom: 16px;">${isGNews ? '📭' : '✍️'}</div>
+                <div style="font-size: 48px; margin-bottom: 16px;">${isAI-S ? '📭' : '✍️'}</div>
                 <h3 style="color: #fff; margin-bottom: 8px;">No ${tabTitle}</h3>
                 <p>${isGNews ? 'Check back later for trending news' : 'Editor articles coming soon'}</p>
             </div>
@@ -712,7 +712,7 @@ function renderArticleCards(articles, type) {
     return articles.map((item, index) => {
         const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
         const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent";
-        const excerpt = item.content ? item.content.substring(0, 100) + "..." : "No content";
+        const excerpt = item.content ? item.content.substring(0, 90) + "..." : "No content";
         const title = item.title || "Untitled";
         
         const isSaved = getSavedArticles().some(s => {
@@ -724,34 +724,29 @@ function renderArticleCards(articles, type) {
         const imageUrl = getImageUrl(item.image);
         const articleData = encodeURIComponent(JSON.stringify(item));
         
-        const isGNews = type === 'gnews';
-        const accentColor = isGNews ? '#4CAF50' : '#667eea';
-        
+        // OLD STYLE - Compact horizontal card
         return `
             <article class="news-card" 
                 data-article-id="${escapeHtml(id)}" 
                 data-article-data="${escapeHtml(articleData)}"
                 onclick="handleArticleClick(this)"
-                style="background: #1a1a1a; border-radius: 16px; overflow: hidden; margin-bottom: 16px; border: 1px solid #2a2a2a;">
+                style="display: flex; background: #1a1a1a; border-radius: 12px; margin: 8px 16px; overflow: hidden; border: 1px solid #2a2a2a;">
+                
+                <div class="news-content" style="flex: 1; padding: 12px; display: flex; flex-direction: column; justify-content: center;">
+                    <h3 class="news-title" style="font-size: 14px; line-height: 1.4; margin-bottom: 6px; color: #fff; font-weight: 600;">${savedIcon}${escapeHtml(title)}</h3>
+                    <p class="news-excerpt" style="font-size: 12px; color: #888; line-height: 1.5; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(excerpt)}</p>
+                    <div class="news-meta" style="display: flex; align-items: center; gap: 6px;">
+                        <span style="color: #666; font-size: 11px;">${escapeHtml(item.source || 'Unknown')}</span>
+                        <span style="color: #444;">•</span>
+                        <span style="color: #666; font-size: 11px;">${escapeHtml(date)}</span>
+                    </div>
+                </div>
                 
                 ${imageUrl ? `
-                <div style="position: relative;">
-                    <img src="${escapeHtml(imageUrl)}" style="width: 100%; height: 200px; object-fit: cover;" loading="lazy" onerror="this.style.display='none'">
-                    <div style="position: absolute; top: 12px; left: 12px; background: ${accentColor}; color: white; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600;">
-                        ${isGNews ? 'GNews' : 'Editor'}
-                    </div>
+                <div style="width: 100px; height: 100px; flex-shrink: 0;">
+                    <img src="${escapeHtml(imageUrl)}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy" onerror="this.style.display='none'; this.parentElement.style.display='none';">
                 </div>
                 ` : ''}
-                
-                <div class="news-content" style="padding: 16px;">
-                    <h3 class="news-title" style="font-size: 16px; line-height: 1.4; margin-bottom: 10px; color: #fff; font-weight: 600;">${savedIcon}${escapeHtml(title)}</h3>
-                    <p class="news-excerpt" style="font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 12px;">${escapeHtml(excerpt)}</p>
-                    <div class="news-meta" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span style="color: ${accentColor}; font-size: 12px; font-weight: 600;">${escapeHtml(item.source || 'Unknown')}</span>
-                        <span style="color: #444;">•</span>
-                        <span style="color: #666; font-size: 12px;">${escapeHtml(date)}</span>
-                    </div>
-                </div>
             </article>
         `;
     }).join('');
