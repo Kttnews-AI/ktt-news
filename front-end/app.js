@@ -1,4 +1,4 @@
- // ============================================
+// ============================================
 // KTT NEWS APP - FULLY WORKING VERSION
 // ============================================
 
@@ -14,6 +14,9 @@ let currentUser = null;
 let currentArticle = null;
 let isOnline = false;
 let toastTimeout = null;
+
+// FIX: Added articles cache to store complete article data
+let articlesCache = {};
 
 /* ============================================
    INITIALIZATION
@@ -82,6 +85,7 @@ function exportAllFunctions() {
     window.changeTextSize = changeTextSize;
     window.toggleDark = toggleDark;
     window.showToast = showToast;
+    window.shareCurrentArticle = shareCurrentArticle;
 }
 
 /* ============================================
@@ -203,7 +207,6 @@ function showScreen(screenId) {
     
     window.scrollTo(0, 0);
     setTimeout(bindMobileButtons,200);
-
 }
 
 function goToLogin() {
@@ -270,8 +273,9 @@ function updateUserDisplay() {
     }
 }
 
-function doLogout(){
-
+function logout() {
+    if (!confirm("Are you sure you want to logout?")) return;
+    
     localStorage.removeItem("ktt_logged");
     localStorage.removeItem("user_email");
     localStorage.removeItem("user_name");
@@ -279,39 +283,32 @@ function doLogout(){
     localStorage.removeItem("temp_email");
 
     currentUser = null;
-
-    showToast("Logged out");
-
-    setTimeout(()=>{
-        location.href = location.origin;
-    },500);
+    showToast("Logged out successfully");
+    
+    setTimeout(() => {
+        showScreen("about");
+    }, 500);
 }
 
-
-function doClearAll(){
-
+function clearAll() {
+    if(!confirm("Clear all saved data?")) return;
+    
     localStorage.clear();
-
     showToast("All data cleared");
-
-    setTimeout(()=>{
-        location.href = location.origin;
-    },600);
+    
+    setTimeout(() => {
+        location.reload();
+    }, 600);
 }
-
-
-
 
 /* ============================================
    THEME
 ============================================ */
-// FIX: Accept checked parameter instead of using global event
 function toggleDark(checked) {
     console.log("toggleDark called with:", checked);
     
     const checkbox = document.getElementById('darkToggle');
     
-    // If called without parameter, toggle based on current state
     let shouldBeDark;
     if (typeof checked === 'boolean') {
         shouldBeDark = checked;
@@ -327,7 +324,6 @@ function toggleDark(checked) {
         localStorage.setItem('theme', 'light');
     }
     
-    // Sync checkbox
     if (checkbox) checkbox.checked = shouldBeDark;
     
     console.log("Dark mode:", shouldBeDark ? "ON" : "OFF");
@@ -365,27 +361,26 @@ let otpTimer = null;
 let otpCountdown = 60;
 let otpRequestInProgress = false;
 
-
 function sendOTP() {
-    if (otpRequestInProgress) return; // 🚫 BLOCK DUPLICATE
-
+    if (otpRequestInProgress) return;
+    
     const emailInput = document.getElementById("loginEmail");
     const email = emailInput.value.trim();
     const btn = document.getElementById("sendOtpBtn");
-
+    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email)) {
         showToast("Please enter a valid email");
         return;
     }
-
+    
     otpRequestInProgress = true;
     btn.classList.add("loading");
     btn.disabled = true;
     btn.innerText = "Sending...";
-
+    
     localStorage.setItem("temp_email", email);
-
+    
     fetch(`${API_BASE}/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -397,7 +392,7 @@ function sendOTP() {
         btn.classList.remove("loading");
         btn.disabled = false;
         btn.innerText = "Send OTP";
-
+        
         if (data.success) {
             showOTPStep(email);
             showToast("📧 OTP sent!");
@@ -413,7 +408,6 @@ function sendOTP() {
         showToast("Network error");
     });
 }
-
 
 function showOTPStep(email) {
     document.getElementById("emailStep")?.classList.add("hidden");
@@ -582,10 +576,8 @@ function resetLoginForm() {
     if (otpTimer) clearInterval(otpTimer);
 }
 
-
-
 /* ============================================
-   NEWS LOADING - FIXED IMAGE URLS
+   NEWS LOADING - FIXED WITH CACHE
 ============================================ */
 async function loadNews() {
     const container = document.getElementById("newsFeed");
@@ -595,36 +587,53 @@ async function loadNews() {
     
     try {
         const response = await fetch(API_ARTICLES);
-        const newsArray = await response.json();
+        const data = await response.json();
+        
+        // Handle different response formats
+        const newsArray = data.articles || data.data || data;
+        
+        if (!Array.isArray(newsArray)) {
+            throw new Error('Invalid response format');
+        }
+        
+        // FIX: Cache all articles with complete data
+        newsArray.forEach(article => {
+            const id = article._id || article.articleId || article.id;
+            if (id) {
+                articlesCache[String(id)] = article;
+            }
+        });
         
         localStorage.setItem("news_backup", JSON.stringify(newsArray));
         isOnline = true;
         renderNews(newsArray);
         updateSavedFolder();
     } catch(error) {
+        console.error('Load news error:', error);
         const backup = localStorage.getItem("news_backup");
         if(backup) {
-            renderNews(JSON.parse(backup));
+            const parsed = JSON.parse(backup);
+            parsed.forEach(article => {
+                const id = article._id || article.articleId || article.id;
+                if (id) articlesCache[String(id)] = article;
+            });
+            renderNews(parsed);
             showToast("Offline mode");
         }
     }
 }
 
-// FIX: Improved image URL construction
 function getImageUrl(imagePath) {
     if (!imagePath) return null;
     
-    // If already full URL, return as-is
     if (imagePath.startsWith('http')) {
         return imagePath;
     }
     
-    // If starts with /uploads/, append to base
     if (imagePath.startsWith('/uploads/')) {
         return API_BASE + imagePath;
     }
     
-    // Otherwise add /uploads/ prefix
     return `${API_BASE}/uploads/${imagePath}`;
 }
 
@@ -639,15 +648,17 @@ function renderNews(newsArray) {
     
     let html = '';
     newsArray.forEach((item, index) => {
-        const id = String(item._id || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
+        const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
         const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent";
         const excerpt = item.content ? item.content.substring(0, 90) + "..." : "No content";
         const title = item.title || "Untitled";
         
-        const isSaved = getSavedArticles().some(s => String(s._id || s.id) === id);
+        const isSaved = getSavedArticles().some(s => {
+            const savedId = String(s._id || s.id || s.articleId);
+            return savedId === id;
+        });
         const savedIcon = isSaved ? '🔖 ' : '';
         
-        // FIX: Use improved image URL function
         const imageUrl = getImageUrl(item.image);
         
         html += `
@@ -655,7 +666,7 @@ function renderNews(newsArray) {
                 <div class="news-content">
                     <h3 class="news-title">${savedIcon}${escapeHtml(title)}</h3>
                     <p class="news-excerpt">${escapeHtml(excerpt)}</p>
-                    <div class="news-meta"><span> ${escapeHtml(date)}</span></div>
+                    <div class="news-meta"><span>${escapeHtml(date)}</span></div>
                 </div>
                 ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" class="news-thumb" loading="lazy" onerror="this.style.display='none'; this.parentElement.classList.add('no-image');">` : ""}
             </article>
@@ -668,7 +679,9 @@ function renderNews(newsArray) {
 function getSavedArticles() {
     try {
         return JSON.parse(localStorage.getItem("saved_articles") || "[]");
-    } catch(e) { return []; }
+    } catch(e) { 
+        return []; 
+    }
 }
 
 function updateSavedFolder() {
@@ -694,7 +707,7 @@ function loadSavedArticles() {
     
     let html = '';
     saved.forEach(item => {
-        const id = String(item._id || item.id).replace(/[^a-zA-Z0-9-]/g, '');
+        const id = String(item._id || item.articleId || item.id).replace(/[^a-zA-Z0-9-]/g, '');
         const date = item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved";
         const title = item.title || "Untitled";
         
@@ -702,7 +715,7 @@ function loadSavedArticles() {
             <article class="news-card" onclick="openArticle('${escapeHtml(id)}')">
                 <div class="news-content">
                     <h3 class="news-title">🔖 ${escapeHtml(title)}</h3>
-                    <p class="news-meta"><span> ${escapeHtml(date)}</span></p>
+                    <p class="news-meta"><span>${escapeHtml(date)}</span></p>
                 </div>
             </article>
         `;
@@ -711,22 +724,41 @@ function loadSavedArticles() {
     container.innerHTML = html;
 }
 
+/* ============================================
+   ARTICLE DETAIL - FIXED WITH CACHE
+============================================ */
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
     
+    // FIX: First check if we have complete data in cache
+    if (articlesCache[cleanId]) {
+        console.log('Using cached article:', articlesCache[cleanId]);
+        currentArticle = articlesCache[cleanId];
+        displayArticleDetail();
+        return;
+    }
+    
+    // Otherwise fetch from API
     fetch(`${API_ARTICLES}/${cleanId}`)
         .then(response => response.json())
         .then(article => {
-            currentArticle = article;
+            console.log('Fetched article:', article);
+            currentArticle = { ...articlesCache[cleanId], ...article };
             displayArticleDetail();
         })
         .catch(() => {
             const backup = JSON.parse(localStorage.getItem("news_backup") || "[]");
-            currentArticle = backup.find(item => String(item._id || item.id) === cleanId);
+            currentArticle = backup.find(item => {
+                const itemId = String(item._id || item.articleId || item.id);
+                return itemId === cleanId;
+            });
             
             if(!currentArticle) {
                 const saved = getSavedArticles();
-                currentArticle = saved.find(item => String(item._id || item.id) === cleanId);
+                currentArticle = saved.find(item => {
+                    const itemId = String(item._id || item.articleId || item.id);
+                    return itemId === cleanId;
+                });
             }
             
             if(currentArticle) displayArticleDetail();
@@ -739,53 +771,64 @@ function displayArticleDetail() {
     
     if(!articleBody || !currentArticle) return;
     
-    const isSaved = getSavedArticles().some(s => String(s._id || s.id || s.articleId) === String(currentArticle._id || currentArticle.id || currentArticle.articleId));
+    console.log('Displaying article with data:', currentArticle);
+    
+    const articleId = currentArticle._id || currentArticle.id || currentArticle.articleId;
+    
+    const isSaved = getSavedArticles().some(s => {
+        const savedId = String(s._id || s.id || s.articleId);
+        return savedId === String(articleId);
+    });
     
     if(saveBtn) {
         saveBtn.innerHTML = isSaved ? '✓ Saved' : '💾 Save';
         saveBtn.classList.toggle('saved', isSaved);
     }
     
-    // FIX: Handle different date formats
-    const date = currentArticle.createdAt 
-        ? new Date(currentArticle.createdAt).toLocaleString('en-GB', {
+    // Format date
+    let date = "Recent";
+    if (currentArticle.createdAt) {
+        const d = new Date(currentArticle.createdAt);
+        date = d.toLocaleString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
             hour12: true
-          }).toLowerCase()
-        : new Date().toLocaleString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-          }).toLowerCase();
+        }).toLowerCase();
+    }
     
     const imageUrl = getImageUrl(currentArticle.image);
     
-    // FIX: Get fields with fallback for different API response formats
+    // FIX: Read all fields with proper fallbacks
     const source = currentArticle.source || 'Unknown';
     const category = currentArticle.category || 'General';
-    // Handle "original link" with space in field name
-    const originalLink = currentArticle['original link'] || currentArticle.originalLink || currentArticle.original_link || currentArticle.url || '#';
     
-    // FIX: Build article HTML WITHOUT duplicate sections
+    // FIX: Handle "original link" with space in field name
+    let originalLink = '#';
+    if (currentArticle['original link']) {
+        originalLink = currentArticle['original link'];
+    } else if (currentArticle.originalLink) {
+        originalLink = currentArticle.originalLink;
+    } else if (currentArticle.original_link) {
+        originalLink = currentArticle.original_link;
+    } else if (currentArticle.url) {
+        originalLink = currentArticle.url;
+    }
+    
+    console.log('Source:', source, 'Category:', category, 'Link:', originalLink);
+    
     articleBody.innerHTML = `
         ${imageUrl ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
         <div class="article-text-content">
             <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
             
-            <!-- Date and Share Button Row -->
             <div class="article-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px 0; border-bottom: 1px solid #333;">
                 <span class="article-date" style="color: #888; font-size: 14px;">${escapeHtml(date)}</span>
                 <button class="btn-share-inline" onclick="shareCurrentArticle()" title="Share Article" style="background: #4CAF50; border: none; border-radius: 8px; color: white; padding: 8px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px;">📤 Share</button>
             </div>
             
-            <!-- Article Content -->
             <div class="article-body-text" style="color: #ccc; line-height: 1.8; margin-bottom: 20px; font-size: 16px;">${escapeHtml(currentArticle.content || "No content available")}</div>
             
             <!-- Source, Category, Published Info -->
@@ -847,6 +890,98 @@ function displayArticleDetail() {
     if(detailContent) detailContent.scrollTop = 0;
 }
 
+function saveCurrentArticle() {
+    if(!currentArticle) return;
+    
+    const saveBtn = document.getElementById("saveBtn");
+    let savedArticles = getSavedArticles();
+    
+    const articleId = currentArticle._id || currentArticle.id || currentArticle.articleId;
+    const index = savedArticles.findIndex(s => {
+        const savedId = String(s._id || s.id || s.articleId);
+        return savedId === String(articleId);
+    });
+    
+    if(index !== -1) {
+        savedArticles.splice(index, 1);
+        if(saveBtn) {
+            saveBtn.innerHTML = '💾 Save';
+            saveBtn.classList.remove('saved');
+        }
+        showToast("Removed from saved");
+    } else {
+        savedArticles.unshift({ 
+            ...currentArticle, 
+            savedAt: new Date().toISOString() 
+        });
+        if(saveBtn) {
+            saveBtn.innerHTML = '✓ Saved';
+            saveBtn.classList.add('saved');
+        }
+        showToast("Saved!");
+    }
+    
+    localStorage.setItem("saved_articles", JSON.stringify(savedArticles));
+    updateSavedFolder();
+    
+    const homeScreen = document.getElementById('home');
+    if(homeScreen && homeScreen.classList.contains('active')) {
+        loadNews();
+    }
+}
+
+async function shareCurrentArticle() {
+    if (!currentArticle) return;
+    
+    const imageUrl = getImageUrl(currentArticle.image);
+    const appLink = "https://ktt-news.onrender.com";
+    
+    const shareTitle = currentArticle.title || "Check out this article";
+    const shareText = `${currentArticle.content ? currentArticle.content.substring(0, 200) + "..." : "Read this interesting article!"}
+
+---
+📲 Get our app: ${appLink}
+🌐 ${window.location.href}`;
+
+    if (navigator.share) {
+        try {
+            if (imageUrl) {
+                try {
+                    const response = await fetch(imageUrl);
+                    const blob = await response.blob();
+                    const imageFile = new File([blob], 'article.jpg', { type: 'image/jpeg' });
+                    
+                    const shareData = {
+                        title: shareTitle,
+                        text: shareText,
+                        files: [imageFile]
+                    };
+
+                    if (navigator.canShare && navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                        return;
+                    }
+                } catch (e) {
+                    console.log("Could not share image file:", e);
+                }
+            }
+            
+            await navigator.share({
+                title: shareTitle,
+                text: shareText
+            });
+            
+        } catch (err) {
+            console.log("Share cancelled or failed:", err);
+        }
+    } else {
+        const fullText = `${shareTitle}\n\n${shareText}`;
+        navigator.clipboard.writeText(fullText).then(() => {
+            alert("Article copied to clipboard!");
+        });
+    }
+}
+
 function refreshFeed() {
     isOnline = false;
     loadNews();
@@ -874,97 +1009,20 @@ function showToast(msg) {
     toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-console.log("✅ App loaded - all functions exported");
-function attachLogoutListener() {
-    const btn = document.getElementById("logoutButton");
-    if (!btn) return;
-
-    btn.onclick = null; // prevent duplicate binding
-
-    btn.addEventListener("click", function () {
-
-        if (!confirm("Are you sure you want to logout?")) return;
-
-        localStorage.removeItem("ktt_logged");
-        localStorage.removeItem("user_email");
-        localStorage.removeItem("user_name");
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("temp_email");
-
-        currentUser = null;
-
-        showToast("Logged out successfully");
-
-        setTimeout(() => {
-            showScreen("about");
-        }, 500);
-    });
-}
-function bindMobileButtons(){
-
+function bindMobileButtons() {
     const logoutBtn = document.getElementById("logoutButton");
     if(logoutBtn){
-        logoutBtn.onpointerup = ()=>{
-            doLogout();
+        logoutBtn.onpointerup = () => {
+            logout();
         };
     }
 
     const deleteBtn = document.getElementById("deleteDataButton");
     if(deleteBtn){
-        deleteBtn.onpointerup = ()=>{
-            doClearAll();
+        deleteBtn.onpointerup = () => {
+            clearAll();
         };
     }
 }
 
-app.get("/contact", (req, res) => {
-  res.send(`
-  <html>
-  <head>
-      <title>Contact - KTT NEWS</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <style>
-        body{
-          font-family: Arial, sans-serif;
-          background:#0f0f14;
-          color:white;
-          padding:30px;
-          line-height:1.7;
-        }
-        .card{
-          max-width:600px;
-          margin:auto;
-          background:#1b1b24;
-          padding:25px;
-          border-radius:12px;
-          box-shadow:0 0 20px rgba(0,0,0,0.4);
-        }
-        h1{color:#8a5cff;}
-        a{color:#4da3ff;}
-      </style>
-  </head>
-
-  <body>
-    <div class="card">
-      <h1>KTT NEWS - Contact</h1>
-
-      <p><b>Developer:</b> Dheeraj Pawar</p>
-
-      <p>
-      If you have any questions, feedback, copyright issues,
-      or content removal requests, contact us:
-      </p>
-
-      <p><b>Email:</b> kttknowthetruth@gmail.com</p>
-
-      <p>Response time: 24 – 48 hours</p>
-
-      <hr>
-
-      <p>This app provides AI-organized news updates for educational and informational purposes.</p>
-    </div>
-  </body>
-  </html>
-  `);
-});
-
+console.log("✅ App loaded - all functions exported");
