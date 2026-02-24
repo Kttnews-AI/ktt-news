@@ -751,110 +751,79 @@ function displayArticleDetail() {
     // FIX: Use improved image URL function
     const imageUrl = getImageUrl(currentArticle.image);
     
+    // FIX: Get source, category, and original link from article data
+    const source = currentArticle.source || 'Unknown';
+    const category = currentArticle.category || 'General';
+    const originalLink = currentArticle['original link'] || currentArticle.originalLink || currentArticle.url || '#';
+    
     articleBody.innerHTML = `
         ${imageUrl ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
         <div class="article-text-content">
             <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
-            <div class="article-meta-row">
-                <span class="article-date">${escapeHtml(date)}</span>
-                <button class="btn-share-inline" onclick="shareCurrentArticle()" title="Share Article">📤 Share</button>
+            
+            <!-- NEW: Meta info row with date and share button -->
+            <div class="article-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <span class="article-date" style="color: #888; font-size: 14px;">${escapeHtml(date)}</span>
+                <button class="btn-share-inline" onclick="shareCurrentArticle()" title="Share Article" style="background: #4CAF50; border: none; border-radius: 8px; color: white; padding: 8px 16px; font-size: 14px; cursor: pointer;">📤 Share</button>
             </div>
-            <div class="article-body-text">${escapeHtml(currentArticle.content || "No content available")}</div>
+            
+            <div class="article-body-text" style="color: #ccc; line-height: 1.8; margin-bottom: 20px;">${escapeHtml(currentArticle.content || "No content available")}</div>
+            
+            <!-- NEW: Source, Category, Published info -->
+            <div style="background: #0a0a0a; border-top: 1px solid #222; border-bottom: 1px solid #222; padding: 20px 0; margin: 20px 0;">
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #888; font-size: 14px; min-width: 80px;">Source:</span>
+                        <span style="color: #667eea; font-size: 14px; font-weight: 600;">${escapeHtml(source)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #888; font-size: 14px; min-width: 80px;">Category:</span>
+                        <span style="color: #4CAF50; font-size: 14px; font-weight: 600; text-transform: capitalize;">${escapeHtml(category)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #888; font-size: 14px; min-width: 80px;">Published:</span>
+                        <span style="color: #aaa; font-size: 14px;">${escapeHtml(date)}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW: AI-Generated Summary Card -->
+            <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 20px; border: 1px solid #2a2a4a; margin-bottom: 20px; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: -50px; right: -50px; width: 100px; height: 100px; background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%); border-radius: 50%;"></div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; position: relative; z-index: 1;">
+                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" fill="white" style="width: 24px; height: 24px;">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 style="color: #fff; font-size: 16px; font-weight: 600; margin: 0;">AI-Generated Summary</h3>
+                        <p style="color: #888; font-size: 12px; margin: 4px 0 0 0;">Powered by Advanced AI</p>
+                    </div>
+                </div>
+                <p style="color: #ccc; font-size: 14px; line-height: 1.6; margin: 0; position: relative; z-index: 1;">
+                    This article has been processed by our AI to provide you with key insights and a concise summary of the main points.
+                </p>
+            </div>
+
+            <!-- NEW: Read Full Original Article Link -->
+            <div style="margin-bottom: 20px;">
+                <a href="${escapeHtml(originalLink)}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 16px; text-decoration: none; color: #fff; font-size: 15px; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.background='#252525'; this.style.borderColor='#667eea'" onmouseout="this.style.background='#1a1a1a'; this.style.borderColor='#333'">
+                    <span>📰</span>
+                    <span>Read Full Original Article</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-left: auto;">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                </a>
+            </div>
         </div>
     `;
     
     showScreen("detail");
     const detailContent = document.getElementById("detailContent");
     if(detailContent) detailContent.scrollTop = 0;
-}
-function saveCurrentArticle() {
-    if(!currentArticle) return;
-    
-    const saveBtn = document.getElementById("saveBtn");
-    let savedArticles = getSavedArticles();
-    const articleId = String(currentArticle._id || currentArticle.id);
-    const index = savedArticles.findIndex(s => String(s._id || s.id) === articleId);
-    
-    if(index !== -1) {
-        savedArticles.splice(index, 1);
-        if(saveBtn) {
-            saveBtn.innerHTML = '💾 Save';
-            saveBtn.classList.remove('saved');
-        }
-        showToast("Removed from saved");
-    } else {
-        savedArticles.unshift({ ...currentArticle, savedAt: new Date().toISOString() });
-        if(saveBtn) {
-            saveBtn.innerHTML = '✓ Saved';
-            saveBtn.classList.add('saved');
-        }
-        showToast("Saved!");
-    }
-    
-    localStorage.setItem("saved_articles", JSON.stringify(savedArticles));
-    updateSavedFolder();
-    
-    const homeScreen = document.getElementById('home');
-    if(homeScreen && homeScreen.classList.contains('active')) {
-        loadNews();
-    }
-}
-
-async function shareCurrentArticle() {
-    if (!currentArticle) return;
-    
-    const imageUrl = getImageUrl(currentArticle.image);
-    const appLink = "https://yourapp.com"; // Your app download/link URL
-    
-    // Create rich share content with app link at bottom
-    const shareTitle = currentArticle.title || "Check out this article";
-    const shareText = `${currentArticle.content ? currentArticle.content.substring(0, 200) + "..." : "Read this interesting article!"}
-
----
-📲 Get our app: ${appLink}
-🌐 ${window.location.href}`;
-
-    // For mobile: Try to share image + text
-    if (navigator.share) {
-        try {
-            // If we have an image, try to convert it to a file
-            if (imageUrl) {
-                try {
-                    const response = await fetch(imageUrl);
-                    const blob = await response.blob();
-                    const imageFile = new File([blob], 'article.jpg', { type: 'image/jpeg' });
-                    
-                    const shareData = {
-                        title: shareTitle,
-                        text: shareText,
-                        files: [imageFile]
-                    };
-
-                    if (navigator.canShare && navigator.canShare(shareData)) {
-                        await navigator.share(shareData);
-                        return;
-                    }
-                } catch (e) {
-                    console.log("Could not share image file:", e);
-                }
-            }
-            
-            // Fallback to text-only share
-            await navigator.share({
-                title: shareTitle,
-                text: shareText
-            });
-            
-        } catch (err) {
-            console.log("Share cancelled or failed:", err);
-        }
-    } else {
-        // Desktop fallback - copy to clipboard
-        const fullText = `${shareTitle}\n\n${shareText}`;
-        navigator.clipboard.writeText(fullText).then(() => {
-            alert("Article with image link copied to clipboard!");
-        });
-    }
 }
 
 function refreshFeed() {
