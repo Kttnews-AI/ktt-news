@@ -14,6 +14,7 @@ let currentArticle = null;
 let isOnline = false;
 let toastTimeout = null;
 let articlesCache = {};
+let lastUpdatedTime = null;
 
 /* ============================================
    INITIALIZATION
@@ -593,6 +594,11 @@ async function loadNews() {
             throw new Error('Invalid response format');
         }
         
+        // Store last updated time from API
+        if (data.meta && data.meta.lastUpdated) {
+            lastUpdatedTime = data.meta.lastUpdated;
+        }
+        
         // Cache all articles with complete data
         newsArray.forEach(article => {
             const id = article._id || article.articleId || article.id;
@@ -602,6 +608,7 @@ async function loadNews() {
         });
         
         localStorage.setItem("news_backup", JSON.stringify(newsArray));
+        localStorage.setItem("news_meta", JSON.stringify(data.meta || {}));
         isOnline = true;
         renderNews(newsArray);
         updateSavedFolder();
@@ -644,6 +651,22 @@ function renderNews(newsArray) {
     }
     
     let html = '';
+    
+    // Add last updated header if available
+    if (lastUpdatedTime) {
+        const updateDate = new Date(lastUpdatedTime);
+        const timeString = updateDate.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true 
+        });
+        html += `
+            <div style="text-align: center; padding: 10px; color: #888; font-size: 12px; margin-bottom: 10px;">
+                🕐 Updated ${timeString}
+            </div>
+        `;
+    }
+    
     newsArray.forEach((item, index) => {
         const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
         const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent";
@@ -659,10 +682,18 @@ function renderNews(newsArray) {
         const imageUrl = getImageUrl(item.image);
         
         // Show badge for manual articles
-        const manualBadge = item.isManual ? '<span style="background: #667eea; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-right: 5px;">EDITOR</span>' : '';
+        const manualBadge = item.isManual 
+            ? '<span style="background: #667eea; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-right: 5px;">EDITOR</span>' 
+            : '<span style="background: #4CAF50; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-right: 5px;">GNEWS</span>';
+        
+        // FIX: Store full article data in data attribute for GNews articles
+        const articleData = encodeURIComponent(JSON.stringify(item));
         
         html += `
-            <article class="news-card" onclick="openArticle('${escapeHtml(id)}')">
+            <article class="news-card" 
+                data-article-id="${escapeHtml(id)}" 
+                data-article-data="${escapeHtml(articleData)}"
+                onclick="handleArticleClick(this)">
                 <div class="news-content">
                     <h3 class="news-title">${savedIcon}${manualBadge}${escapeHtml(title)}</h3>
                     <p class="news-excerpt">${escapeHtml(excerpt)}</p>
@@ -674,6 +705,29 @@ function renderNews(newsArray) {
     });
     
     container.innerHTML = html;
+}
+
+// NEW: Handle article click with full data
+function handleArticleClick(element) {
+    const articleId = element.getAttribute('data-article-id');
+    const articleDataStr = element.getAttribute('data-article-data');
+    
+    try {
+        // Try to parse the full article data
+        const articleData = JSON.parse(decodeURIComponent(articleDataStr));
+        
+        // Use the full data directly (for GNews articles)
+        if (articleData && articleData.title) {
+            currentArticle = articleData;
+            displayArticleDetail();
+            return;
+        }
+    } catch (e) {
+        console.log('Failed to parse article data, falling back to cache');
+    }
+    
+    // Fallback to cache/API fetch (for manual articles)
+    openArticle(articleId);
 }
 
 function getSavedArticles() {
@@ -711,8 +765,13 @@ function loadSavedArticles() {
         const date = item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved";
         const title = item.title || "Untitled";
         
+        const articleData = encodeURIComponent(JSON.stringify(item));
+        
         html += `
-            <article class="news-card" onclick="openArticle('${escapeHtml(id)}')">
+            <article class="news-card" 
+                data-article-id="${escapeHtml(id)}"
+                data-article-data="${escapeHtml(articleData)}"
+                onclick="handleArticleClick(this)">
                 <div class="news-content">
                     <h3 class="news-title">🔖 ${escapeHtml(title)}</h3>
                     <p class="news-meta"><span>${escapeHtml(date)}</span></p>
@@ -730,6 +789,7 @@ function loadSavedArticles() {
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
     
+    // Check cache first
     if (articlesCache[cleanId]) {
         console.log('Using cached article:', articlesCache[cleanId]);
         currentArticle = articlesCache[cleanId];
@@ -737,37 +797,31 @@ function openArticle(id) {
         return;
     }
     
-    fetch(`${API_ARTICLES}/${cleanId}`)
-        .then(response => response.json())
-        .then(article => {
-            console.log('Fetched article:', article);
-            currentArticle = { ...articlesCache[cleanId], ...article };
-            displayArticleDetail();
-        })
-        .catch(() => {
-            const backup = JSON.parse(localStorage.getItem("news_backup") || "[]");
-            currentArticle = backup.find(item => {
-                const itemId = String(item._id || item.articleId || item.id);
-                return itemId === cleanId;
+    // For manual articles, fetch from API
+    if (!cleanId.startsWith('gnews_')) {
+        fetch(`${API_ARTICLES}/${cleanId}`)
+            .then(response => response.json())
+            .then(article => {
+                console.log('Fetched article:', article);
+                currentArticle = article;
+                displayArticleDetail();
+            })
+            .catch(() => {
+                showToast("Failed to load article");
             });
-            
-            if(!currentArticle) {
-                const saved = getSavedArticles();
-                currentArticle = saved.find(item => {
-                    const itemId = String(item._id || item.articleId || item.id);
-                    return itemId === cleanId;
-                });
-            }
-            
-            if(currentArticle) displayArticleDetail();
-        });
+    } else {
+        showToast("Article expired. Please refresh.");
+    }
 }
 
 function displayArticleDetail() {
     const articleBody = document.getElementById("articleBody");
     const saveBtn = document.getElementById("saveBtn");
     
-    if(!articleBody || !currentArticle) return;
+    if(!articleBody || !currentArticle) {
+        showToast("Article not found");
+        return;
+    }
     
     console.log('Displaying article with data:', currentArticle);
     
@@ -783,9 +837,10 @@ function displayArticleDetail() {
         saveBtn.classList.toggle('saved', isSaved);
     }
     
+    // Format date
     let date = "Recent";
-    if (currentArticle.createdAt) {
-        const d = new Date(currentArticle.createdAt);
+    if (currentArticle.createdAt || currentArticle.publishedAt) {
+        const d = new Date(currentArticle.createdAt || currentArticle.publishedAt);
         date = d.toLocaleString('en-GB', {
             day: '2-digit',
             month: '2-digit',
@@ -800,19 +855,19 @@ function displayArticleDetail() {
     const source = currentArticle.source || 'Unknown';
     const category = currentArticle.category || 'General';
     
-    // Handle original link from GNews or manual
+    // Handle original link
     let originalLink = '#';
-    if (currentArticle['original link']) {
-        originalLink = currentArticle['original link'];
-    } else if (currentArticle.originalLink) {
+    if (currentArticle.originalLink) {
         originalLink = currentArticle.originalLink;
+    } else if (currentArticle['original link']) {
+        originalLink = currentArticle['original link'];
     } else if (currentArticle.original_link) {
         originalLink = currentArticle.original_link;
     } else if (currentArticle.url) {
         originalLink = currentArticle.url;
     }
     
-    // Badge for manual/GNews
+    // Source badge
     const sourceBadge = currentArticle.isManual 
         ? '<span style="background: #667eea; color: white; font-size: 11px; padding: 3px 8px; border-radius: 4px; margin-left: 8px;">Editorial</span>'
         : '<span style="background: #4CAF50; color: white; font-size: 11px; padding: 3px 8px; border-radius: 4px; margin-left: 8px;">GNews</span>';
@@ -829,7 +884,9 @@ function displayArticleDetail() {
                 <button class="btn-share-inline" onclick="shareCurrentArticle()" title="Share Article" style="background: #4CAF50; border: none; border-radius: 8px; color: white; padding: 8px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px;">📤 Share</button>
             </div>
             
-            <div class="article-body-text" style="color: #ccc; line-height: 1.8; margin-bottom: 20px; font-size: 16px;">${escapeHtml(currentArticle.content || "No content available")}</div>
+            <div class="article-body-text" style="color: #ccc; line-height: 1.8; margin-bottom: 20px; font-size: 16px;">
+                ${escapeHtml(currentArticle.content || currentArticle.description || "No content available")}
+            </div>
             
             <!-- Source, Category, Published Info -->
             <div style="background: #1a1a1a; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #2a2a2a;">
