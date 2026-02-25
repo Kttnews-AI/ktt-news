@@ -604,10 +604,14 @@ body {
 /* ============================================
    NEWS CARDS - OLD STYLE RESTORED
 =========================================== */
+/* ============================================
+   NEWS CARDS - EXACT OLD STYLE
+=========================================== */
 .feed-list {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    padding: 0 16px;
 }
 
 .news-card {
@@ -625,11 +629,6 @@ body {
 
 .news-card:active {
     transform: scale(0.98);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.news-card.no-image .news-content {
-    width: 100%;
 }
 
 .news-content {
@@ -672,11 +671,6 @@ body {
     gap: 8px;
 }
 
-.saved-badge {
-    color: var(--accent);
-    font-weight: 500;
-}
-
 .news-thumb {
     width: 140px;
     height: 160px;
@@ -684,35 +678,6 @@ body {
     object-fit: cover;
     background: var(--border);
     flex-shrink: 0;
-    transition: opacity 0.2s;
-}
-
-.news-thumb[loading="lazy"] {
-    opacity: 0;
-    animation: fadeInImage 0.3s ease forwards;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 80px 30px;
-    color: var(--text-secondary);
-}
-
-.empty-state.hidden {
-    display: none !important;
-}
-
-.empty-icon {
-    font-size: 56px;
-    margin-bottom: 16px;
-    display: block;
-}
-
-.empty-state h3 {
-    color: var(--text);
-    margin-bottom: 6px;
-    font-size: 18px;
-    font-weight: 600;
 }
 
 /* ============================================
