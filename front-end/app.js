@@ -1,8 +1,8 @@
 // ============================================
-// KTT NEWS APP - SPLIT SCREEN (TABS)
+// CENTRINSIC NPT NEWS APP - SPLIT SCREEN (TABS)
 // ============================================
 
-const API_BASE = "https://ktt-news.onrender.com";
+const API_BASE = "https://centrinsicnpt.com";
 const API_ARTICLES = `${API_BASE}/api/articles`;
 const API_NEWS = `${API_BASE}/api/news`;
 const API_SAVE_EMAIL = `${API_BASE}/api/save-email`;
@@ -32,7 +32,7 @@ function initApp() {
     if (window.appInitialized) return;
     window.appInitialized = true;
     
-    console.log("🚀 KTT News App Starting...");
+    console.log("🚀 Centrinsic NPT News App Starting...");
     
     initializeApp();
     exportAllFunctions();
@@ -244,7 +244,7 @@ function goHome() {
    USER MANAGEMENT
 ============================================ */
 function checkLoginStatus() {
-    const isLoggedIn = localStorage.getItem("ktt_logged") === "true";
+    const isLoggedIn = localStorage.getItem("centrinsic_logged") === "true";
     const userEmail = localStorage.getItem("user_email");
     const userName = localStorage.getItem("user_name");
     
@@ -280,7 +280,7 @@ function updateUserDisplay() {
 function logout() {
     if (!confirm("Are you sure you want to logout?")) return;
     
-    localStorage.removeItem("ktt_logged");
+    localStorage.removeItem("centrinsic_logged");
     localStorage.removeItem("user_email");
     localStorage.removeItem("user_name");
     localStorage.removeItem("auth_token");
@@ -528,7 +528,7 @@ function verifyOTP() {
         btn.disabled = false;
         
         if (data.success) {
-            localStorage.setItem("ktt_logged", "true");
+            localStorage.setItem("centrinsic_logged", "true");
             localStorage.setItem("user_email", email);
             localStorage.setItem("auth_token", data.token || '');
             
@@ -1070,7 +1070,7 @@ async function shareCurrentArticle() {
     if (!currentArticle) return;
     
     const imageUrl = getImageUrl(currentArticle.image);
-    const appLink = "https://ktt-news.onrender.com";
+    const appLink = "https://centrinsicnpt.com";
     
     const shareTitle = currentArticle.title || "Check out this article";
     const shareText = `${currentArticle.content ? currentArticle.content.substring(0, 200) + "..." : "Read this interesting article!"}
@@ -1161,4 +1161,4 @@ function bindMobileButtons() {
     }
 }
 
-console.log("✅ App loaded - all functions exported");
+console.log("✅ Centrinsic NPT App loaded - all functions exported");
