@@ -607,28 +607,36 @@ body {
 }
 
 /* ============================================
-   NEWS CARDS - OLD STYLE RESTORED
+   HOME SCREEN - FULL WIDTH
 =========================================== */
+#home {
+    background: var(--bg);
+    padding-bottom: 80px;
+    width: 100%;
+}
+
+.main-body {
+    padding: 12px 8px;  /* Small 8px side margins */
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+}
+
 /* ============================================
-   NEWS CARDS - COMPACT RT NEWS STYLE
-=========================================== */
-/* ============================================
-   NEWS CARDS - FULL WIDTH
+   NEWS CARDS - WITH PROPER GAPS
 =========================================== */
 .feed-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 10px;  /* Gap BETWEEN cards */
     padding: 0;
     width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
 }
 
 .news-card {
     background: var(--card);
     border-radius: 16px;
-    padding: 14px;
+    padding: 14px;  /* Internal padding */
     display: flex;
     flex-direction: row;
     gap: 12px;
@@ -638,11 +646,10 @@ body {
     border: 1px solid var(--border);
     width: 100%;
     box-sizing: border-box;
-    min-height: auto;
-    align-items: flex-start;
-    margin: 0;
+    margin: 0;  /* No margin on cards themselves */
 }
 
+/* Rest stays the same... */
 .news-card:active {
     transform: scale(0.98);
 }
@@ -653,7 +660,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    overflow: hidden;
 }
 
 .news-title {
