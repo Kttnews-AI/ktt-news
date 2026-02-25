@@ -734,7 +734,7 @@ function renderArticleCards(articles, type) {
         const imageUrl = getImageUrl(item.image);
         const articleData = encodeURIComponent(JSON.stringify(item));
         
-        // Use CSS classes from style.css - NO inline styles that conflict
+        // NO INLINE STYLES - Use CSS classes only
         return `
             <article class="news-card" 
                 data-article-id="${escapeHtml(id)}" 
@@ -926,9 +926,7 @@ function displayArticleDetail() {
         originalLink = currentArticle.url;
     }
     
-    const sourceBadge = currentArticle.isManual 
-        ? '<span style="background: #667eea; color: white; font-size: 11px; padding: 3px 8px; border-radius: 4px; margin-left: 8px;">Editorial</span>'
-        : '<span style="background: #4CAF50; color: white; font-size: 11px; padding: 3px 8px; border-radius: 4px; margin-left: 8px;">GNews</span>';
+    const sourceBadge = 
     
     console.log('Source:', source, 'Category:', category, 'Link:', originalLink);
     
