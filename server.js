@@ -1,5 +1,5 @@
 // ============================================
-// KTT NEWS SERVER - GNEWS + MANUAL + CACHE
+// CENTRINSIC NPT SERVER - GNEWS + MANUAL + CACHE
 // ============================================
 require('dotenv').config();
 const express = require('express');
@@ -100,7 +100,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
     cloudinary,
     params: async (req, file) => ({
-        folder: "ktt-news",
+        folder: "centrinsic-npt",
         format: "jpg",
         transformation: [{ width: 1000, crop: "limit", quality: "auto" }]
     })
@@ -121,12 +121,12 @@ const emailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 async function sendOTPEmail(toEmail, otp) {
     try {
         await emailApi.sendTransacEmail({
-            sender: { email: "kttknowthetruth@gmail.com", name: "KTT News" },
+            sender: { email: "centrinsicnpt@gmail.com", name: "Centrinsic NPT" },
             to: [{ email: toEmail }],
-            subject: "Your KTT News Login Code",
+            subject: "Your Centrinsic NPT Login Code",
             htmlContent: `
                 <div style="font-family:Arial;padding:20px">
-                    <h2>KTT News Verification</h2>
+                    <h2>Centrinsic NPT Verification</h2>
                     <p>Your OTP:</p>
                     <h1 style="letter-spacing:6px">${otp}</h1>
                     <p>Expires in 5 minutes</p>
@@ -158,7 +158,7 @@ const articleSchema = new mongoose.Schema({
     title: { type: String, required: true },
     content: { type: String, required: true },
     image: String,
-    source: { type: String, default: 'KTT News' },
+    source: { type: String, default: 'Centrinsic NPT' },
     category: { type: String, default: 'General' },
     originalLink: { type: String, default: '' },
     isManual: { type: Boolean, default: true },
@@ -368,7 +368,7 @@ app.get('/api/articles', async (req, res) => {
             title: article.title,
             content: article.content,
             image: article.image,
-            source: article.source || 'KTT News',
+            source: article.source || 'Centrinsic NPT',
             category: article.category || 'General',
             originalLink: article.originalLink || '',
             createdAt: article.createdAt,
@@ -718,7 +718,7 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
             title,
             content,
             image: imageUrl,
-            source: source || 'KTT News',
+            source: source || 'Centrinsic NPT',
             category: category || 'General',
             originalLink: originalLink || req.body['original link'] || '',
             isManual: true,
@@ -955,7 +955,7 @@ if (DEBUG) {
             <!DOCTYPE html>
             <html>
             <head>
-                <title>KTT Admin</title>
+                <title>Centrinsic Admin</title>
                 <style>
                     body { font-family: Arial; padding: 20px; background: #f5f5f5; }
                     .card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -970,7 +970,7 @@ if (DEBUG) {
                 </style>
             </head>
             <body>
-                <h1>📊 KTT Admin Dashboard</h1>
+                <h1>📊 Centrinsic Admin Dashboard</h1>
                 
                 <div class="card">
                     <h3>Cache Status</h3>
@@ -1047,7 +1047,7 @@ app.use((err, req, res, next) => {
 // ============================================
 app.listen(PORT, () => {
     console.log('========================================');
-    console.log('🚀 KTT NEWS SERVER STARTED');
+    console.log('🚀 CENTRINSIC NPT SERVER STARTED');
     console.log('========================================');
     console.log(`Port: ${PORT}`);
     console.log(`GNews API: ${GNEWS_API_KEY ? '✅ Configured' : '❌ Not Configured'}`);
