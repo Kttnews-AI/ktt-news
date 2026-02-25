@@ -714,7 +714,8 @@ function renderTabView() {
     container.innerHTML = html;
 }
 
-function renderArticleCards(articles, type) {
+
+                function renderArticleCards(articles, type) {
     if (!articles || articles.length === 0) return '';
     
     return articles.map((item, index) => {
@@ -732,26 +733,26 @@ function renderArticleCards(articles, type) {
         const imageUrl = getImageUrl(item.image);
         const articleData = encodeURIComponent(JSON.stringify(item));
         
-        // OLD STYLE - Compact horizontal card
+        // OLD STYLE - Larger rounded cards (restored)
         return `
             <article class="news-card" 
                 data-article-id="${escapeHtml(id)}" 
                 data-article-data="${escapeHtml(articleData)}"
                 onclick="handleArticleClick(this)"
-                style="display: flex; background: #1a1a1a; border-radius: 12px; margin: 8px 16px; overflow: hidden; border: 1px solid #2a2a2a;">
+                style="display: flex; background: #1a1a1a; border-radius: 16px; margin: 12px 16px; overflow: hidden; border: 1px solid #2a2a2a; min-height: 140px;">
                 
-                <div class="news-content" style="flex: 1; padding: 12px; display: flex; flex-direction: column; justify-content: center;">
-                    <h3 class="news-title" style="font-size: 14px; line-height: 1.4; margin-bottom: 6px; color: #fff; font-weight: 600;">${savedIcon}${escapeHtml(title)}</h3>
-                    <p class="news-excerpt" style="font-size: 12px; color: #888; line-height: 1.5; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(excerpt)}</p>
-                    <div class="news-meta" style="display: flex; align-items: center; gap: 6px;">
-                        <span style="color: #666; font-size: 11px;">${escapeHtml(item.source || 'Unknown')}</span>
+                <div class="news-content" style="flex: 1; padding: 16px; display: flex; flex-direction: column; justify-content: center;">
+                    <h3 class="news-title" style="font-size: 16px; line-height: 1.4; margin-bottom: 8px; color: #fff; font-weight: 600;">${savedIcon}${escapeHtml(title)}</h3>
+                    <p class="news-excerpt" style="font-size: 14px; color: #888; line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(excerpt)}</p>
+                    <div class="news-meta" style="display: flex; align-items: center; gap: 8px; margin-top: auto;">
+                        <span style="color: #666; font-size: 12px;">${escapeHtml(item.source || 'Unknown')}</span>
                         <span style="color: #444;">•</span>
-                        <span style="color: #666; font-size: 11px;">${escapeHtml(date)}</span>
+                        <span style="color: #666; font-size: 12px;">${escapeHtml(date)}</span>
                     </div>
                 </div>
                 
                 ${imageUrl ? `
-                <div style="width: 100px; height: 100px; flex-shrink: 0;">
+                <div style="width: 120px; height: 140px; flex-shrink: 0;">
                     <img src="${escapeHtml(imageUrl)}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy" onerror="this.style.display='none'; this.parentElement.style.display='none';">
                 </div>
                 ` : ''}
