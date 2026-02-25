@@ -721,20 +721,23 @@ function renderArticleCards(articles, type) {
     
     return articles.map((item, index) => {
         const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
-        const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent";
-        const excerpt = item.content ? item.content.substring(0, 120) + "..." : "No content";
+        const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }) : "Recent";
+        
+        const excerpt = item.content ? item.content.substring(0, 100) + "..." : "No content";
         const title = item.title || "Untitled";
         
         const isSaved = getSavedArticles().some(s => {
             const savedId = String(s._id || s.id || s.articleId);
             return savedId === id;
         });
-        const savedIcon = isSaved ? '🔖 ' : '';
         
         const imageUrl = getImageUrl(item.image);
         const articleData = encodeURIComponent(JSON.stringify(item));
         
-        // NO INLINE STYLES - Use CSS classes only
         return `
             <article class="news-card" 
                 data-article-id="${escapeHtml(id)}" 
@@ -742,7 +745,7 @@ function renderArticleCards(articles, type) {
                 onclick="handleArticleClick(this)">
                 
                 <div class="news-content">
-                    <h3 class="news-title">${savedIcon}${escapeHtml(title)}</h3>
+                    <h3 class="news-title">${isSaved ? '🔖 ' : ''}${escapeHtml(title)}</h3>
                     <p class="news-excerpt">${escapeHtml(excerpt)}</p>
                     <div class="news-meta">
                         <span>${escapeHtml(item.source || 'Unknown')}</span>
@@ -752,8 +755,8 @@ function renderArticleCards(articles, type) {
                 </div>
                 
                 ${imageUrl ? `
-                <img src="${escapeHtml(imageUrl)}" class="news-thumb" loading="lazy" onerror="this.style.display='none'">
-                ` : ''}
+                <img src="${escapeHtml(imageUrl)}" class="news-thumb" loading="lazy" onerror="this.style.display='none'" alt="">
+                ` : '<div class="news-thumb" style="background: var(--border);"></div>'}
             </article>
         `;
     }).join('');
