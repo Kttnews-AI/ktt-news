@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "build": "npm install --legacy-peer-deps; exit 0"
+    "start": "node server.js"
   },
   "dependencies": {
     "@getbrevo/brevo": "^2.5.0",
