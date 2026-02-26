@@ -111,28 +111,27 @@ const upload = multer({ storage });
 // ============================================
 // BREVO OTP MAILER (PRODUCTION SAFE)
 // ============================================
-const SibApiV3Sdk = require('sib-api-v3-sdk');
+const brevo = require('@getbrevo/brevo');
 
-const client = SibApiV3Sdk.ApiClient.instance;
-client.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
-
-const emailApi = new SibApiV3Sdk.TransactionalEmailsApi();
+const emailApi = new brevo.TransactionalEmailsApi();
+emailApi.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
 
 async function sendOTPEmail(toEmail, otp) {
     try {
-        await emailApi.sendTransacEmail({
-            sender: { email: "centrinsicnpt@gmail.com", name: "Centrinsic NPT" },
-            to: [{ email: toEmail }],
-            subject: "Your Centrinsic NPT Login Code",
-            htmlContent: `
-                <div style="font-family:Arial;padding:20px">
-                    <h2>Centrinsic NPT Verification</h2>
-                    <p>Your OTP:</p>
-                    <h1 style="letter-spacing:6px">${otp}</h1>
-                    <p>Expires in 5 minutes</p>
-                </div>
-            `
-        });
+        const sendSmtpEmail = new brevo.SendSmtpEmail();
+        sendSmtpEmail.sender = { email: "centrinsicnpt@gmail.com", name: "Centrinsic NPT" };
+        sendSmtpEmail.to = [{ email: toEmail }];
+        sendSmtpEmail.subject = "Your Centrinsic NPT Login Code";
+        sendSmtpEmail.htmlContent = `
+            <div style="font-family:Arial;padding:20px">
+                <h2>Centrinsic NPT Verification</h2>
+                <p>Your OTP:</p>
+                <h1 style="letter-spacing:6px">${otp}</h1>
+                <p>Expires in 5 minutes</p>
+            </div>
+        `;
+
+        await emailApi.sendTransacEmail(sendSmtpEmail);
 
         console.log("✅ OTP SENT:", toEmail);
         return true;
