@@ -273,7 +273,7 @@ async function fetchGNewsArticles() {
                 token: GNEWS_API_KEY,
                 lang: 'en',
                 country: 'us',
-                max: 20
+                max: 30
             },
             timeout: 10000
         });
