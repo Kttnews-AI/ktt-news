@@ -492,7 +492,7 @@ body {
 }
 
 /* ============================================
-   HOME SCREEN - FULL WIDTH
+   HOME SCREEN - FULL WIDTH (SINGLE DEFINITION)
 =========================================== */
 #home {
     background: var(--bg);
@@ -554,12 +554,13 @@ body {
 }
 
 .main-body {
-    padding: 12px 12px;  /* Reduced from 16px, no max-width */
+    padding: 12px 8px;
     width: 100%;
     max-width: 100%;
     margin: 0;
     box-sizing: border-box;
 }
+
 /* ============================================
    SAVED FOLDER
 =========================================== */
@@ -607,28 +608,12 @@ body {
 }
 
 /* ============================================
-   HOME SCREEN - FULL WIDTH
+   NEWS CARDS - FIXED: Changed from .feed-list to .articles-list
 =========================================== */
-#home {
-    background: var(--bg);
-    padding-bottom: 80px;
-    width: 100%;
-}
-
-.main-body {
-    padding: 12px 8px;  /* Small 8px side margins */
-    width: 100%;
-    margin: 0;
-    box-sizing: border-box;
-}
-
-/* ============================================
-   NEWS CARDS - WITH PROPER GAPS
-=========================================== */
-.feed-list {
+.articles-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;  /* Gap BETWEEN cards */
+    gap: 10px;
     padding: 0;
     width: 100%;
 }
@@ -636,7 +621,7 @@ body {
 .news-card {
     background: var(--card);
     border-radius: 16px;
-    padding: 14px;  /* Internal padding */
+    padding: 14px;
     display: flex;
     flex-direction: row;
     gap: 12px;
@@ -646,10 +631,9 @@ body {
     border: 1px solid var(--border);
     width: 100%;
     box-sizing: border-box;
-    margin: 0;  /* No margin on cards themselves */
+    margin: 0;
 }
 
-/* Rest stays the same... */
 .news-card:active {
     transform: scale(0.98);
 }
