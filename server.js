@@ -158,7 +158,7 @@ const userSchema = new mongoose.Schema({
 const articleSchema = new mongoose.Schema({
     title: { type: String, required: true },
     content: { type: String, required: true },
-    image: String,
+    image: String,video
     source: { type: String, default: 'Centrinsic NPT' },
     category: { type: String, default: 'General' },
     originalLink: { type: String, default: '' },
