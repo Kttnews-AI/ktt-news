@@ -25,6 +25,11 @@ const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
 const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
 const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 30) * 60 * 1000; // 30 minutes default
 
+// ARTICLE LIMITS CONFIGURATION
+const MANUAL_ARTICLES_LIMIT = 30;  // Your manual uploads
+const GNEWS_ARTICLES_LIMIT = 20;   // GNews articles
+const TOTAL_ARTICLES_LIMIT = 50;   // Total combined
+
 // ============================================
 // GNEWS CACHE SYSTEM
 // ============================================
@@ -107,9 +112,7 @@ const storage = new CloudinaryStorage({
 });
 
 const upload = multer({ storage });
-// ============================================
-// BREVO OTP MAILER (PRODUCTION SAFE)
-// ============================================
+
 // ============================================
 // BREVO OTP MAILER (PRODUCTION SAFE)
 // ============================================
@@ -249,10 +252,7 @@ const authMiddleware = async (req, res, next) => {
 // ============================================
 // GNEWS FETCH HELPER WITH CACHE
 // ============================================
-// ============================================
-// GNEWS FETCH HELPER WITH CACHE
-// ============================================
-async function fetchGNewsArticles(limit = 20) {  // Default to 20 instead of 30
+async function fetchGNewsArticles(limit = GNEWS_ARTICLES_LIMIT) {
     const now = Date.now();
     
     // Return cached data if still valid
@@ -301,7 +301,8 @@ async function fetchGNewsArticles(limit = 20) {  // Default to 20 instead of 30
             publishedAt: article.publishedAt,
             createdAt: article.publishedAt,
             isManual: false,
-            originalLink: article.url
+            originalLink: article.url,
+            articleType: 'gnews'  // Identify as GNews article
         }));
 
         // Update cache
@@ -357,25 +358,16 @@ app.get('/api/health', (req, res) => {
 // ============================================
 // GET ARTICLES - COMBINED GNEWS + MANUAL
 // ============================================
-// ============================================
-// GET ARTICLES - COMBINED GNEWS + MANUAL
-// ============================================
 app.get('/api/articles', async (req, res) => {
     try {
-        let allArticles = [];
-
-        // 1. Fetch GNews articles (cached) - MAX 20 from API
-        const gnewsArticles = await fetchGNewsArticles(20);  // Pass 20 to limit GNews
-        allArticles = [...gnewsArticles];
-
-        // 2. Fetch manual articles from database - MAX 30 (so 30 + 20 = 50 total)
+        // 1. Fetch manual articles from database - MAX 30
         const manualArticles = await Article.find({ 
             status: 'published',
             $or: [
                 { expiresAt: { $gt: new Date() } },
                 { expiresAt: { $exists: false } }
             ]
-        }).sort({ createdAt: -1 }).limit(30);  // 30 manual articles
+        }).sort({ createdAt: -1 }).limit(MANUAL_ARTICLES_LIMIT);
 
         // Format manual articles
         const formattedManual = manualArticles.map(article => ({
@@ -384,29 +376,26 @@ app.get('/api/articles', async (req, res) => {
             content: article.content,
             image: article.image,
             source: article.source || 'Centrinsic NPT',
-            sourceType: 'manual',  // Added to identify manual articles
             category: article.category || 'General',
             originalLink: article.originalLink || '',
             createdAt: article.createdAt,
             updatedAt: article.updatedAt,
             isManual: true,
-            author_name: article.author_name
+            author_name: article.author_name,
+            articleType: 'manual'  // Identify as manual article
         }));
 
-        // Format GNews articles with sourceType
-        const formattedGNews = gnewsArticles.map(article => ({
-            ...article,
-            sourceType: 'gnews'  // Added to identify GNews articles
-        }));
+        // 2. Fetch GNews articles (cached) - MAX 20
+        const gnewsArticles = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
 
-        // 3. Combine both sources
-        allArticles = [...formattedManual, ...formattedGNews];
+        // 3. Combine both sources - Manual first, then GNews
+        let allArticles = [...formattedManual, ...gnewsArticles];
 
         // 4. Sort by date (newest first)
         allArticles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         // 5. Limit total articles to 50 max
-        allArticles = allArticles.slice(0, 50);
+        allArticles = allArticles.slice(0, TOTAL_ARTICLES_LIMIT);
 
         // 6. Calculate "Last Updated" timestamp
         const lastUpdated = cacheStatus.lastSuccessfulFetch || new Date().toISOString();
@@ -417,8 +406,8 @@ app.get('/api/articles', async (req, res) => {
             articles: allArticles,
             meta: {
                 total: allArticles.length,
-                gnewsCount: formattedGNews.length,
                 manualCount: formattedManual.length,
+                gnewsCount: gnewsArticles.length,
                 lastUpdated: lastUpdated,
                 cacheAgeMinutes: cacheAgeMinutes,
                 isCached: cacheAgeMinutes < (CACHE_DURATION / 60000)
@@ -473,7 +462,7 @@ app.post('/api/admin/refresh-gnews', authMiddleware, async (req, res) => {
         }
 
         lastFetchTime = 0; // Reset cache
-        const fresh = await fetchGNewsArticles();
+        const fresh = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
         
         res.json({ 
             success: true, 
@@ -1073,6 +1062,9 @@ app.listen(PORT, () => {
     console.log('========================================');
     console.log(`Port: ${PORT}`);
     console.log(`GNews API: ${GNEWS_API_KEY ? '✅ Configured' : '❌ Not Configured'}`);
+    console.log(`Manual Articles Limit: ${MANUAL_ARTICLES_LIMIT}`);
+    console.log(`GNews Articles Limit: ${GNEWS_ARTICLES_LIMIT}`);
+    console.log(`Total Articles Limit: ${TOTAL_ARTICLES_LIMIT}`);
     console.log(`Cache Duration: ${CACHE_DURATION / 60000} minutes`);
     console.log('========================================');
 });
