@@ -288,7 +288,7 @@ async function fetchGNewsArticles(limit = GNEWS_ARTICLES_LIMIT) {
             return gnewsCache.length > 0 ? gnewsCache.slice(0, limit) : [];
         }
 
-        // Transform GNews format to match app format
+        // Transform GNews format to match app format - USING isManual: false
         const articles = response.data.articles.map((article, index) => ({
             _id: `gnews_${Date.now()}_${index}`,
             title: article.title,
@@ -300,9 +300,8 @@ async function fetchGNewsArticles(limit = GNEWS_ARTICLES_LIMIT) {
             category: 'General',
             publishedAt: article.publishedAt,
             createdAt: article.publishedAt,
-            isManual: false,
-            originalLink: article.url,
-            articleType: 'gnews'  // Identify as GNews article
+            isManual: false,  // KEY: GNews articles are NOT manual
+            originalLink: article.url
         }));
 
         // Update cache
@@ -369,7 +368,7 @@ app.get('/api/articles', async (req, res) => {
             ]
         }).sort({ createdAt: -1 }).limit(MANUAL_ARTICLES_LIMIT);
 
-        // Format manual articles
+        // Format manual articles - USING isManual: true
         const formattedManual = manualArticles.map(article => ({
             _id: article._id.toString(),
             title: article.title,
@@ -380,9 +379,8 @@ app.get('/api/articles', async (req, res) => {
             originalLink: article.originalLink || '',
             createdAt: article.createdAt,
             updatedAt: article.updatedAt,
-            isManual: true,
-            author_name: article.author_name,
-            articleType: 'manual'  // Identify as manual article
+            isManual: true,  // KEY: Manual articles ARE manual
+            author_name: article.author_name
         }));
 
         // 2. Fetch GNews articles (cached) - MAX 20
@@ -732,7 +730,7 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
             source: source || 'Centrinsic NPT',
             category: category || 'General',
             originalLink: originalLink || req.body['original link'] || '',
-            isManual: true,
+            isManual: true,  // KEY: Set to true for manual articles
             status: 'published',
             expiresAt: expiresAt ? new Date(expiresAt) : undefined,
             author_id: req.userId,
