@@ -249,7 +249,10 @@ const authMiddleware = async (req, res, next) => {
 // ============================================
 // GNEWS FETCH HELPER WITH CACHE
 // ============================================
-async function fetchGNewsArticles() {
+// ============================================
+// GNEWS FETCH HELPER WITH CACHE
+// ============================================
+async function fetchGNewsArticles(limit = 20) {  // Default to 20 instead of 30
     const now = Date.now();
     
     // Return cached data if still valid
@@ -257,23 +260,24 @@ async function fetchGNewsArticles() {
         const ageMinutes = Math.round((now - lastFetchTime) / 60000);
         console.log(`📦 Using cached GNews (${ageMinutes}m old)`);
         cacheStatus.isStale = false;
-        return gnewsCache;
+        // Return only requested limit from cache
+        return gnewsCache.slice(0, limit);
     }
     
     if (!GNEWS_API_KEY) {
         console.log('⚠️ GNEWS_API_KEY not set, skipping GNews fetch');
         cacheStatus.lastError = 'API key not configured';
-        return gnewsCache.length > 0 ? gnewsCache : [];
+        return gnewsCache.length > 0 ? gnewsCache.slice(0, limit) : [];
     }
 
     try {
-        console.log('🌐 Fetching fresh articles from GNews...');
+        console.log(`🌐 Fetching fresh articles from GNews (max: ${limit})...`);
         const response = await axios.get(`${GNEWS_BASE_URL}/top-headlines`, {
             params: {
                 token: GNEWS_API_KEY,
                 lang: 'en',
                 country: 'us',
-                max: 30
+                max: limit  // Use the limit parameter (20)
             },
             timeout: 10000
         });
@@ -281,7 +285,7 @@ async function fetchGNewsArticles() {
         if (!response.data || !response.data.articles) {
             console.log('⚠️ GNews returned no articles');
             cacheStatus.lastError = 'Empty response from GNews';
-            return gnewsCache.length > 0 ? gnewsCache : [];
+            return gnewsCache.length > 0 ? gnewsCache.slice(0, limit) : [];
         }
 
         // Transform GNews format to match app format
@@ -313,13 +317,20 @@ async function fetchGNewsArticles() {
 
     } catch (error) {
         console.error('❌ GNews fetch error:', error.message);
+        
+        // Log more details for debugging
+        if (error.response) {
+            console.error('Response status:', error.response.status);
+            console.error('Response data:', error.response.data);
+        }
+        
         cacheStatus.lastError = error.message;
         cacheStatus.isStale = true;
         
         // Return stale cache on error (graceful degradation)
         if (gnewsCache.length > 0) {
             console.log('📦 Serving stale cache due to error');
-            return gnewsCache;
+            return gnewsCache.slice(0, limit);
         }
         return [];
     }
