@@ -361,7 +361,7 @@ app.get('/api/articles', async (req, res) => {
                 { expiresAt: { $gt: new Date() } },
                 { expiresAt: { $exists: false } }
             ]
-        }).sort({ createdAt: -1 }).limit(30);
+        }).sort({ createdAt: -1 }).limit(50);
 
         // Format manual articles
         const formattedManual = manualArticles.map(article => ({
