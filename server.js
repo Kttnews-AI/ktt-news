@@ -346,22 +346,25 @@ app.get('/api/health', (req, res) => {
 // ============================================
 // GET ARTICLES - COMBINED GNEWS + MANUAL
 // ============================================
+// ============================================
+// GET ARTICLES - COMBINED GNEWS + MANUAL
+// ============================================
 app.get('/api/articles', async (req, res) => {
     try {
         let allArticles = [];
 
-        // 1. Fetch GNews articles (cached)
-        const gnewsArticles = await fetchGNewsArticles();
+        // 1. Fetch GNews articles (cached) - MAX 20 from API
+        const gnewsArticles = await fetchGNewsArticles(20);  // Pass 20 to limit GNews
         allArticles = [...gnewsArticles];
 
-        // 2. Fetch manual articles from database
+        // 2. Fetch manual articles from database - MAX 30 (so 30 + 20 = 50 total)
         const manualArticles = await Article.find({ 
             status: 'published',
             $or: [
                 { expiresAt: { $gt: new Date() } },
                 { expiresAt: { $exists: false } }
             ]
-        }).sort({ createdAt: -1 }).limit(50);
+        }).sort({ createdAt: -1 }).limit(30);  // 30 manual articles
 
         // Format manual articles
         const formattedManual = manualArticles.map(article => ({
@@ -370,6 +373,7 @@ app.get('/api/articles', async (req, res) => {
             content: article.content,
             image: article.image,
             source: article.source || 'Centrinsic NPT',
+            sourceType: 'manual',  // Added to identify manual articles
             category: article.category || 'General',
             originalLink: article.originalLink || '',
             createdAt: article.createdAt,
@@ -378,13 +382,19 @@ app.get('/api/articles', async (req, res) => {
             author_name: article.author_name
         }));
 
+        // Format GNews articles with sourceType
+        const formattedGNews = gnewsArticles.map(article => ({
+            ...article,
+            sourceType: 'gnews'  // Added to identify GNews articles
+        }));
+
         // 3. Combine both sources
-        allArticles = [...formattedManual, ...allArticles];
+        allArticles = [...formattedManual, ...formattedGNews];
 
         // 4. Sort by date (newest first)
         allArticles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        // 5. Limit total articles
+        // 5. Limit total articles to 50 max
         allArticles = allArticles.slice(0, 50);
 
         // 6. Calculate "Last Updated" timestamp
@@ -396,7 +406,7 @@ app.get('/api/articles', async (req, res) => {
             articles: allArticles,
             meta: {
                 total: allArticles.length,
-                gnewsCount: gnewsArticles.length,
+                gnewsCount: formattedGNews.length,
                 manualCount: formattedManual.length,
                 lastUpdated: lastUpdated,
                 cacheAgeMinutes: cacheAgeMinutes,
