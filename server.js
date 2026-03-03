@@ -393,11 +393,11 @@ app.get('/api/articles', async (req, res) => {
         }));
 
         // 2. Fetch EXACTLY 20 GNews articles (cached or fresh)
-        // IMPORTANT: We always want 20 GNews, regardless of manual count
         const gnewsArticles = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
 
-        // 3. Combine: Manual first (up to 30), then GNews (always 20)
-        // This ensures frontend gets: [30 manual] + [20 GNews] = 50 total
+        // 3. DO NOT SORT BY DATE - Keep them separated!
+        // Manual articles first, then GNews articles
+        // This ensures frontend can filter correctly
         let allArticles = [...formattedManual, ...gnewsArticles];
 
         // 4. Calculate "Last Updated" timestamp
