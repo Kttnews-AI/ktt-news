@@ -385,7 +385,7 @@ app.get('/api/articles', async (req, res) => {
         allArticles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         // 5. Limit total articles
-        allArticles = allArticles.slice(0, 30);
+        allArticles = allArticles.slice(0, 50);
 
         // 6. Calculate "Last Updated" timestamp
         const lastUpdated = cacheStatus.lastSuccessfulFetch || new Date().toISOString();
