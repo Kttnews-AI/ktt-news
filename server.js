@@ -252,21 +252,25 @@ const authMiddleware = async (req, res, next) => {
 // ============================================
 // GNEWS FETCH HELPER WITH CACHE
 // ============================================
+// ============================================
+// GNEWS FETCH HELPER WITH CACHE - FIXED
+// ============================================
 async function fetchGNewsArticles(limit = GNEWS_ARTICLES_LIMIT) {
     const now = Date.now();
     
-    // Return cached data if still valid
+    // If we have cached articles, return them up to the limit
     if (gnewsCache.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
         const ageMinutes = Math.round((now - lastFetchTime) / 60000);
-        console.log(`📦 Using cached GNews (${ageMinutes}m old)`);
+        console.log(`📦 Using cached GNews (${ageMinutes}m old), returning ${Math.min(gnewsCache.length, limit)} articles`);
         cacheStatus.isStale = false;
-        // Return only requested limit from cache
+        // Return cached articles up to limit, or all if less than limit
         return gnewsCache.slice(0, limit);
     }
     
     if (!GNEWS_API_KEY) {
         console.log('⚠️ GNEWS_API_KEY not set, skipping GNews fetch');
         cacheStatus.lastError = 'API key not configured';
+        // Return empty array or stale cache
         return gnewsCache.length > 0 ? gnewsCache.slice(0, limit) : [];
     }
 
@@ -277,18 +281,19 @@ async function fetchGNewsArticles(limit = GNEWS_ARTICLES_LIMIT) {
                 token: GNEWS_API_KEY,
                 lang: 'en',
                 country: 'us',
-                max: limit  // Use the limit parameter (20)
+                max: limit  // Request exactly 20 from GNews API
             },
             timeout: 10000
         });
 
-        if (!response.data || !response.data.articles) {
+        if (!response.data || !response.data.articles || response.data.articles.length === 0) {
             console.log('⚠️ GNews returned no articles');
             cacheStatus.lastError = 'Empty response from GNews';
+            // Return stale cache if available, otherwise empty
             return gnewsCache.length > 0 ? gnewsCache.slice(0, limit) : [];
         }
 
-        // Transform GNews format to match app format - USING isManual: false
+        // Transform GNews format to match app format
         const articles = response.data.articles.map((article, index) => ({
             _id: `gnews_${Date.now()}_${index}`,
             title: article.title,
@@ -304,7 +309,7 @@ async function fetchGNewsArticles(limit = GNEWS_ARTICLES_LIMIT) {
             originalLink: article.url
         }));
 
-        // Update cache
+        // Update cache with ALL fetched articles
         gnewsCache = articles;
         lastFetchTime = now;
         cacheStatus.lastSuccessfulFetch = new Date().toISOString();
@@ -313,12 +318,13 @@ async function fetchGNewsArticles(limit = GNEWS_ARTICLES_LIMIT) {
         cacheStatus.isStale = false;
         
         console.log(`✅ GNews fetched & cached: ${articles.length} articles`);
-        return articles;
+        
+        // Return up to the requested limit
+        return articles.slice(0, limit);
 
     } catch (error) {
         console.error('❌ GNews fetch error:', error.message);
         
-        // Log more details for debugging
         if (error.response) {
             console.error('Response status:', error.response.status);
             console.error('Response data:', error.response.data);
@@ -357,9 +363,12 @@ app.get('/api/health', (req, res) => {
 // ============================================
 // GET ARTICLES - COMBINED GNEWS + MANUAL
 // ============================================
+// ============================================
+// GET ARTICLES - COMBINED GNEWS + MANUAL
+// ============================================
 app.get('/api/articles', async (req, res) => {
     try {
-        // 1. Fetch manual articles from database - MAX 30
+        // 1. Fetch EXACTLY 30 manual articles from database
         const manualArticles = await Article.find({ 
             status: 'published',
             $or: [
@@ -368,7 +377,7 @@ app.get('/api/articles', async (req, res) => {
             ]
         }).sort({ createdAt: -1 }).limit(MANUAL_ARTICLES_LIMIT);
 
-        // Format manual articles - USING isManual: true
+        // Format manual articles - isManual: true
         const formattedManual = manualArticles.map(article => ({
             _id: article._id.toString(),
             title: article.title,
@@ -383,21 +392,19 @@ app.get('/api/articles', async (req, res) => {
             author_name: article.author_name
         }));
 
-        // 2. Fetch GNews articles (cached) - MAX 20
+        // 2. Fetch EXACTLY 20 GNews articles (cached or fresh)
+        // IMPORTANT: We always want 20 GNews, regardless of manual count
         const gnewsArticles = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
 
-        // 3. Combine both sources - Manual first, then GNews
+        // 3. Combine: Manual first (up to 30), then GNews (always 20)
+        // This ensures frontend gets: [30 manual] + [20 GNews] = 50 total
         let allArticles = [...formattedManual, ...gnewsArticles];
 
-        // 4. Sort by date (newest first)
-        allArticles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-        // 5. Limit total articles to 50 max
-        allArticles = allArticles.slice(0, TOTAL_ARTICLES_LIMIT);
-
-        // 6. Calculate "Last Updated" timestamp
+        // 4. Calculate "Last Updated" timestamp
         const lastUpdated = cacheStatus.lastSuccessfulFetch || new Date().toISOString();
         const cacheAgeMinutes = lastFetchTime ? Math.round((Date.now() - lastFetchTime) / 60000) : 0;
+
+        console.log(`📊 Sending to client: ${formattedManual.length} manual + ${gnewsArticles.length} GNews = ${allArticles.length} total`);
 
         res.json({
             success: true,
@@ -415,34 +422,6 @@ app.get('/api/articles', async (req, res) => {
     } catch (err) {
         console.error('Get articles error:', err);
         res.status(500).json({ success: false, error: err.message });
-    }
-});
-
-// Get single article (check cache first, then DB for manual)
-app.get('/api/articles/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        // If it's a GNews article (starts with 'gnews_'), return from cache
-        if (id.startsWith('gnews_')) {
-            const cachedArticle = gnewsCache.find(a => a._id === id);
-            if (cachedArticle) {
-                return res.json(cachedArticle);
-            }
-            return res.status(404).json({ error: 'GNews article not found in cache' });
-        }
-
-        // Otherwise fetch from database (manual article)
-        const article = await Article.findById(id);
-        if (!article) return res.status(404).json({ error: 'Article not found' });
-        
-        res.json({
-            ...article.toObject(),
-            isManual: true
-        });
-
-    } catch (err) {
-        res.status(500).json({ error: err.message });
     }
 });
 
