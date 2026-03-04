@@ -1,5 +1,5 @@
 // ============================================
-// CENTRINSIC NPT NEWS APP - FIXED VERSION
+// CENTRINSIC NPT NEWS APP - FIXED FILTERING
 // ============================================
 
 const API_BASE = "https://centrinsicnpt.com";
@@ -12,10 +12,9 @@ let currentUser = null;
 let currentArticle = null;
 let isOnline = false;
 let toastTimeout = null;
-let articlesCache = new Map(); // Changed to Map for better handling
+let articlesCache = new Map();
 let lastUpdatedTime = null;
-let gnewsArticles = [];
-let manualArticles = [];
+let allArticles = []; // Store all articles here
 let currentTab = 'gnews'; // 'gnews' or 'manual'
 
 /* ============================================
@@ -603,43 +602,27 @@ async function loadNews() {
             lastUpdatedTime = data.meta.lastUpdated;
         }
         
-        // Clear old cache
+        // Store ALL articles
+        allArticles = newsArray;
+        
+        // Clear and rebuild cache
         articlesCache.clear();
-        
-        // Remove duplicates by creating a unique key for each article
-        const seen = new Set();
-        const uniqueArticles = [];
-        
         newsArray.forEach(article => {
-            // Create unique key from title + source (most reliable)
-            const uniqueKey = `${article.title?.trim()?.toLowerCase()}_${article.source?.trim()?.toLowerCase()}`;
-            
-            if (!seen.has(uniqueKey)) {
-                seen.add(uniqueKey);
-                uniqueArticles.push(article);
-                
-                // Cache with normalized ID
-                const id = article._id || article.articleId || article.id;
-                if (id) {
-                    articlesCache.set(String(id), article);
-                }
-            } else {
-                console.log('Duplicate filtered:', article.title);
+            const id = article._id || article.articleId || article.id;
+            if (id) {
+                articlesCache.set(String(id), article);
             }
         });
         
-        // Split articles by source
-        gnewsArticles = uniqueArticles.filter(article => !article.isManual);
-        manualArticles = uniqueArticles.filter(article => article.isManual);
-        
-        console.log(`Loaded: ${gnewsArticles.length} GNews + ${manualArticles.length} Manual = ${uniqueArticles.length} total`);
-        console.log(`Filtered ${newsArray.length - uniqueArticles.length} duplicates`);
-        
-        localStorage.setItem("news_backup", JSON.stringify(uniqueArticles));
+        localStorage.setItem("news_backup", JSON.stringify(newsArray));
         localStorage.setItem("news_meta", JSON.stringify(data.meta || {}));
         isOnline = true;
         
-        // Render with tabs
+        console.log(`📊 Loaded ${newsArray.length} total articles`);
+        console.log(`   Manual: ${newsArray.filter(a => a.isManual).length}`);
+        console.log(`   GNews: ${newsArray.filter(a => !a.isManual).length}`);
+        
+        // Render current tab
         renderTabView();
         updateSavedFolder();
         
@@ -647,9 +630,7 @@ async function loadNews() {
         console.error('Load news error:', error);
         const backup = localStorage.getItem("news_backup");
         if(backup) {
-            const parsed = JSON.parse(backup);
-            gnewsArticles = parsed.filter(article => !article.isManual);
-            manualArticles = parsed.filter(article => article.isManual);
+            allArticles = JSON.parse(backup);
             renderTabView();
             showToast("Offline mode");
         }
@@ -657,6 +638,7 @@ async function loadNews() {
 }
 
 function switchTab(tab) {
+    console.log(`Switching tab from ${currentTab} to ${tab}`);
     currentTab = tab;
     renderTabView();
 }
@@ -665,8 +647,17 @@ function renderTabView() {
     const container = document.getElementById("newsFeed");
     if(!container) return;
     
+    // FILTER articles based on current tab - THIS IS THE KEY FIX
+    const gnewsArticles = allArticles.filter(article => !article.isManual);
+    const manualArticles = allArticles.filter(article => article.isManual);
+    
     const isGNews = currentTab === 'gnews';
     const activeArticles = isGNews ? gnewsArticles : manualArticles;
+    
+    console.log(`Rendering tab: ${currentTab}`);
+    console.log(`   GNews available: ${gnewsArticles.length}`);
+    console.log(`   Manual available: ${manualArticles.length}`);
+    console.log(`   Showing: ${activeArticles.length}`);
     
     // CUSTOMIZE NAMES HERE ↓↓↓
     const gnewsTabName = 'AI-S';
@@ -718,7 +709,7 @@ function renderTabView() {
     // ARTICLES LIST
     if (activeArticles.length > 0) {
         html += `<div class="articles-list" style="padding: 0 16px 20px 16px;">`;
-        html += renderArticleCards(activeArticles, currentTab);
+        html += renderArticleCards(activeArticles);
         html += `</div>`;
     } else {
         html += `
@@ -733,7 +724,7 @@ function renderTabView() {
     container.innerHTML = html;
 }
 
-function renderArticleCards(articles, type) {
+function renderArticleCards(articles) {
     if (!articles || articles.length === 0) return '';
     
     return articles.map((item, index) => {
@@ -754,7 +745,7 @@ function renderArticleCards(articles, type) {
         
         const imageUrl = getImageUrl(item.image);
         
-        // Store article data safely without encoding issues
+        // Store article data safely
         const articleData = JSON.stringify(item).replace(/"/g, '&quot;');
         
         return `
@@ -811,7 +802,6 @@ function handleArticleClick(element) {
     }
     
     // Try to find by title in current arrays
-    const allArticles = [...gnewsArticles, ...manualArticles];
     const foundByTitle = allArticles.find(a => 
         a.title === articleTitle && a.source === articleSource
     );
@@ -1204,4 +1194,4 @@ function bindMobileButtons() {
     }
 }
 
-console.log("✅ Centrinsic NPT App loaded - FIXED VERSION");
+console.log("✅ Centrinsic NPT App loaded - FIXED FILTERING VERSION");
