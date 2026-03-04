@@ -20,15 +20,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
 
-// GNEWS CONFIG
+// GNEWS CONFIG - UPDATED FOR MULTIPLE REQUESTS
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
 const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
 const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 30) * 60 * 1000; // 30 minutes default
 
-// ARTICLE LIMITS CONFIGURATION
-const MANUAL_ARTICLES_LIMIT = 30;  // Your manual uploads
-const GNEWS_ARTICLES_LIMIT = 20;   // GNews articles
-const TOTAL_ARTICLES_LIMIT = 50;   // Total combined
+// UPDATED LIMITS - UNLIMITED MANUAL, MORE GNEWS
+const MANUAL_ARTICLES_LIMIT = 0;  // 0 = unlimited manual articles
+const GNEWS_ARTICLES_LIMIT = 100; // Target 100 GNews articles (uses multiple requests)
+const MAX_GNEWS_PER_REQUEST = 10; // Free tier limit per API call (CANNOT CHANGE THIS)
+const TOTAL_ARTICLES_LIMIT = 0;   // 0 = unlimited total
 
 // ============================================
 // GNEWS CACHE SYSTEM
@@ -250,77 +251,116 @@ const authMiddleware = async (req, res, next) => {
 };
 
 // ============================================
-// GNEWS FETCH HELPER WITH CACHE
+// GNEWS FETCH HELPER WITH MULTIPLE REQUESTS
 // ============================================
-// ============================================
-// GNEWS FETCH HELPER WITH CACHE - FIXED
-// ============================================
-async function fetchGNewsArticles(limit = GNEWS_ARTICLES_LIMIT) {
+async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
     const now = Date.now();
     
-    // If we have cached articles, return them up to the limit
+    // Return cached if fresh
     if (gnewsCache.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
         const ageMinutes = Math.round((now - lastFetchTime) / 60000);
-        console.log(`📦 Using cached GNews (${ageMinutes}m old), returning ${Math.min(gnewsCache.length, limit)} articles`);
+        console.log(`📦 Using cached GNews (${ageMinutes}m old), returning ${Math.min(gnewsCache.length, targetLimit)} articles`);
         cacheStatus.isStale = false;
-        // Return cached articles up to limit, or all if less than limit
-        return gnewsCache.slice(0, limit);
+        return gnewsCache.slice(0, targetLimit);
     }
     
     if (!GNEWS_API_KEY) {
         console.log('⚠️ GNEWS_API_KEY not set, skipping GNews fetch');
         cacheStatus.lastError = 'API key not configured';
-        // Return empty array or stale cache
-        return gnewsCache.length > 0 ? gnewsCache.slice(0, limit) : [];
+        return gnewsCache.length > 0 ? gnewsCache.slice(0, targetLimit) : [];
     }
 
     try {
-        console.log(`🌐 Fetching fresh articles from GNews (max: ${limit})...`);
-        const response = await axios.get(`${GNEWS_BASE_URL}/top-headlines`, {
-            params: {
-                token: GNEWS_API_KEY,
-                lang: 'en',
-                country: 'us',
-                max: limit  // Request exactly 20 from GNews API
-            },
-            timeout: 10000
-        });
+        console.log(`🌐 Fetching up to ${targetLimit} articles from GNews (max ${MAX_GNEWS_PER_REQUEST} per request)...`);
+        
+        const allArticles = [];
+        // Calculate how many requests we need (GNews free: 100 requests/day, 10 articles/request)
+        const maxRequests = Math.ceil(targetLimit / MAX_GNEWS_PER_REQUEST);
+        // Limit to 10 requests per fetch to stay safe with daily quota
+        const requestsToMake = Math.min(maxRequests, 10);
+        
+        for (let i = 0; i < requestsToMake; i++) {
+            try {
+                console.log(`  📡 Request ${i + 1}/${requestsToMake}...`);
+                
+                const response = await axios.get(`${GNEWS_BASE_URL}/top-headlines`, {
+                    params: {
+                        token: GNEWS_API_KEY,
+                        lang: 'en',
+                        country: 'us',
+                        max: MAX_GNEWS_PER_REQUEST
+                        // Note: GNews free tier doesn't support pagination params
+                    },
+                    timeout: 10000
+                });
 
-        if (!response.data || !response.data.articles || response.data.articles.length === 0) {
-            console.log('⚠️ GNews returned no articles');
-            cacheStatus.lastError = 'Empty response from GNews';
-            // Return stale cache if available, otherwise empty
-            return gnewsCache.length > 0 ? gnewsCache.slice(0, limit) : [];
+                if (response.data?.articles?.length > 0) {
+                    const articles = response.data.articles.map((article, index) => ({
+                        _id: `gnews_${Date.now()}_${i}_${index}`,
+                        title: article.title,
+                        content: article.content || article.description || 'No content available',
+                        description: article.description,
+                        image: article.image || null,
+                        url: article.url,
+                        source: article.source?.name || 'GNews',
+                        category: 'General',
+                        publishedAt: article.publishedAt,
+                        createdAt: article.publishedAt,
+                        isManual: false,
+                        originalLink: article.url,
+                        fetchedAt: new Date().toISOString()
+                    }));
+                    
+                    allArticles.push(...articles);
+                    console.log(`  ✅ Got ${articles.length} articles`);
+                    
+                    // Stop if we have enough
+                    if (allArticles.length >= targetLimit) {
+                        console.log(`  🎯 Reached target of ${targetLimit} articles`);
+                        break;
+                    }
+                } else {
+                    console.log(`  ⚠️ No articles in response`);
+                    break;
+                }
+                
+                // Rate limiting: GNews free tier = 1 request per second
+                if (i < requestsToMake - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1100)); // 1.1 second delay
+                }
+                
+            } catch (batchError) {
+                console.error(`  ❌ Request ${i + 1} failed:`, batchError.message);
+                
+                // Check for specific errors
+                if (batchError.response?.status === 403) {
+                    console.log('  🚫 API limit reached or invalid key - stopping');
+                    cacheStatus.lastError = 'API limit reached (403)';
+                    break;
+                }
+                if (batchError.response?.status === 429) {
+                    console.log('  ⏱️ Rate limited - waiting 2 seconds...');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    i--; // Retry this request
+                    continue;
+                }
+                
+                // Continue to next request on other errors
+                continue;
+            }
         }
 
-        // Transform GNews format to match app format
-        const articles = response.data.articles.map((article, index) => ({
-            _id: `gnews_${Date.now()}_${index}`,
-            title: article.title,
-            content: article.content || article.description || 'No content available',
-            description: article.description,
-            image: article.image || null,
-            url: article.url,
-            source: article.source?.name || 'GNews',
-            category: 'General',
-            publishedAt: article.publishedAt,
-            createdAt: article.publishedAt,
-            isManual: false,  // KEY: GNews articles are NOT manual
-            originalLink: article.url
-        }));
-
-        // Update cache with ALL fetched articles
-        gnewsCache = articles;
+        // Update cache with all fetched articles
+        gnewsCache = allArticles;
         lastFetchTime = now;
         cacheStatus.lastSuccessfulFetch = new Date().toISOString();
         cacheStatus.totalFetches++;
         cacheStatus.lastError = null;
         cacheStatus.isStale = false;
         
-        console.log(`✅ GNews fetched & cached: ${articles.length} articles`);
+        console.log(`✅ GNews fetch complete: ${allArticles.length} articles in ~${requestsToMake} requests`);
         
-        // Return up to the requested limit
-        return articles.slice(0, limit);
+        return allArticles.slice(0, targetLimit);
 
     } catch (error) {
         console.error('❌ GNews fetch error:', error.message);
@@ -336,7 +376,7 @@ async function fetchGNewsArticles(limit = GNEWS_ARTICLES_LIMIT) {
         // Return stale cache on error (graceful degradation)
         if (gnewsCache.length > 0) {
             console.log('📦 Serving stale cache due to error');
-            return gnewsCache.slice(0, limit);
+            return gnewsCache.slice(0, targetLimit);
         }
         return [];
     }
@@ -361,21 +401,25 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============================================
-// GET ARTICLES - COMBINED GNEWS + MANUAL
-// ============================================
-// ============================================
-// GET ARTICLES - COMBINED GNEWS + MANUAL
+// GET ARTICLES - COMBINED GNEWS + MANUAL (UNLIMITED)
 // ============================================
 app.get('/api/articles', async (req, res) => {
     try {
-        // 1. Fetch EXACTLY 30 manual articles from database
-        const manualArticles = await Article.find({ 
+        // 1. Fetch ALL manual articles from database (NO LIMIT)
+        let manualQuery = Article.find({ 
             status: 'published',
             $or: [
                 { expiresAt: { $gt: new Date() } },
                 { expiresAt: { $exists: false } }
             ]
-        }).sort({ createdAt: -1 }).limit(MANUAL_ARTICLES_LIMIT);
+        }).sort({ createdAt: -1 });
+        
+        // Only apply limit if MANUAL_ARTICLES_LIMIT > 0
+        if (MANUAL_ARTICLES_LIMIT > 0) {
+            manualQuery = manualQuery.limit(MANUAL_ARTICLES_LIMIT);
+        }
+        
+        const manualArticles = await manualQuery;
 
         // Format manual articles - isManual: true
         const formattedManual = manualArticles.map(article => ({
@@ -388,19 +432,22 @@ app.get('/api/articles', async (req, res) => {
             originalLink: article.originalLink || '',
             createdAt: article.createdAt,
             updatedAt: article.updatedAt,
-            isManual: true,  // KEY: Manual articles ARE manual
+            isManual: true,
             author_name: article.author_name
         }));
 
-        // 2. Fetch EXACTLY 20 GNews articles (cached or fresh)
+        // 2. Fetch GNews articles (uses multiple requests to get up to 100)
         const gnewsArticles = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
 
-        // 3. DO NOT SORT BY DATE - Keep them separated!
-        // Manual articles first, then GNews articles
-        // This ensures frontend can filter correctly
+        // 3. Combine - Manual articles first, then GNews articles
         let allArticles = [...formattedManual, ...gnewsArticles];
 
-        // 4. Calculate "Last Updated" timestamp
+        // 4. Apply total limit only if TOTAL_ARTICLES_LIMIT > 0
+        if (TOTAL_ARTICLES_LIMIT > 0 && allArticles.length > TOTAL_ARTICLES_LIMIT) {
+            allArticles = allArticles.slice(0, TOTAL_ARTICLES_LIMIT);
+        }
+
+        // 5. Calculate "Last Updated" timestamp
         const lastUpdated = cacheStatus.lastSuccessfulFetch || new Date().toISOString();
         const cacheAgeMinutes = lastFetchTime ? Math.round((Date.now() - lastFetchTime) / 60000) : 0;
 
@@ -415,7 +462,8 @@ app.get('/api/articles', async (req, res) => {
                 gnewsCount: gnewsArticles.length,
                 lastUpdated: lastUpdated,
                 cacheAgeMinutes: cacheAgeMinutes,
-                isCached: cacheAgeMinutes < (CACHE_DURATION / 60000)
+                isCached: cacheAgeMinutes < (CACHE_DURATION / 60000),
+                gnewsRequestsMade: Math.ceil(gnewsArticles.length / MAX_GNEWS_PER_REQUEST)
             }
         });
 
@@ -459,7 +507,13 @@ app.get('/api/admin/cache-status', async (req, res) => {
         lastFetchTime: lastFetchTime ? new Date(lastFetchTime).toISOString() : null,
         cacheDurationMinutes: CACHE_DURATION / 60000,
         articlesInCache: gnewsCache.length,
-        gnewsConfigured: !!GNEWS_API_KEY
+        gnewsConfigured: !!GNEWS_API_KEY,
+        limits: {
+            manualLimit: MANUAL_ARTICLES_LIMIT === 0 ? 'Unlimited' : MANUAL_ARTICLES_LIMIT,
+            gnewsTarget: GNEWS_ARTICLES_LIMIT,
+            gnewsPerRequest: MAX_GNEWS_PER_REQUEST,
+            totalLimit: TOTAL_ARTICLES_LIMIT === 0 ? 'Unlimited' : TOTAL_ARTICLES_LIMIT
+        }
     });
 });
 
@@ -709,7 +763,7 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
             source: source || 'Centrinsic NPT',
             category: category || 'General',
             originalLink: originalLink || req.body['original link'] || '',
-            isManual: true,  // KEY: Set to true for manual articles
+            isManual: true,
             status: 'published',
             expiresAt: expiresAt ? new Date(expiresAt) : undefined,
             author_id: req.userId,
@@ -998,8 +1052,9 @@ if (DEBUG) {
                 <div class="card">
                     <h3>News Sources</h3>
                     <p>✅ GNews API: ${GNEWS_API_KEY ? 'Configured' : 'Not Configured'}</p>
-                    <p>✅ Manual Articles: MongoDB</p>
+                    <p>✅ Manual Articles: MongoDB (Unlimited)</p>
                     <p>📦 Cache Duration: ${CACHE_DURATION / 60000} minutes</p>
+                    <p>🚀 GNews Multi-Request: Enabled (up to 100 articles)</p>
                 </div>
             </body>
             </html>
@@ -1039,9 +1094,10 @@ app.listen(PORT, () => {
     console.log('========================================');
     console.log(`Port: ${PORT}`);
     console.log(`GNews API: ${GNEWS_API_KEY ? '✅ Configured' : '❌ Not Configured'}`);
-    console.log(`Manual Articles Limit: ${MANUAL_ARTICLES_LIMIT}`);
-    console.log(`GNews Articles Limit: ${GNEWS_ARTICLES_LIMIT}`);
-    console.log(`Total Articles Limit: ${TOTAL_ARTICLES_LIMIT}`);
+    console.log(`Manual Articles Limit: ${MANUAL_ARTICLES_LIMIT === 0 ? '♾️ Unlimited' : MANUAL_ARTICLES_LIMIT}`);
+    console.log(`GNews Articles Target: ${GNEWS_ARTICLES_LIMIT} (max ${MAX_GNEWS_PER_REQUEST} per request)`);
+    console.log(`Total Articles Limit: ${TOTAL_ARTICLES_LIMIT === 0 ? '♾️ Unlimited' : TOTAL_ARTICLES_LIMIT}`);
     console.log(`Cache Duration: ${CACHE_DURATION / 60000} minutes`);
+    console.log(`Multi-Request Mode: ✅ Enabled`);
     console.log('========================================');
 });
