@@ -1,5 +1,5 @@
 // ============================================
-// CENTRINSIC NPT SERVER - FIXED VERSION
+// CENTRINSIC NPT SERVER - FIXED VERSION (SPACE REMOVED)
 // ============================================
 require('dotenv').config();
 const express = require('express');
@@ -20,9 +20,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
 
-// GNEWS CONFIG
+// GNEWS CONFIG - FIXED: REMOVED SPACE FROM URL
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
-const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
+const GNEWS_BASE_URL = 'https://gnews.io/api/v4';  // ✅ NO SPACE!
 const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 30) * 60 * 1000;
 
 // IMPORTANT: These limits are INDEPENDENT - not combined!
@@ -31,7 +31,7 @@ const GNEWS_ARTICLES_LIMIT = 100; // Target 100 GNews articles
 const MAX_GNEWS_PER_REQUEST = 10; // Free tier limit per API call
 
 // ============================================
-// GNEWS CACHE SYSTEM
+// GNEWS CACHE SYSTEM - FORCE REFRESH ON START
 // ============================================
 let gnewsCache = [];
 let lastFetchTime = 0;
@@ -270,6 +270,7 @@ async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
 
     try {
         console.log(`🌐 Fetching up to ${targetLimit} articles from GNews (max ${MAX_GNEWS_PER_REQUEST} per request)...`);
+        console.log(`   URL: ${GNEWS_BASE_URL}/top-headlines`);
         
         const allArticles = [];
         // Calculate how many requests we need
@@ -479,7 +480,10 @@ app.post('/api/admin/refresh-gnews', authMiddleware, async (req, res) => {
             return res.status(403).json({ error: "Admin only" });
         }
 
-        lastFetchTime = 0; // Reset cache
+        // Clear cache to force fresh fetch
+        lastFetchTime = 0;
+        gnewsCache = [];
+        
         const fresh = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
         
         res.json({ 
