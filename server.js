@@ -1,5 +1,5 @@
 // ============================================
-// CENTRINSIC NPT SERVER - GNEWS + MANUAL + CACHE
+// CENTRINSIC NPT SERVER - FIXED VERSION
 // ============================================
 require('dotenv').config();
 const express = require('express');
@@ -20,16 +20,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
 
-// GNEWS CONFIG - UPDATED FOR MULTIPLE REQUESTS
+// GNEWS CONFIG
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
 const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
-const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 30) * 60 * 1000; // 30 minutes default
+const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 30) * 60 * 1000;
 
-// UPDATED LIMITS - UNLIMITED MANUAL, MORE GNEWS
+// IMPORTANT: These limits are INDEPENDENT - not combined!
 const MANUAL_ARTICLES_LIMIT = 0;  // 0 = unlimited manual articles
-const GNEWS_ARTICLES_LIMIT = 100; // Target 100 GNews articles (uses multiple requests)
-const MAX_GNEWS_PER_REQUEST = 10; // Free tier limit per API call (CANNOT CHANGE THIS)
-const TOTAL_ARTICLES_LIMIT = 0;   // 0 = unlimited total
+const GNEWS_ARTICLES_LIMIT = 100; // Target 100 GNews articles
+const MAX_GNEWS_PER_REQUEST = 10; // Free tier limit per API call
 
 // ============================================
 // GNEWS CACHE SYSTEM
@@ -149,7 +148,7 @@ async function sendOTPEmail(toEmail, otp) {
 }
 
 // ============================================
-// SCHEMAS - FIXED WITH SOURCE, CATEGORY, ORIGINAL LINK
+// SCHEMAS
 // ============================================
 const userSchema = new mongoose.Schema({
     name: String,
@@ -158,7 +157,6 @@ const userSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now }
 });
 
-// Manual article schema (for admin added content)
 const articleSchema = new mongoose.Schema({
     title: { type: String, required: true },
     content: { type: String, required: true },
@@ -193,7 +191,7 @@ const Bookmark = mongoose.model('Bookmark', bookmarkSchema);
 const UserEmail = mongoose.model('UserEmail', userEmailSchema);
 
 // ============================================
-// MIDDLEWARE SETUP (FIXED FOR FILE UPLOAD)
+// MIDDLEWARE SETUP
 // ============================================
 app.use(cors({
     origin: '*',
@@ -251,7 +249,7 @@ const authMiddleware = async (req, res, next) => {
 };
 
 // ============================================
-// GNEWS FETCH HELPER WITH MULTIPLE REQUESTS
+// GNEWS FETCH HELPER - MULTIPLE REQUESTS
 // ============================================
 async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
     const now = Date.now();
@@ -274,9 +272,9 @@ async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
         console.log(`🌐 Fetching up to ${targetLimit} articles from GNews (max ${MAX_GNEWS_PER_REQUEST} per request)...`);
         
         const allArticles = [];
-        // Calculate how many requests we need (GNews free: 100 requests/day, 10 articles/request)
+        // Calculate how many requests we need
         const maxRequests = Math.ceil(targetLimit / MAX_GNEWS_PER_REQUEST);
-        // Limit to 10 requests per fetch to stay safe with daily quota
+        // Limit to 10 requests per fetch to stay safe with daily quota (100/day)
         const requestsToMake = Math.min(maxRequests, 10);
         
         for (let i = 0; i < requestsToMake; i++) {
@@ -289,7 +287,6 @@ async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
                         lang: 'en',
                         country: 'us',
                         max: MAX_GNEWS_PER_REQUEST
-                        // Note: GNews free tier doesn't support pagination params
                     },
                     timeout: 10000
                 });
@@ -326,13 +323,12 @@ async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
                 
                 // Rate limiting: GNews free tier = 1 request per second
                 if (i < requestsToMake - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 1100)); // 1.1 second delay
+                    await new Promise(resolve => setTimeout(resolve, 1100));
                 }
                 
             } catch (batchError) {
                 console.error(`  ❌ Request ${i + 1} failed:`, batchError.message);
                 
-                // Check for specific errors
                 if (batchError.response?.status === 403) {
                     console.log('  🚫 API limit reached or invalid key - stopping');
                     cacheStatus.lastError = 'API limit reached (403)';
@@ -345,7 +341,6 @@ async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
                     continue;
                 }
                 
-                // Continue to next request on other errors
                 continue;
             }
         }
@@ -373,7 +368,6 @@ async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
         cacheStatus.lastError = error.message;
         cacheStatus.isStale = true;
         
-        // Return stale cache on error (graceful degradation)
         if (gnewsCache.length > 0) {
             console.log('📦 Serving stale cache due to error');
             return gnewsCache.slice(0, targetLimit);
@@ -401,10 +395,12 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============================================
-// GET ARTICLES - COMBINED GNEWS + MANUAL (UNLIMITED)
+// GET ARTICLES - FIXED: SEPARATE LIMITS FOR MANUAL AND GNEWS
 // ============================================
 app.get('/api/articles', async (req, res) => {
     try {
+        console.log('\n📊 === FETCHING ARTICLES ===');
+        
         // 1. Fetch ALL manual articles from database (NO LIMIT)
         let manualQuery = Article.find({ 
             status: 'published',
@@ -419,10 +415,11 @@ app.get('/api/articles', async (req, res) => {
             manualQuery = manualQuery.limit(MANUAL_ARTICLES_LIMIT);
         }
         
-        const manualArticles = await manualQuery;
+        const manualArticlesFromDB = await manualQuery;
+        console.log(`✅ Manual articles from DB: ${manualArticlesFromDB.length}`);
 
-        // Format manual articles - isManual: true
-        const formattedManual = manualArticles.map(article => ({
+        // Format manual articles
+        const formattedManual = manualArticlesFromDB.map(article => ({
             _id: article._id.toString(),
             title: article.title,
             content: article.content,
@@ -436,22 +433,19 @@ app.get('/api/articles', async (req, res) => {
             author_name: article.author_name
         }));
 
-        // 2. Fetch GNews articles (uses multiple requests to get up to 100)
+        // 2. Fetch GNews articles (COMPLETELY INDEPENDENT OF MANUAL COUNT)
         const gnewsArticles = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
+        console.log(`✅ GNews articles: ${gnewsArticles.length}`);
 
-        // 3. Combine - Manual articles first, then GNews articles
-        let allArticles = [...formattedManual, ...gnewsArticles];
+        // 3. Combine - BOTH arrays are FULL, no reduction based on count
+        const allArticles = [...formattedManual, ...gnewsArticles];
+        
+        console.log(`📊 TOTAL: ${formattedManual.length} manual + ${gnewsArticles.length} GNews = ${allArticles.length} articles`);
+        console.log('=== END FETCHING ===\n');
 
-        // 4. Apply total limit only if TOTAL_ARTICLES_LIMIT > 0
-        if (TOTAL_ARTICLES_LIMIT > 0 && allArticles.length > TOTAL_ARTICLES_LIMIT) {
-            allArticles = allArticles.slice(0, TOTAL_ARTICLES_LIMIT);
-        }
-
-        // 5. Calculate "Last Updated" timestamp
+        // 4. Calculate metadata
         const lastUpdated = cacheStatus.lastSuccessfulFetch || new Date().toISOString();
         const cacheAgeMinutes = lastFetchTime ? Math.round((Date.now() - lastFetchTime) / 60000) : 0;
-
-        console.log(`📊 Sending to client: ${formattedManual.length} manual + ${gnewsArticles.length} GNews = ${allArticles.length} total`);
 
         res.json({
             success: true,
@@ -468,7 +462,7 @@ app.get('/api/articles', async (req, res) => {
         });
 
     } catch (err) {
-        console.error('Get articles error:', err);
+        console.error('❌ Get articles error:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
@@ -478,7 +472,6 @@ app.get('/api/articles', async (req, res) => {
 // ============================================
 app.post('/api/admin/refresh-gnews', authMiddleware, async (req, res) => {
     try {
-        // Check if admin
         const user = await User.findById(req.userId);
         const ADMIN_EMAIL = "dheerajexperiment8@gmail.com";
         
@@ -511,8 +504,7 @@ app.get('/api/admin/cache-status', async (req, res) => {
         limits: {
             manualLimit: MANUAL_ARTICLES_LIMIT === 0 ? 'Unlimited' : MANUAL_ARTICLES_LIMIT,
             gnewsTarget: GNEWS_ARTICLES_LIMIT,
-            gnewsPerRequest: MAX_GNEWS_PER_REQUEST,
-            totalLimit: TOTAL_ARTICLES_LIMIT === 0 ? 'Unlimited' : TOTAL_ARTICLES_LIMIT
+            gnewsPerRequest: MAX_GNEWS_PER_REQUEST
         }
     });
 });
@@ -795,12 +787,10 @@ app.put('/api/articles/:id', authMiddleware, upload.single('image'), async (req,
             return res.status(404).json({ error: 'Article not found' });
         }
 
-        // Check ownership
         if (article.author_id.toString() !== req.userId) {
             return res.status(403).json({ error: 'Not authorized' });
         }
 
-        // Update fields
         article.title = title || article.title;
         article.content = content || article.content;
         article.source = source || article.source;
@@ -1094,10 +1084,9 @@ app.listen(PORT, () => {
     console.log('========================================');
     console.log(`Port: ${PORT}`);
     console.log(`GNews API: ${GNEWS_API_KEY ? '✅ Configured' : '❌ Not Configured'}`);
-    console.log(`Manual Articles Limit: ${MANUAL_ARTICLES_LIMIT === 0 ? '♾️ Unlimited' : MANUAL_ARTICLES_LIMIT}`);
-    console.log(`GNews Articles Target: ${GNEWS_ARTICLES_LIMIT} (max ${MAX_GNEWS_PER_REQUEST} per request)`);
-    console.log(`Total Articles Limit: ${TOTAL_ARTICLES_LIMIT === 0 ? '♾️ Unlimited' : TOTAL_ARTICLES_LIMIT}`);
+    console.log(`Manual Articles: ♾️ Unlimited`);
+    console.log(`GNews Articles: ${GNEWS_ARTICLES_LIMIT} target (max ${MAX_GNEWS_PER_REQUEST} per request)`);
     console.log(`Cache Duration: ${CACHE_DURATION / 60000} minutes`);
-    console.log(`Multi-Request Mode: ✅ Enabled`);
+    console.log(`IMPORTANT: Manual and GNews are INDEPENDENT`);
     console.log('========================================');
 });
