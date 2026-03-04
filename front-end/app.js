@@ -1,10 +1,9 @@
 // ============================================
-// CENTRINSIC NPT NEWS APP - SPLIT SCREEN (TABS)
+// CENTRINSIC NPT NEWS APP - FIXED VERSION
 // ============================================
 
 const API_BASE = "https://centrinsicnpt.com";
 const API_ARTICLES = `${API_BASE}/api/articles`;
-const API_NEWS = `${API_BASE}/api/news`;
 const API_SAVE_EMAIL = `${API_BASE}/api/save-email`;
 
 console.log("🔌 API Base:", API_BASE);
@@ -13,7 +12,7 @@ let currentUser = null;
 let currentArticle = null;
 let isOnline = false;
 let toastTimeout = null;
-let articlesCache = {};
+let articlesCache = new Map(); // Changed to Map for better handling
 let lastUpdatedTime = null;
 let gnewsArticles = [];
 let manualArticles = [];
@@ -581,7 +580,7 @@ function resetLoginForm() {
 }
 
 /* ============================================
-   NEWS LOADING - TAB VIEW
+   NEWS LOADING - FIXED VERSION
 ============================================ */
 async function loadNews() {
     const container = document.getElementById("newsFeed");
@@ -604,19 +603,39 @@ async function loadNews() {
             lastUpdatedTime = data.meta.lastUpdated;
         }
         
-        // Split articles by source
-        gnewsArticles = newsArray.filter(article => !article.isManual);
-        manualArticles = newsArray.filter(article => article.isManual);
+        // Clear old cache
+        articlesCache.clear();
         
-        // Cache all articles
+        // Remove duplicates by creating a unique key for each article
+        const seen = new Set();
+        const uniqueArticles = [];
+        
         newsArray.forEach(article => {
-            const id = article._id || article.articleId || article.id;
-            if (id) {
-                articlesCache[String(id)] = article;
+            // Create unique key from title + source (most reliable)
+            const uniqueKey = `${article.title?.trim()?.toLowerCase()}_${article.source?.trim()?.toLowerCase()}`;
+            
+            if (!seen.has(uniqueKey)) {
+                seen.add(uniqueKey);
+                uniqueArticles.push(article);
+                
+                // Cache with normalized ID
+                const id = article._id || article.articleId || article.id;
+                if (id) {
+                    articlesCache.set(String(id), article);
+                }
+            } else {
+                console.log('Duplicate filtered:', article.title);
             }
         });
         
-        localStorage.setItem("news_backup", JSON.stringify(newsArray));
+        // Split articles by source
+        gnewsArticles = uniqueArticles.filter(article => !article.isManual);
+        manualArticles = uniqueArticles.filter(article => article.isManual);
+        
+        console.log(`Loaded: ${gnewsArticles.length} GNews + ${manualArticles.length} Manual = ${uniqueArticles.length} total`);
+        console.log(`Filtered ${newsArray.length - uniqueArticles.length} duplicates`);
+        
+        localStorage.setItem("news_backup", JSON.stringify(uniqueArticles));
         localStorage.setItem("news_meta", JSON.stringify(data.meta || {}));
         isOnline = true;
         
@@ -650,10 +669,10 @@ function renderTabView() {
     const activeArticles = isGNews ? gnewsArticles : manualArticles;
     
     // CUSTOMIZE NAMES HERE ↓↓↓
-    const gnewsTabName = 'AI-S';      // Change this
-    const manualTabName = 'AI-D';      // Change this
-    const gnewsSectionTitle = '🟣 Short AI card';     // Change this
-    const manualSectionTitle = '🔵 Detailed AI card';    // Change this
+    const gnewsTabName = 'AI-S';
+    const manualTabName = 'AI-D';
+    const gnewsSectionTitle = '🟣 Short AI card';
+    const manualSectionTitle = '🔵 Detailed AI card';
     // CUSTOMIZE NAMES HERE ↑↑↑
     
     const tabTitle = isGNews ? gnewsSectionTitle : manualSectionTitle;
@@ -696,7 +715,7 @@ function renderTabView() {
         </div>
     `;
     
-    // REST OF FUNCTION...
+    // ARTICLES LIST
     if (activeArticles.length > 0) {
         html += `<div class="articles-list" style="padding: 0 16px 20px 16px;">`;
         html += renderArticleCards(activeArticles, currentTab);
@@ -713,8 +732,6 @@ function renderTabView() {
     
     container.innerHTML = html;
 }
-
-
 
 function renderArticleCards(articles, type) {
     if (!articles || articles.length === 0) return '';
@@ -736,12 +753,15 @@ function renderArticleCards(articles, type) {
         });
         
         const imageUrl = getImageUrl(item.image);
-        const articleData = encodeURIComponent(JSON.stringify(item));
+        
+        // Store article data safely without encoding issues
+        const articleData = JSON.stringify(item).replace(/"/g, '&quot;');
         
         return `
             <article class="news-card" 
                 data-article-id="${escapeHtml(id)}" 
-                data-article-data="${escapeHtml(articleData)}"
+                data-article-title="${escapeHtml(title)}"
+                data-article-source="${escapeHtml(item.source || 'Unknown')}"
                 onclick="handleArticleClick(this)">
                 
                 <div class="news-content">
@@ -776,24 +796,48 @@ function getImageUrl(imagePath) {
     return `${API_BASE}/uploads/${imagePath}`;
 }
 
-// Handle article click
+// Handle article click - FIXED
 function handleArticleClick(element) {
     const articleId = element.getAttribute('data-article-id');
-    const articleDataStr = element.getAttribute('data-article-data');
+    const articleTitle = element.getAttribute('data-article-title');
+    const articleSource = element.getAttribute('data-article-source');
     
-    try {
-        const articleData = JSON.parse(decodeURIComponent(articleDataStr));
-        
-        if (articleData && articleData.title) {
-            currentArticle = articleData;
-            displayArticleDetail();
-            return;
-        }
-    } catch (e) {
-        console.log('Failed to parse article data, falling back to cache');
+    // Try to find in cache first
+    if (articlesCache.has(articleId)) {
+        console.log('Using cached article:', articleId);
+        currentArticle = articlesCache.get(articleId);
+        displayArticleDetail();
+        return;
     }
     
-    openArticle(articleId);
+    // Try to find by title in current arrays
+    const allArticles = [...gnewsArticles, ...manualArticles];
+    const foundByTitle = allArticles.find(a => 
+        a.title === articleTitle && a.source === articleSource
+    );
+    
+    if (foundByTitle) {
+        console.log('Found article by title match');
+        currentArticle = foundByTitle;
+        displayArticleDetail();
+        return;
+    }
+    
+    // Fallback to API call for manual articles
+    if (!articleId.startsWith('gnews_')) {
+        fetch(`${API_ARTICLES}/${articleId}`)
+            .then(response => response.json())
+            .then(article => {
+                console.log('Fetched article from API:', article);
+                currentArticle = article;
+                displayArticleDetail();
+            })
+            .catch(() => {
+                showToast("Failed to load article");
+            });
+    } else {
+        showToast("Article expired. Please refresh.");
+    }
 }
 
 function getSavedArticles() {
@@ -831,12 +875,11 @@ function loadSavedArticles() {
         const date = item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved";
         const title = item.title || "Untitled";
         
-        const articleData = encodeURIComponent(JSON.stringify(item));
-        
         html += `
             <article class="news-card" 
                 data-article-id="${escapeHtml(id)}"
-                data-article-data="${escapeHtml(articleData)}"
+                data-article-title="${escapeHtml(title)}"
+                data-article-source="${escapeHtml(item.source || 'Unknown')}"
                 onclick="handleArticleClick(this)">
                 <div class="news-content">
                     <h3 class="news-title">🔖 ${escapeHtml(title)}</h3>
@@ -855,9 +898,9 @@ function loadSavedArticles() {
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
     
-    if (articlesCache[cleanId]) {
-        console.log('Using cached article:', articlesCache[cleanId]);
-        currentArticle = articlesCache[cleanId];
+    if (articlesCache.has(cleanId)) {
+        console.log('Using cached article:', articlesCache.get(cleanId));
+        currentArticle = articlesCache.get(cleanId);
         displayArticleDetail();
         return;
     }
@@ -929,7 +972,7 @@ function displayArticleDetail() {
         originalLink = currentArticle.url;
     }
     
-    const sourceBadge = 
+    const sourceBadge = '';
     
     console.log('Source:', source, 'Category:', category, 'Link:', originalLink);
     
@@ -1161,4 +1204,4 @@ function bindMobileButtons() {
     }
 }
 
-console.log("✅ Centrinsic NPT App loaded - all functions exported");
+console.log("✅ Centrinsic NPT App loaded - FIXED VERSION");
