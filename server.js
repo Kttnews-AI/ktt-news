@@ -1,5 +1,5 @@
 // ============================================
-// CENTRINSIC NPT SERVER - FIXED VERSION (SPACE REMOVED)
+// CENTRINSIC NPT SERVER - UPDATED VERSION
 // ============================================
 require('dotenv').config();
 const express = require('express');
@@ -20,18 +20,21 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
 
-// GNEWS CONFIG - FIXED: REMOVED SPACE FROM URL
+// GNEWS CONFIG
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
-const GNEWS_BASE_URL = 'https://gnews.io/api/v4';  // ✅ NO SPACE!
-const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 30) * 60 * 1000;
+const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
 
-// IMPORTANT: These limits are INDEPENDENT - not combined!
-const MANUAL_ARTICLES_LIMIT = 0;  // 0 = unlimited manual articles
-const GNEWS_ARTICLES_LIMIT = 100; // Target 100 GNews articles
-const MAX_GNEWS_PER_REQUEST = 10; // Free tier limit per API call
+// ✅ FIX: Use 60 minutes cache to preserve daily quota (100 calls/day free tier)
+const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 60) * 60 * 1000;
+
+// ✅ FIX: Manual articles = unlimited (0 = no limit)
+// ✅ FIX: GNews = single request of 10 (free tier only returns 10 unique articles anyway)
+const MANUAL_ARTICLES_LIMIT = 0;   // 0 = unlimited manual articles
+const GNEWS_ARTICLES_LIMIT = 10;   // Free tier max = 10 per request
+const MAX_GNEWS_PER_REQUEST = 10;  // Free tier limit per API call
 
 // ============================================
-// GNEWS CACHE SYSTEM - FORCE REFRESH ON START
+// GNEWS CACHE SYSTEM
 // ============================================
 let gnewsCache = [];
 let lastFetchTime = 0;
@@ -95,7 +98,7 @@ mongoose.connection.on('disconnected', () => {
     console.log('⚠️ MongoDB Disconnected');
 });
 
-/* ========= CLOUDINARY (ONLY ONE CONFIG) ========= */
+/* ========= CLOUDINARY CONFIG ========= */
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -114,7 +117,7 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage });
 
 // ============================================
-// BREVO OTP MAILER (PRODUCTION SAFE)
+// BREVO OTP MAILER
 // ============================================
 const brevo = require('@getbrevo/brevo');
 
@@ -137,7 +140,6 @@ async function sendOTPEmail(toEmail, otp) {
         `;
 
         await emailApi.sendTransacEmail(sendSmtpEmail);
-
         console.log("✅ OTP SENT:", toEmail);
         return true;
 
@@ -249,19 +251,21 @@ const authMiddleware = async (req, res, next) => {
 };
 
 // ============================================
-// GNEWS FETCH HELPER - MULTIPLE REQUESTS
+// ✅ FIXED GNEWS FETCH - SINGLE REQUEST ONLY
+// Free tier = 100 calls/day, only 10 unique articles per call
+// Old code was making up to 10 calls per cache miss = quota burned fast
 // ============================================
 async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
     const now = Date.now();
-    
-    // Return cached if fresh
+
+    // Return cached if still fresh
     if (gnewsCache.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
         const ageMinutes = Math.round((now - lastFetchTime) / 60000);
-        console.log(`📦 Using cached GNews (${ageMinutes}m old), returning ${Math.min(gnewsCache.length, targetLimit)} articles`);
+        console.log(`📦 Using cached GNews (${ageMinutes}m old), ${gnewsCache.length} articles`);
         cacheStatus.isStale = false;
         return gnewsCache.slice(0, targetLimit);
     }
-    
+
     if (!GNEWS_API_KEY) {
         console.log('⚠️ GNEWS_API_KEY not set, skipping GNews fetch');
         cacheStatus.lastError = 'API key not configured';
@@ -269,106 +273,68 @@ async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
     }
 
     try {
-        console.log(`🌐 Fetching up to ${targetLimit} articles from GNews (max ${MAX_GNEWS_PER_REQUEST} per request)...`);
-        console.log(`   URL: ${GNEWS_BASE_URL}/top-headlines`);
-        
-        const allArticles = [];
-        // Calculate how many requests we need
-        const maxRequests = Math.ceil(targetLimit / MAX_GNEWS_PER_REQUEST);
-        // Limit to 10 requests per fetch to stay safe with daily quota (100/day)
-        const requestsToMake = Math.min(maxRequests, 10);
-        
-        for (let i = 0; i < requestsToMake; i++) {
-            try {
-                console.log(`  📡 Request ${i + 1}/${requestsToMake}...`);
-                
-                const response = await axios.get(`${GNEWS_BASE_URL}/top-headlines`, {
-                    params: {
-                        token: GNEWS_API_KEY,
-                        lang: 'en',
-                        country: 'us',
-                        max: MAX_GNEWS_PER_REQUEST
-                    },
-                    timeout: 10000
-                });
+        console.log(`🌐 Fetching GNews articles (single request)...`);
 
-                if (response.data?.articles?.length > 0) {
-                    const articles = response.data.articles.map((article, index) => ({
-                        _id: `gnews_${Date.now()}_${i}_${index}`,
-                        title: article.title,
-                        content: article.content || article.description || 'No content available',
-                        description: article.description,
-                        image: article.image || null,
-                        url: article.url,
-                        source: article.source?.name || 'GNews',
-                        category: 'General',
-                        publishedAt: article.publishedAt,
-                        createdAt: article.publishedAt,
-                        isManual: false,
-                        originalLink: article.url,
-                        fetchedAt: new Date().toISOString()
-                    }));
-                    
-                    allArticles.push(...articles);
-                    console.log(`  ✅ Got ${articles.length} articles`);
-                    
-                    // Stop if we have enough
-                    if (allArticles.length >= targetLimit) {
-                        console.log(`  🎯 Reached target of ${targetLimit} articles`);
-                        break;
-                    }
-                } else {
-                    console.log(`  ⚠️ No articles in response`);
-                    break;
-                }
-                
-                // Rate limiting: GNews free tier = 1 request per second
-                if (i < requestsToMake - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 1100));
-                }
-                
-            } catch (batchError) {
-                console.error(`  ❌ Request ${i + 1} failed:`, batchError.message);
-                
-                if (batchError.response?.status === 403) {
-                    console.log('  🚫 API limit reached or invalid key - stopping');
-                    cacheStatus.lastError = 'API limit reached (403)';
-                    break;
-                }
-                if (batchError.response?.status === 429) {
-                    console.log('  ⏱️ Rate limited - waiting 2 seconds...');
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    i--; // Retry this request
-                    continue;
-                }
-                
-                continue;
-            }
-        }
+        const response = await axios.get(`${GNEWS_BASE_URL}/top-headlines`, {
+            params: {
+                token: GNEWS_API_KEY,
+                lang: 'en',
+                country: 'us',
+                max: MAX_GNEWS_PER_REQUEST
+            },
+            timeout: 10000
+        });
 
-        // Update cache with all fetched articles
-        gnewsCache = allArticles;
+        const articles = (response.data?.articles || []).map((article, index) => ({
+            _id: `gnews_${Date.now()}_${index}`,
+            title: article.title,
+            content: article.content || article.description || 'No content available',
+            description: article.description,
+            image: article.image || null,
+            url: article.url,
+            source: article.source?.name || 'GNews',
+            category: 'General',
+            publishedAt: article.publishedAt,
+            createdAt: article.publishedAt,
+            isManual: false,
+            originalLink: article.url,
+            fetchedAt: new Date().toISOString()
+        }));
+
+        // Update cache
+        gnewsCache = articles;
         lastFetchTime = now;
         cacheStatus.lastSuccessfulFetch = new Date().toISOString();
         cacheStatus.totalFetches++;
         cacheStatus.lastError = null;
         cacheStatus.isStale = false;
-        
-        console.log(`✅ GNews fetch complete: ${allArticles.length} articles in ~${requestsToMake} requests`);
-        
-        return allArticles.slice(0, targetLimit);
+
+        console.log(`✅ GNews fetch complete: ${articles.length} articles cached`);
+        return articles.slice(0, targetLimit);
 
     } catch (error) {
         console.error('❌ GNews fetch error:', error.message);
-        
+
         if (error.response) {
             console.error('Response status:', error.response.status);
             console.error('Response data:', error.response.data);
+
+            if (error.response.status === 403) {
+                console.log('🚫 Daily quota exceeded or invalid API key');
+                cacheStatus.lastError = 'Daily quota exceeded (403)';
+            } else if (error.response.status === 429) {
+                console.log('⏱️ Rate limited by GNews');
+                cacheStatus.lastError = 'Rate limited (429)';
+            } else {
+                cacheStatus.lastError = `HTTP ${error.response.status}`;
+            }
+        } else {
+            cacheStatus.lastError = error.message;
         }
-        
-        cacheStatus.lastError = error.message;
+
         cacheStatus.isStale = true;
-        
+
+        // Return stale cache if available rather than empty
         if (gnewsCache.length > 0) {
             console.log('📦 Serving stale cache due to error');
             return gnewsCache.slice(0, targetLimit);
@@ -381,8 +347,8 @@ async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
 // API ROUTES
 // ============================================
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
+    res.json({
+        status: 'OK',
         timestamp: new Date().toISOString(),
         dbConnected: mongoose.connection.readyState === 1,
         gnewsConfigured: !!GNEWS_API_KEY,
@@ -396,26 +362,29 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============================================
-// GET ARTICLES - FIXED: SEPARATE LIMITS FOR MANUAL AND GNEWS
+// ✅ GET ARTICLES - MANUAL AND GNEWS ARE 100% INDEPENDENT
+// Manual articles: unlimited from MongoDB
+// GNews articles: up to 10 from cache/API
+// Adding more manual articles will NEVER reduce GNews count
 // ============================================
 app.get('/api/articles', async (req, res) => {
     try {
         console.log('\n📊 === FETCHING ARTICLES ===');
-        
-        // 1. Fetch ALL manual articles from database (NO LIMIT)
-        let manualQuery = Article.find({ 
+
+        // 1. Fetch ALL published manual articles from DB (no limit)
+        let manualQuery = Article.find({
             status: 'published',
             $or: [
                 { expiresAt: { $gt: new Date() } },
                 { expiresAt: { $exists: false } }
             ]
         }).sort({ createdAt: -1 });
-        
-        // Only apply limit if MANUAL_ARTICLES_LIMIT > 0
+
+        // Only apply limit if MANUAL_ARTICLES_LIMIT > 0 (currently 0 = unlimited)
         if (MANUAL_ARTICLES_LIMIT > 0) {
             manualQuery = manualQuery.limit(MANUAL_ARTICLES_LIMIT);
         }
-        
+
         const manualArticlesFromDB = await manualQuery;
         console.log(`✅ Manual articles from DB: ${manualArticlesFromDB.length}`);
 
@@ -434,17 +403,16 @@ app.get('/api/articles', async (req, res) => {
             author_name: article.author_name
         }));
 
-        // 2. Fetch GNews articles (COMPLETELY INDEPENDENT OF MANUAL COUNT)
+        // 2. Fetch GNews articles (completely independent - single API call)
         const gnewsArticles = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
         console.log(`✅ GNews articles: ${gnewsArticles.length}`);
 
-        // 3. Combine - BOTH arrays are FULL, no reduction based on count
+        // 3. Combine both arrays - neither affects the other
         const allArticles = [...formattedManual, ...gnewsArticles];
-        
+
         console.log(`📊 TOTAL: ${formattedManual.length} manual + ${gnewsArticles.length} GNews = ${allArticles.length} articles`);
         console.log('=== END FETCHING ===\n');
 
-        // 4. Calculate metadata
         const lastUpdated = cacheStatus.lastSuccessfulFetch || new Date().toISOString();
         const cacheAgeMinutes = lastFetchTime ? Math.round((Date.now() - lastFetchTime) / 60000) : 0;
 
@@ -457,8 +425,7 @@ app.get('/api/articles', async (req, res) => {
                 gnewsCount: gnewsArticles.length,
                 lastUpdated: lastUpdated,
                 cacheAgeMinutes: cacheAgeMinutes,
-                isCached: cacheAgeMinutes < (CACHE_DURATION / 60000),
-                gnewsRequestsMade: Math.ceil(gnewsArticles.length / MAX_GNEWS_PER_REQUEST)
+                isCached: cacheAgeMinutes < (CACHE_DURATION / 60000)
             }
         });
 
@@ -475,7 +442,7 @@ app.post('/api/admin/refresh-gnews', authMiddleware, async (req, res) => {
     try {
         const user = await User.findById(req.userId);
         const ADMIN_EMAIL = "dheerajexperiment8@gmail.com";
-        
+
         if (user.email !== ADMIN_EMAIL) {
             return res.status(403).json({ error: "Admin only" });
         }
@@ -483,12 +450,12 @@ app.post('/api/admin/refresh-gnews', authMiddleware, async (req, res) => {
         // Clear cache to force fresh fetch
         lastFetchTime = 0;
         gnewsCache = [];
-        
+
         const fresh = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
-        
-        res.json({ 
-            success: true, 
-            count: fresh.length, 
+
+        res.json({
+            success: true,
+            count: fresh.length,
             lastUpdated: cacheStatus.lastSuccessfulFetch,
             message: 'Cache refreshed successfully'
         });
@@ -537,25 +504,25 @@ setInterval(() => {
 // ============================================
 app.post('/api/auth/send-otp', async (req, res) => {
     const { email } = req.body;
-    
+
     if (!email || !email.includes('@')) {
         return res.status(400).json({ success: false, message: 'Valid email required' });
     }
-    
+
     try {
         const otp = generateOTP();
         const expiresAt = Date.now() + (5 * 60 * 1000);
-        
+
         otpStore.set(email, { otp, expiresAt });
-        
+
         const sent = await sendOTPEmail(email, otp);
-        
+
         if (!sent) {
             return res.status(500).json({ success: false, message: 'Failed to send email' });
         }
-        
+
         res.json({ success: true, message: 'OTP sent successfully' });
-        
+
     } catch (err) {
         console.error('Send OTP error:', err);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -564,37 +531,37 @@ app.post('/api/auth/send-otp', async (req, res) => {
 
 app.post('/api/auth/verify-otp', async (req, res) => {
     const { email, otp } = req.body;
-    
+
     if (!email || !otp) {
         return res.status(400).json({ success: false, message: 'Email and OTP required' });
     }
-    
+
     try {
         const stored = otpStore.get(email);
-        
+
         if (!stored) {
             return res.status(400).json({ success: false, message: 'OTP expired or not requested' });
         }
-        
+
         if (stored.expiresAt < Date.now()) {
             otpStore.delete(email);
             return res.status(400).json({ success: false, message: 'OTP expired' });
         }
-        
+
         if (stored.otp !== otp) {
             return res.status(400).json({ success: false, message: 'Invalid OTP' });
         }
-        
+
         otpStore.delete(email);
-        
+
         let user = await User.findOne({ email: email.toLowerCase().trim() });
         let isNewUser = false;
-        
+
         if (!user) {
             const userName = email.split('@')[0];
             const randomPassword = Math.random().toString(36).slice(-8);
             const hashedPassword = await bcrypt.hash(randomPassword, 10);
-            
+
             user = new User({
                 name: userName,
                 email: email.toLowerCase().trim(),
@@ -604,19 +571,19 @@ app.post('/api/auth/verify-otp', async (req, res) => {
             await user.save();
             isNewUser = true;
         }
-        
+
         await UserEmail.findOneAndUpdate(
             { email: user.email },
-            { 
-                email: user.email, 
+            {
+                email: user.email,
                 device: req.headers['user-agent'] || 'unknown',
                 created_at: new Date()
             },
             { upsert: true, new: true }
         );
-        
+
         const token = jwt.sign({ userId: user._id, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
-        
+
         res.json({
             success: true,
             message: 'Login successful',
@@ -628,7 +595,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
             },
             isNewUser: isNewUser
         });
-        
+
     } catch (err) {
         console.error('Verify OTP error:', err);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -638,35 +605,35 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 app.post('/api/save-email', async (req, res) => {
     console.log('\n========== SAVE EMAIL REQUEST ==========');
     console.log('Body:', req.body);
-    
+
     const { email, name, password } = req.body;
-    
+
     if (!email || !email.includes('@')) {
         return res.status(400).json({ success: false, message: 'Invalid email' });
     }
-    
+
     try {
         if (mongoose.connection.readyState !== 1) {
             return res.status(500).json({ success: false, message: 'Database not connected' });
         }
-        
+
         const cleanEmail = email.toLowerCase().trim();
         const userName = name || cleanEmail.split('@')[0];
         const userPassword = password || Math.random().toString(36).slice(-8);
-        
+
         await UserEmail.findOneAndUpdate(
             { email: cleanEmail },
-            { 
-                email: cleanEmail, 
+            {
+                email: cleanEmail,
                 device: req.headers['user-agent'] || 'unknown',
                 created_at: new Date()
             },
             { upsert: true, new: true }
         );
-        
+
         let user = await User.findOne({ email: cleanEmail });
         let isNewUser = false;
-        
+
         if (!user) {
             const hashedPassword = await bcrypt.hash(userPassword, 10);
             user = new User({
@@ -678,21 +645,21 @@ app.post('/api/save-email', async (req, res) => {
             await user.save();
             isNewUser = true;
         }
-        
+
         const token = jwt.sign({ userId: user._id, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
-        
+
         console.log('✅ User saved:', user._id);
         console.log('========== END REQUEST ==========\n');
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: 'Email saved',
             email: cleanEmail,
             isNew: isNewUser,
             userId: user._id,
             token: token
         });
-        
+
     } catch (err) {
         console.error('❌ SAVE EMAIL ERROR:', err);
         res.status(500).json({ success: false, message: 'Database error', error: err.message });
@@ -724,14 +691,14 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
-    
+
     try {
         const user = await User.findOne({ email });
         if (!user) return res.status(400).json({ error: 'User not found' });
-        
+
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) return res.status(400).json({ error: 'Invalid password' });
-        
+
         const token = jwt.sign({ userId: user._id, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email } });
     } catch (err) {
@@ -766,9 +733,9 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
             author_name: req.userName || 'Anonymous'
         });
 
-        res.json({ 
-            success: true, 
-            articleId: article._id, 
+        res.json({
+            success: true,
+            articleId: article._id,
             image: imageUrl,
             article: article
         });
@@ -785,7 +752,7 @@ app.post('/api/articles', authMiddleware, upload.single('image'), async (req, re
 app.put('/api/articles/:id', authMiddleware, upload.single('image'), async (req, res) => {
     try {
         const { title, content, source, category, originalLink, status, expiresAt } = req.body;
-        
+
         const article = await Article.findById(req.params.id);
         if (!article) {
             return res.status(404).json({ error: 'Article not found' });
@@ -802,7 +769,7 @@ app.put('/api/articles/:id', authMiddleware, upload.single('image'), async (req,
         article.originalLink = originalLink || req.body['original link'] || article.originalLink;
         article.status = status || article.status;
         article.expiresAt = expiresAt ? new Date(expiresAt) : article.expiresAt;
-        
+
         if (req.file) {
             article.image = req.file.path;
         }
@@ -986,7 +953,7 @@ if (DEBUG) {
 
     app.get('/admin', (req, res) => {
         const cacheAge = lastFetchTime ? Math.round((Date.now() - lastFetchTime) / 60000) : 'Never';
-        
+
         res.send(`
             <!DOCTYPE html>
             <html>
@@ -999,15 +966,12 @@ if (DEBUG) {
                     button:hover { background: #0056b3; }
                     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
                     .stat-box { background: #007aff; color: white; padding: 15px; border-radius: 8px; text-align: center; }
-                    .warning { background: #ff9800; }
-                    .success { background: #4CAF50; }
-                    .error { background: #f44336; }
                     .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
                 </style>
             </head>
             <body>
                 <h1>📊 Centrinsic Admin Dashboard</h1>
-                
+
                 <div class="card">
                     <h3>Cache Status</h3>
                     <div class="info-row">
@@ -1023,6 +987,10 @@ if (DEBUG) {
                         <strong>${gnewsCache.length}</strong>
                     </div>
                     <div class="info-row">
+                        <span>Cache Duration:</span>
+                        <strong>${CACHE_DURATION / 60000} minutes</strong>
+                    </div>
+                    <div class="info-row">
                         <span>Status:</span>
                         <strong style="color: ${cacheStatus.isStale ? '#f44336' : '#4CAF50'}">
                             ${cacheStatus.isStale ? '⚠️ Stale' : '✅ Fresh'}
@@ -1030,7 +998,7 @@ if (DEBUG) {
                     </div>
                     <br>
                     <button onclick="fetch('/api/admin/refresh-gnews', {method: 'POST'}).then(() => location.reload())">
-                        🔄 Force Refresh
+                        🔄 Force Refresh GNews
                     </button>
                 </div>
 
@@ -1046,9 +1014,10 @@ if (DEBUG) {
                 <div class="card">
                     <h3>News Sources</h3>
                     <p>✅ GNews API: ${GNEWS_API_KEY ? 'Configured' : 'Not Configured'}</p>
-                    <p>✅ Manual Articles: MongoDB (Unlimited)</p>
+                    <p>✅ Manual Articles: MongoDB (Unlimited — no cap)</p>
                     <p>📦 Cache Duration: ${CACHE_DURATION / 60000} minutes</p>
-                    <p>🚀 GNews Multi-Request: Enabled (up to 100 articles)</p>
+                    <p>🔁 GNews: Single request per cache window (saves daily quota)</p>
+                    <p>📰 GNews Articles Per Fetch: ${MAX_GNEWS_PER_REQUEST}</p>
                 </div>
             </body>
             </html>
@@ -1088,9 +1057,9 @@ app.listen(PORT, () => {
     console.log('========================================');
     console.log(`Port: ${PORT}`);
     console.log(`GNews API: ${GNEWS_API_KEY ? '✅ Configured' : '❌ Not Configured'}`);
-    console.log(`Manual Articles: ♾️ Unlimited`);
-    console.log(`GNews Articles: ${GNEWS_ARTICLES_LIMIT} target (max ${MAX_GNEWS_PER_REQUEST} per request)`);
+    console.log(`Manual Articles: ♾️  Unlimited (no cap)`);
+    console.log(`GNews Articles: ${GNEWS_ARTICLES_LIMIT} per fetch (single request)`);
     console.log(`Cache Duration: ${CACHE_DURATION / 60000} minutes`);
-    console.log(`IMPORTANT: Manual and GNews are INDEPENDENT`);
+    console.log(`✅ Manual and GNews are 100% independent`);
     console.log('========================================');
 });
