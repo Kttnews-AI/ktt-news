@@ -1101,53 +1101,51 @@ function saveCurrentArticle() {
 
 async function shareCurrentArticle() {
     if (!currentArticle) return;
-    
-    const imageUrl = getImageUrl(currentArticle.image);
-    const appLink = "https://centrinsicnpt.com";
-    
-    const shareTitle = currentArticle.title || "Check out this article";
-    const shareText = `${currentArticle.content ? currentArticle.content.substring(0, 200) + "..." : "Read this interesting article!"}
 
----
-📲 Get our app: ${appLink}
-🌐 ${window.location.href}`;
+    const title = currentArticle.title || "Check out this article";
+    const appLink = "https://centrinsicnpt.com";
+
+    const shareText = `${title}\n\n📲 Read more on Centrinsic NPT:\n${appLink}`;
 
     if (navigator.share) {
         try {
-            if (imageUrl) {
-                try {
-                    const response = await fetch(imageUrl);
-                    const blob = await response.blob();
-                    const imageFile = new File([blob], 'article.jpg', { type: 'image/jpeg' });
-                    
-                    const shareData = {
-                        title: shareTitle,
-                        text: shareText,
-                        files: [imageFile]
-                    };
-
-                    if (navigator.canShare && navigator.canShare(shareData)) {
-                        await navigator.share(shareData);
-                        return;
-                    }
-                } catch (e) {
-                    console.log("Could not share image file:", e);
-                }
-            }
-            
             await navigator.share({
-                title: shareTitle,
+                title: title,
                 text: shareText
             });
-            
         } catch (err) {
-            console.log("Share cancelled or failed:", err);
+            // User cancelled share — do nothing
+            if (err.name !== 'AbortError') {
+                copyToClipboard(appLink, shareText);
+            }
         }
     } else {
-        const fullText = `${shareTitle}\n\n${shareText}`;
-        navigator.clipboard.writeText(fullText).then(() => {
-            alert("Article copied to clipboard!");
-        });
+        copyToClipboard(appLink, shareText);
+    }
+}
+
+function copyToClipboard(link, fullText) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(fullText)
+            .then(() => showToast("✅ Link copied to clipboard!"))
+            .catch(() => {
+                // Fallback for older browsers
+                const el = document.createElement('textarea');
+                el.value = fullText;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                showToast("✅ Link copied!");
+            });
+    } else {
+        const el = document.createElement('textarea');
+        el.value = fullText;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        showToast("✅ Link copied!");
     }
 }
 
