@@ -798,15 +798,16 @@ app.delete('/api/articles/:id', authMiddleware, async (req, res) => {
 
         if (article.image && article.image.includes('cloudinary')) {
             try {
-                const parts = article.image.split('/');
-                const fileName = parts[parts.length - 1];
-                const folder = parts[parts.length - 2];
-                const publicId = `${folder}/${fileName.split('.')[0]}`;
-
-                await cloudinary.uploader.destroy(publicId);
-                console.log('🗑 Cloudinary image deleted:', publicId);
+                const uploadIndex = article.image.indexOf('/upload/');
+                if (uploadIndex !== -1) {
+                    let afterUpload = article.image.substring(uploadIndex + 8);
+                    afterUpload = afterUpload.replace(/^v\d+\//, '');
+                    const publicId = afterUpload.replace(/\.[^/.]+$/, '');
+                    await cloudinary.uploader.destroy(publicId);
+                    console.log('🗑 Cloudinary image deleted:', publicId);
+                }
             } catch (err) {
-                console.log('Cloudinary delete failed:', err.message);
+                console.log('Cloudinary delete failed:', err?.message || err);
             }
         }
 
@@ -875,14 +876,15 @@ app.delete('/api/admin/delete-all-news', authMiddleware, async (req, res) => {
         for (const article of articles) {
             if (article.image && article.image.includes('cloudinary')) {
                 try {
-                    const parts = article.image.split('/');
-                    const fileName = parts[parts.length - 1];
-                    const folder = parts[parts.length - 2];
-                    const publicId = `${folder}/${fileName.split('.')[0]}`;
-
-                    await cloudinary.uploader.destroy(publicId);
+                    const uploadIndex = article.image.indexOf('/upload/');
+                    if (uploadIndex !== -1) {
+                        let afterUpload = article.image.substring(uploadIndex + 8);
+                        afterUpload = afterUpload.replace(/^v\d+\//, '');
+                        const publicId = afterUpload.replace(/\.[^/.]+$/, '');
+                        await cloudinary.uploader.destroy(publicId);
+                    }
                 } catch (err) {
-                    console.log('Image delete failed:', err.message);
+                    console.log('Image delete failed:', err?.message || err);
                 }
             }
         }
@@ -1093,14 +1095,35 @@ async function deleteAllManualNews() {
         for (const article of articles) {
             if (article.image && article.image.includes('cloudinary')) {
                 try {
-                    const parts = article.image.split('/');
-                    const fileName = parts[parts.length - 1];
-                    const folder = parts[parts.length - 2];
-                    const publicId = `${folder}/${fileName.split('.')[0]}`;
-                    await cloudinary.uploader.destroy(publicId);
-                    imageDeletedCount++;
+                    // Cloudinary URL format:
+                    // https://res.cloudinary.com/cloud-name/image/upload/v123456/folder/filename.jpg
+                    // public_id = everything after /upload/ and before file extension
+                    const uploadIndex = article.image.indexOf('/upload/');
+                    if (uploadIndex === -1) {
+                        console.log(`   ⚠️  Cannot parse Cloudinary URL for ${article._id}: ${article.image}`);
+                        continue;
+                    }
+
+                    // Get everything after /upload/
+                    let afterUpload = article.image.substring(uploadIndex + 8); // 8 = length of '/upload/'
+
+                    // Remove version prefix if present (e.g. "v1234567890/")
+                    afterUpload = afterUpload.replace(/^v\d+\//, '');
+
+                    // Remove file extension
+                    const publicId = afterUpload.replace(/\.[^/.]+$/, '');
+
+                    console.log(`   🖼️  Deleting Cloudinary image: ${publicId}`);
+                    const result = await cloudinary.uploader.destroy(publicId);
+                    
+                    if (result.result === 'ok') {
+                        imageDeletedCount++;
+                        console.log(`   ✅ Image deleted: ${publicId}`);
+                    } else {
+                        console.log(`   ⚠️  Cloudinary response for ${publicId}:`, result.result);
+                    }
                 } catch (imgErr) {
-                    console.log(`   ⚠️  Image delete failed for ${article._id}:`, imgErr.message);
+                    console.log(`   ⚠️  Image delete failed for ${article._id}:`, imgErr?.message || imgErr);
                 }
             }
         }
