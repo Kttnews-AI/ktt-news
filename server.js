@@ -1049,6 +1049,173 @@ app.use((err, req, res, next) => {
 });
 
 // ============================================
+// DAILY AUTO-DELETE MANUAL NEWS AT 11:57 PM
+// Timezone: Asia/Kolkata (IST) - change if needed
+// To change time: edit DELETE_HOUR and DELETE_MINUTE below
+// ============================================
+
+const DELETE_HOUR = 23;    // 11 PM in 24hr format  (change to e.g. 8 for 8 AM)
+const DELETE_MINUTE = 57;  // 57 minutes            (change to e.g. 0 for :00)
+const DELETE_TIMEZONE = process.env.DELETE_TIMEZONE || 'Asia/Kolkata'; // set in .env to override
+
+let autoDeleteLog = {
+    lastRun: null,
+    lastDeletedCount: 0,
+    lastError: null,
+    totalRuns: 0
+};
+
+async function deleteAllManualNews() {
+    console.log('\n🗑️  ========== AUTO-DELETE STARTED ==========');
+    console.log(`   Time: ${new Date().toISOString()}`);
+
+    try {
+        if (mongoose.connection.readyState !== 1) {
+            console.log('❌ MongoDB not connected - skipping auto-delete');
+            autoDeleteLog.lastError = 'MongoDB not connected';
+            return;
+        }
+
+        // Find all manual articles with Cloudinary images first
+        const articles = await Article.find({ isManual: true });
+        console.log(`   Found ${articles.length} manual articles to delete`);
+
+        if (articles.length === 0) {
+            console.log('   ℹ️  Nothing to delete');
+            autoDeleteLog.lastRun = new Date().toISOString();
+            autoDeleteLog.lastDeletedCount = 0;
+            autoDeleteLog.totalRuns++;
+            return;
+        }
+
+        // Delete Cloudinary images first
+        let imageDeletedCount = 0;
+        for (const article of articles) {
+            if (article.image && article.image.includes('cloudinary')) {
+                try {
+                    const parts = article.image.split('/');
+                    const fileName = parts[parts.length - 1];
+                    const folder = parts[parts.length - 2];
+                    const publicId = `${folder}/${fileName.split('.')[0]}`;
+                    await cloudinary.uploader.destroy(publicId);
+                    imageDeletedCount++;
+                } catch (imgErr) {
+                    console.log(`   ⚠️  Image delete failed for ${article._id}:`, imgErr.message);
+                }
+            }
+        }
+
+        // Delete all manual articles from DB
+        const result = await Article.deleteMany({ isManual: true });
+
+        // Also clean up bookmarks pointing to deleted articles
+        await Bookmark.deleteMany({});
+
+        // Update log
+        autoDeleteLog.lastRun = new Date().toISOString();
+        autoDeleteLog.lastDeletedCount = result.deletedCount;
+        autoDeleteLog.lastError = null;
+        autoDeleteLog.totalRuns++;
+
+        console.log(`   ✅ Deleted ${result.deletedCount} articles`);
+        console.log(`   🖼️  Deleted ${imageDeletedCount} Cloudinary images`);
+        console.log('🗑️  ========== AUTO-DELETE COMPLETE ==========\n');
+
+    } catch (err) {
+        console.error('❌ Auto-delete error:', err.message);
+        autoDeleteLog.lastError = err.message;
+    }
+}
+
+function scheduleAutoDelete() {
+    // Check every minute if it's time to delete
+    setInterval(() => {
+        const now = new Date();
+
+        // Convert to target timezone
+        const localTime = new Intl.DateTimeFormat('en-US', {
+            timeZone: DELETE_TIMEZONE,
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: false
+        }).format(now);
+
+        const [hour, minute] = localTime.split(':').map(Number);
+
+        if (hour === DELETE_HOUR && minute === DELETE_MINUTE) {
+            // Prevent running twice in the same minute
+            const todayKey = now.toISOString().split('T')[0]; // "2026-03-06"
+            const lastRunDate = autoDeleteLog.lastRun
+                ? new Date(autoDeleteLog.lastRun).toISOString().split('T')[0]
+                : null;
+
+            if (lastRunDate === todayKey) {
+                return; // Already ran today at this time
+            }
+
+            console.log(`⏰ Auto-delete triggered at ${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2,'0')} (${DELETE_TIMEZONE})`);
+            deleteAllManualNews();
+        }
+    }, 60 * 1000); // Check every 60 seconds
+
+    console.log(`⏰ Auto-delete scheduled: daily at ${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2,'0')} ${DELETE_TIMEZONE}`);
+}
+
+// Start the scheduler
+scheduleAutoDelete();
+
+// Admin endpoint to check auto-delete status
+app.get('/api/admin/auto-delete-status', async (req, res) => {
+    // Get current time in target timezone
+    const now = new Date();
+    const localTime = new Intl.DateTimeFormat('en-US', {
+        timeZone: DELETE_TIMEZONE,
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: false,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(now);
+
+    res.json({
+        autoDelete: {
+            scheduledTime: `${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2,'0')} ${DELETE_TIMEZONE}`,
+            currentTimeInZone: localTime,
+            lastRun: autoDeleteLog.lastRun,
+            lastDeletedCount: autoDeleteLog.lastDeletedCount,
+            lastError: autoDeleteLog.lastError,
+            totalRuns: autoDeleteLog.totalRuns
+        }
+    });
+});
+
+// Admin endpoint to trigger manual delete immediately (for testing)
+app.post('/api/admin/trigger-auto-delete', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        const ADMIN_EMAIL = "dheerajexperiment8@gmail.com";
+
+        if (user.email !== ADMIN_EMAIL) {
+            return res.status(403).json({ error: "Admin only" });
+        }
+
+        console.log('🔧 Manual trigger of auto-delete by admin');
+        await deleteAllManualNews();
+
+        res.json({
+            success: true,
+            message: 'Auto-delete triggered manually',
+            deletedCount: autoDeleteLog.lastDeletedCount,
+            lastRun: autoDeleteLog.lastRun
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
 // START SERVER
 // ============================================
 app.listen(PORT, () => {
@@ -1061,5 +1228,6 @@ app.listen(PORT, () => {
     console.log(`GNews Articles: ${GNEWS_ARTICLES_LIMIT} per fetch (single request)`);
     console.log(`Cache Duration: ${CACHE_DURATION / 60000} minutes`);
     console.log(`✅ Manual and GNews are 100% independent`);
+    console.log(`🗑️  Auto-delete: Daily at ${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2,'0')} ${DELETE_TIMEZONE}`);
     console.log('========================================');
 });
