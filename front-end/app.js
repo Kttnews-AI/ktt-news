@@ -1,5 +1,6 @@
 // ============================================
-// CENTRINSIC NPT NEWS APP - FIXED FILTERING
+// CENTRINSIC NPT NEWS APP - FULLY UPDATED
+// Fixes: light/dark tab colors, share, translate
 // ============================================
 
 const API_BASE = "https://centrinsicnpt.com";
@@ -14,8 +15,11 @@ let isOnline = false;
 let toastTimeout = null;
 let articlesCache = new Map();
 let lastUpdatedTime = null;
-let allArticles = []; // Store all articles here
+let allArticles = [];
 let currentTab = 'gnews'; // 'gnews' or 'manual'
+
+// ── TRANSLATE STATE ──────────────────────────
+let originalArticleContent = null;
 
 /* ============================================
    INITIALIZATION
@@ -29,9 +33,9 @@ if (document.readyState === 'loading') {
 function initApp() {
     if (window.appInitialized) return;
     window.appInitialized = true;
-    
+
     console.log("🚀 Centrinsic NPT News App Starting...");
-    
+
     initializeApp();
     exportAllFunctions();
     setTimeout(setupAllEventListeners, 100);
@@ -40,22 +44,20 @@ function initApp() {
 function initializeApp() {
     checkLoginStatus();
     updateUserDisplay();
-    
-    if(localStorage.getItem("theme") === "dark") {
+
+    if (localStorage.getItem("theme") === "dark") {
         document.body.classList.add("dark");
         const toggle = document.getElementById('darkToggle');
-        if(toggle) toggle.checked = true;
+        if (toggle) toggle.checked = true;
     }
-    
+
     const savedSize = localStorage.getItem("font_size");
-    if(savedSize) {
-        applyFontSize(savedSize);
-    }
-    
+    if (savedSize) applyFontSize(savedSize);
+
     showScreen("splash");
-    
+
     setTimeout(() => {
-        if(currentUser && currentUser.loggedIn) {
+        if (currentUser && currentUser.loggedIn) {
             showScreen("home");
             loadNews();
         } else {
@@ -68,26 +70,28 @@ function initializeApp() {
    EXPORT ALL FUNCTIONS TO WINDOW
 ============================================ */
 function exportAllFunctions() {
-    window.showScreen = showScreen;
-    window.goToLogin = goToLogin;
-    window.skipLoginFromAbout = skipLoginFromAbout;
-    window.skipToHome = skipToHome;
-    window.goBackToAbout = goBackToAbout;
-    window.goBack = goBack;
-    window.goHome = goHome;
-    window.logout = logout;
-    window.clearAll = clearAll;
-    window.loadNews = loadNews;
-    window.openArticle = openArticle;
-    window.saveCurrentArticle = saveCurrentArticle;
-    window.refreshFeed = refreshFeed;
-    window.changeTextSize = changeTextSize;
-    window.toggleDark = toggleDark;
-    window.showToast = showToast;
+    window.showScreen          = showScreen;
+    window.goToLogin           = goToLogin;
+    window.skipLoginFromAbout  = skipLoginFromAbout;
+    window.skipToHome          = skipToHome;
+    window.goBackToAbout       = goBackToAbout;
+    window.goBack              = goBack;
+    window.goHome              = goHome;
+    window.logout              = logout;
+    window.clearAll            = clearAll;
+    window.loadNews            = loadNews;
+    window.openArticle         = openArticle;
+    window.saveCurrentArticle  = saveCurrentArticle;
+    window.refreshFeed         = refreshFeed;
+    window.changeTextSize      = changeTextSize;
+    window.toggleDark          = toggleDark;
+    window.showToast           = showToast;
     window.shareCurrentArticle = shareCurrentArticle;
-    window.openExternalLink = openExternalLink;
-    window.handleArticleClick = handleArticleClick;
-    window.switchTab = switchTab;
+    window.openExternalLink    = openExternalLink;
+    window.handleArticleClick  = handleArticleClick;
+    window.switchTab           = switchTab;
+    window.translateArticle    = translateArticle;
+    window.highlightTranslateBtn = highlightTranslateBtn;
 }
 
 /* ============================================
@@ -96,24 +100,24 @@ function exportAllFunctions() {
 function setupAllEventListeners() {
     attachLogoutListener();
     setTimeout(attachLogoutListener, 500);
-    
+
     attachClearAllListener();
     setTimeout(attachClearAllListener, 500);
-    
+
     attachDarkModeListener();
     setTimeout(attachDarkModeListener, 500);
-    
+
     setupOtherListeners();
 }
 
 function attachDarkModeListener() {
     const darkToggle = document.getElementById('darkToggle');
     if (!darkToggle) return;
-    
+
     const newToggle = darkToggle.cloneNode(true);
     darkToggle.parentNode.replaceChild(newToggle, darkToggle);
-    
-    newToggle.addEventListener('change', function(e) {
+
+    newToggle.addEventListener('change', function (e) {
         console.log("Dark mode toggled:", this.checked);
         toggleDark(this.checked);
     });
@@ -122,17 +126,17 @@ function attachDarkModeListener() {
 function attachLogoutListener() {
     const logoutBtn = document.getElementById('logoutButton');
     if (!logoutBtn) return;
-    
+
     const newBtn = logoutBtn.cloneNode(true);
     logoutBtn.parentNode.replaceChild(newBtn, logoutBtn);
-    
-    newBtn.addEventListener('click', function(e) {
+
+    newBtn.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
         logout();
     });
-    
-    newBtn.addEventListener('touchend', function(e) {
+
+    newBtn.addEventListener('touchend', function (e) {
         e.preventDefault();
         logout();
     });
@@ -141,17 +145,17 @@ function attachLogoutListener() {
 function attachClearAllListener() {
     const clearBtn = document.querySelector('.btn-danger');
     if (!clearBtn) return;
-    
+
     const newBtn = clearBtn.cloneNode(true);
     clearBtn.parentNode.replaceChild(newBtn, clearBtn);
-    
-    newBtn.addEventListener('click', function(e) {
+
+    newBtn.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
         clearAll();
     });
-    
-    newBtn.addEventListener('touchend', function(e) {
+
+    newBtn.addEventListener('touchend', function (e) {
         e.preventDefault();
         clearAll();
     });
@@ -159,14 +163,14 @@ function attachClearAllListener() {
 
 function setupOtherListeners() {
     document.querySelectorAll('.size-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function () {
             changeTextSize(this.getAttribute('data-size'));
         });
     });
-    
+
     const sendOtpBtn = document.getElementById('sendOtpBtn');
     if (sendOtpBtn) sendOtpBtn.addEventListener('click', sendOTP);
-    
+
     const verifyOtpBtn = document.getElementById('verifyOtpBtn');
     if (verifyOtpBtn) verifyOtpBtn.addEventListener('click', verifyOTP);
 }
@@ -180,17 +184,17 @@ function showScreen(screenId) {
         screen.classList.remove('active');
         screen.style.display = 'none';
     });
-    
+
     const target = document.getElementById(screenId);
     if (!target) return;
-    
+
     target.classList.add('active');
     target.style.display = screenId === 'splash' ? 'flex' : 'block';
-    
+
     const bottomNavs = document.querySelectorAll('.bottom-nav');
     const showNav = ['home', 'saved', 'preferences'].includes(screenId);
     bottomNavs.forEach(nav => nav.style.display = showNav ? 'flex' : 'none');
-    
+
     if (screenId === 'home') {
         updateSavedFolder();
         setTimeout(loadNews, 100);
@@ -206,49 +210,29 @@ function showScreen(screenId) {
         const savedSize = localStorage.getItem("font_size") || "medium";
         highlightSizeButton(savedSize);
     }
-    
+
     window.scrollTo(0, 0);
-    setTimeout(bindMobileButtons,200);
+    setTimeout(bindMobileButtons, 200);
 }
 
-function goToLogin() {
-    resetLoginForm();
-    showScreen("login");
-}
-
-function skipLoginFromAbout() {
-    showScreen("home");
-    loadNews();
-}
-
-function skipToHome() {
-    showScreen("home");
-    loadNews();
-}
-
-function goBackToAbout() {
-    showScreen("about");
-}
-
-function goBack() {
-    showScreen("home");
-}
-
-function goHome() {
-    showScreen("home");
-}
+function goToLogin()        { resetLoginForm(); showScreen("login"); }
+function skipLoginFromAbout() { showScreen("home"); loadNews(); }
+function skipToHome()       { showScreen("home"); loadNews(); }
+function goBackToAbout()    { showScreen("about"); }
+function goBack()           { showScreen("home"); }
+function goHome()           { showScreen("home"); }
 
 /* ============================================
    USER MANAGEMENT
 ============================================ */
 function checkLoginStatus() {
     const isLoggedIn = localStorage.getItem("centrinsic_logged") === "true";
-    const userEmail = localStorage.getItem("user_email");
-    const userName = localStorage.getItem("user_name");
-    
-    if(isLoggedIn && userEmail) {
-        currentUser = { 
-            email: userEmail, 
+    const userEmail  = localStorage.getItem("user_email");
+    const userName   = localStorage.getItem("user_name");
+
+    if (isLoggedIn && userEmail) {
+        currentUser = {
+            email: userEmail,
             loggedIn: true,
             name: userName || userEmail.split('@')[0]
         };
@@ -260,10 +244,10 @@ function checkLoginStatus() {
 function updateUserDisplay() {
     const userNameEl = document.getElementById("userDisplayName");
     const userEmailEl = document.getElementById("userDisplayEmail");
-    const logoutBtn = document.getElementById("logoutButton");
-    
+    const logoutBtn  = document.getElementById("logoutButton");
+
     if (!userNameEl || !userEmailEl) return;
-    
+
     if (currentUser && currentUser.loggedIn) {
         userNameEl.textContent = currentUser.name || currentUser.email.split('@')[0];
         userEmailEl.textContent = currentUser.email;
@@ -277,7 +261,7 @@ function updateUserDisplay() {
 
 function logout() {
     if (!confirm("Are you sure you want to logout?")) return;
-    
+
     localStorage.removeItem("centrinsic_logged");
     localStorage.removeItem("user_email");
     localStorage.removeItem("user_name");
@@ -286,21 +270,17 @@ function logout() {
 
     currentUser = null;
     showToast("Logged out successfully");
-    
-    setTimeout(() => {
-        showScreen("about");
-    }, 500);
+
+    setTimeout(() => showScreen("about"), 500);
 }
 
 function clearAll() {
-    if(!confirm("Clear all saved data?")) return;
-    
+    if (!confirm("Clear all saved data?")) return;
+
     localStorage.clear();
     showToast("All data cleared");
-    
-    setTimeout(() => {
-        location.reload();
-    }, 600);
+
+    setTimeout(() => location.reload(), 600);
 }
 
 /* ============================================
@@ -308,16 +288,16 @@ function clearAll() {
 ============================================ */
 function toggleDark(checked) {
     console.log("toggleDark called with:", checked);
-    
+
     const checkbox = document.getElementById('darkToggle');
-    
+
     let shouldBeDark;
     if (typeof checked === 'boolean') {
         shouldBeDark = checked;
     } else {
         shouldBeDark = !document.body.classList.contains('dark');
     }
-    
+
     if (shouldBeDark) {
         document.body.classList.add('dark');
         localStorage.setItem('theme', 'dark');
@@ -325,9 +305,12 @@ function toggleDark(checked) {
         document.body.classList.remove('dark');
         localStorage.setItem('theme', 'light');
     }
-    
+
     if (checkbox) checkbox.checked = shouldBeDark;
-    
+
+    // ✅ Re-render tab to apply correct light/dark colors
+    if (allArticles.length > 0) renderTabView();
+
     console.log("Dark mode:", shouldBeDark ? "ON" : "OFF");
 }
 
@@ -350,9 +333,7 @@ function applyFontSize(size) {
 function highlightSizeButton(size) {
     document.querySelectorAll('.size-btn').forEach(btn => {
         btn.classList.remove('active');
-        if(btn.getAttribute('data-size') === size) {
-            btn.classList.add('active');
-        }
+        if (btn.getAttribute('data-size') === size) btn.classList.add('active');
     });
 }
 
@@ -365,36 +346,36 @@ let otpRequestInProgress = false;
 
 function sendOTP() {
     if (otpRequestInProgress) return;
-    
+
     const emailInput = document.getElementById("loginEmail");
     const email = emailInput.value.trim();
     const btn = document.getElementById("sendOtpBtn");
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email)) {
         showToast("Please enter a valid email");
         return;
     }
-    
+
     otpRequestInProgress = true;
     btn.classList.add("loading");
     btn.disabled = true;
     btn.innerText = "Sending...";
-    
+
     localStorage.setItem("temp_email", email);
-    
+
     fetch(`${API_BASE}/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email })
+        body: JSON.stringify({ email })
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         otpRequestInProgress = false;
         btn.classList.remove("loading");
         btn.disabled = false;
         btn.innerText = "Send OTP";
-        
+
         if (data.success) {
             showOTPStep(email);
             showToast("📧 OTP sent!");
@@ -402,7 +383,7 @@ function sendOTP() {
             showToast(data.message || "Failed to send OTP");
         }
     })
-    .catch(error => {
+    .catch(() => {
         otpRequestInProgress = false;
         btn.classList.remove("loading");
         btn.disabled = false;
@@ -417,62 +398,45 @@ function showOTPStep(email) {
     const otpDisplay = document.getElementById("otpEmailDisplay");
     if (otpDisplay) otpDisplay.textContent = email;
     document.getElementById("loginFooter")?.classList.add("hidden");
-    
+
     const firstInput = document.querySelector('.otp-input[data-index="0"]');
     if (firstInput) firstInput.focus();
-    
+
     startOTPTimer();
     setupOTPInputs();
 }
 
 function setupOTPInputs() {
     const inputs = document.querySelectorAll('.otp-input');
-    inputs.forEach((input, index) => {
-        input.replaceWith(input.cloneNode(true));
-    });
-    
+    inputs.forEach(input => input.replaceWith(input.cloneNode(true)));
+
     const newInputs = document.querySelectorAll('.otp-input');
     newInputs.forEach((input, index) => {
         input.addEventListener('input', (e) => {
             const value = e.target.value;
-            if (!/^\d*$/.test(value)) {
-                e.target.value = '';
-                return;
-            }
+            if (!/^\d*$/.test(value)) { e.target.value = ''; return; }
             if (value.length === 1) {
                 e.target.classList.add('filled');
-                if (index < 5) {
-                    newInputs[index + 1].focus();
-                } else {
-                    verifyOTP();
-                }
+                if (index < 5) newInputs[index + 1].focus();
+                else verifyOTP();
             }
         });
-        
+
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Backspace' && !e.target.value && index > 0) {
                 newInputs[index - 1].focus();
             }
         });
-        
+
         input.addEventListener('paste', (e) => {
             e.preventDefault();
-            const pasteData = e.clipboardData.getData('text').slice(0, 6);
-            const numbers = pasteData.replace(/\D/g, '');
-            
+            const numbers = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
             numbers.split('').forEach((num, i) => {
-                if (newInputs[i]) {
-                    newInputs[i].value = num;
-                    newInputs[i].classList.add('filled');
-                }
+                if (newInputs[i]) { newInputs[i].value = num; newInputs[i].classList.add('filled'); }
             });
-            
             const lastIndex = Math.min(numbers.length, 5);
             if (newInputs[lastIndex]) newInputs[lastIndex].focus();
-            
-            if (numbers.length === 6) {
-                setTimeout(verifyOTP, 100);
-            }
+            if (numbers.length === 6) setTimeout(verifyOTP, 100);
         });
     });
 }
@@ -481,16 +445,14 @@ function startOTPTimer() {
     otpCountdown = 60;
     const timerSpan = document.getElementById("otpTimer");
     const resendBtn = document.getElementById("resendBtn");
-    
+
     if (resendBtn) resendBtn.classList.add("hidden");
     if (timerSpan) timerSpan.classList.remove("hidden");
-    
     if (otpTimer) clearInterval(otpTimer);
-    
+
     otpTimer = setInterval(() => {
         otpCountdown--;
         if (timerSpan) timerSpan.textContent = `Resend OTP in ${otpCountdown}s`;
-        
         if (otpCountdown <= 0) {
             clearInterval(otpTimer);
             if (timerSpan) timerSpan.classList.add("hidden");
@@ -503,59 +465,47 @@ function verifyOTP() {
     const inputs = document.querySelectorAll('.otp-input');
     const email = localStorage.getItem("temp_email");
     let enteredOTP = '';
-    
     inputs.forEach(input => enteredOTP += input.value);
-    
-    if (enteredOTP.length !== 6) {
-        showToast("Enter complete OTP");
-        return;
-    }
-    
+
+    if (enteredOTP.length !== 6) { showToast("Enter complete OTP"); return; }
+
     const btn = document.getElementById("verifyOtpBtn");
     btn.classList.add("loading");
     btn.disabled = true;
-    
+
     fetch(`${API_BASE}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, otp: enteredOTP })
+        body: JSON.stringify({ email, otp: enteredOTP })
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         btn.classList.remove("loading");
         btn.disabled = false;
-        
+
         if (data.success) {
             localStorage.setItem("centrinsic_logged", "true");
             localStorage.setItem("user_email", email);
             localStorage.setItem("auth_token", data.token || '');
-            
+
             const userName = data.user?.name || email.split('@')[0];
             localStorage.setItem("user_name", userName);
-            
-            currentUser = { 
-                email: email, 
-                loggedIn: true,
-                name: userName,
-                token: data.token
-            };
-            
+
+            currentUser = { email, loggedIn: true, name: userName, token: data.token };
+
             updateUserDisplay();
             showToast("✅ Welcome!");
             localStorage.removeItem("temp_email");
-            
+
             showScreen("home");
             loadNews();
         } else {
             showToast(data.message || "Invalid OTP");
-            inputs.forEach(input => {
-                input.value = '';
-                input.classList.remove('filled');
-            });
+            inputs.forEach(input => { input.value = ''; input.classList.remove('filled'); });
             if (inputs[0]) inputs[0].focus();
         }
     })
-    .catch(error => {
+    .catch(() => {
         btn.classList.remove("loading");
         btn.disabled = false;
         showToast("Network error");
@@ -566,70 +516,59 @@ function resetLoginForm() {
     document.getElementById("emailStep")?.classList.remove("hidden");
     document.getElementById("otpStep")?.classList.add("hidden");
     document.getElementById("loginFooter")?.classList.remove("hidden");
-    
+
     const emailInput = document.getElementById("loginEmail");
     if (emailInput) emailInput.value = '';
-    
+
     document.querySelectorAll('.otp-input').forEach(input => {
         input.value = '';
         input.classList.remove('filled');
     });
-    
+
     if (otpTimer) clearInterval(otpTimer);
 }
 
 /* ============================================
-   NEWS LOADING - FIXED VERSION
+   NEWS LOADING
 ============================================ */
 async function loadNews() {
     const container = document.getElementById("newsFeed");
-    if(!container) return;
-    
+    if (!container) return;
+
     container.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading...</p></div>`;
-    
+
     try {
         const response = await fetch(API_ARTICLES);
         const data = await response.json();
-        
+
         const newsArray = data.articles || data.data || data;
-        
-        if (!Array.isArray(newsArray)) {
-            throw new Error('Invalid response format');
-        }
-        
-        // Store last updated time
-        if (data.meta && data.meta.lastUpdated) {
-            lastUpdatedTime = data.meta.lastUpdated;
-        }
-        
-        // Store ALL articles
+        if (!Array.isArray(newsArray)) throw new Error('Invalid response format');
+
+        if (data.meta && data.meta.lastUpdated) lastUpdatedTime = data.meta.lastUpdated;
+
         allArticles = newsArray;
-        
-        // Clear and rebuild cache
+
         articlesCache.clear();
         newsArray.forEach(article => {
             const id = article._id || article.articleId || article.id;
-            if (id) {
-                articlesCache.set(String(id), article);
-            }
+            if (id) articlesCache.set(String(id), article);
         });
-        
+
         localStorage.setItem("news_backup", JSON.stringify(newsArray));
         localStorage.setItem("news_meta", JSON.stringify(data.meta || {}));
         isOnline = true;
-        
+
         console.log(`📊 Loaded ${newsArray.length} total articles`);
         console.log(`   Manual: ${newsArray.filter(a => a.isManual).length}`);
         console.log(`   GNews: ${newsArray.filter(a => !a.isManual).length}`);
-        
-        // Render current tab
+
         renderTabView();
         updateSavedFolder();
-        
-    } catch(error) {
+
+    } catch (error) {
         console.error('Load news error:', error);
         const backup = localStorage.getItem("news_backup");
-        if(backup) {
+        if (backup) {
             allArticles = JSON.parse(backup);
             renderTabView();
             showToast("Offline mode");
@@ -643,30 +582,32 @@ function switchTab(tab) {
     renderTabView();
 }
 
+/* ============================================
+   ✅ RENDER TAB VIEW — LIGHT/DARK AWARE
+============================================ */
 function renderTabView() {
     const container = document.getElementById("newsFeed");
-    if(!container) return;
+    if (!container) return;
 
     // ✅ Detect current theme
     const isDark = document.body.classList.contains('dark');
 
     // ✅ Theme-aware colors
     const theme = {
-        headerBg:        isDark ? '#000'     : '#ffffff',
-        headerBorder:    isDark ? '#222'     : '#e0e0e0',
-        inactiveTabBg:   isDark ? '#1a1a1a'  : '#f0f0f0',
-        inactiveTabText: isDark ? '#888'     : '#555',
-        updatedColor:    isDark ? '#666'     : '#999',
-        sectionTitleColor: isDark ? '#fff'   : '#111',
-        emptyTitleColor: isDark ? '#fff'     : '#111',
-        emptyTextColor:  isDark ? '#666'     : '#999',
+        headerBg:          isDark ? '#000'     : '#ffffff',
+        headerBorder:      isDark ? '#222'     : '#e0e0e0',
+        inactiveTabBg:     isDark ? '#1a1a1a'  : '#f0f0f0',
+        inactiveTabText:   isDark ? '#888'     : '#555',
+        updatedColor:      isDark ? '#666'     : '#999',
+        sectionTitleColor: isDark ? '#fff'     : '#111',
+        emptyTitleColor:   isDark ? '#fff'     : '#111',
+        emptyTextColor:    isDark ? '#666'     : '#999',
     };
 
-    // Filter articles
-    const gnewsArticles  = allArticles.filter(article => !article.isManual);
-    const manualArticles = allArticles.filter(article =>  article.isManual);
+    const gnewsArticles  = allArticles.filter(a => !a.isManual);
+    const manualArticles = allArticles.filter(a =>  a.isManual);
 
-    const isGNews       = currentTab === 'gnews';
+    const isGNews        = currentTab === 'gnews';
     const activeArticles = isGNews ? gnewsArticles : manualArticles;
 
     console.log(`Rendering tab: ${currentTab}`);
@@ -674,15 +615,14 @@ function renderTabView() {
     console.log(`   Manual available: ${manualArticles.length}`);
     console.log(`   Showing: ${activeArticles.length}`);
 
-    // Tab / section names
-    const gnewsTabName      = 'AI-S';
-    const manualTabName     = 'AI-D';
-    const gnewsSectionTitle = 'Short AI card';
-    const manualSectionTitle= 'Detailed AI card';
+    const gnewsTabName       = 'AI-S';
+    const manualTabName      = 'AI-D';
+    const gnewsSectionTitle  = 'Short AI card';
+    const manualSectionTitle = 'Detailed AI card';
 
-    const tabTitle  = isGNews ? gnewsSectionTitle : manualSectionTitle;
-    const tabColor  = isGNews ? '#4CAF50'         : '#667eea';
-    const tabIcon   = isGNews ? '🟢'              : '🔵';
+    const tabTitle = isGNews ? gnewsSectionTitle  : manualSectionTitle;
+    const tabColor = isGNews ? '#4CAF50'          : '#667eea';
+    const tabIcon  = isGNews ? '🟢'              : '🔵';
 
     let html = '';
 
@@ -696,29 +636,21 @@ function renderTabView() {
         ">
             <div style="display: flex; gap: 10px; margin-bottom: 10px;">
 
-                <!-- AI-S button -->
                 <button onclick="switchTab('gnews')" style="
                     flex: 1; padding: 12px; border-radius: 25px; border: none;
-                    font-weight: 600; font-size: 14px; cursor: pointer;
-                    transition: all 0.3s;
-                    background: ${isGNews  ? '#4CAF50'              : theme.inactiveTabBg};
-                    color:      ${isGNews  ? '#fff'                  : theme.inactiveTabText};
+                    font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
+                    background: ${isGNews  ? '#4CAF50'     : theme.inactiveTabBg};
+                    color:      ${isGNews  ? '#fff'        : theme.inactiveTabText};
                     box-shadow: ${isGNews  ? '0 2px 8px rgba(76,175,80,0.35)' : 'none'};
-                ">
-                    ${gnewsTabName}
-                </button>
+                ">${gnewsTabName}</button>
 
-                <!-- AI-D button -->
                 <button onclick="switchTab('manual')" style="
                     flex: 1; padding: 12px; border-radius: 25px; border: none;
-                    font-weight: 600; font-size: 14px; cursor: pointer;
-                    transition: all 0.3s;
-                    background: ${!isGNews ? '#667eea'              : theme.inactiveTabBg};
-                    color:      ${!isGNews ? '#fff'                  : theme.inactiveTabText};
+                    font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
+                    background: ${!isGNews ? '#667eea'     : theme.inactiveTabBg};
+                    color:      ${!isGNews ? '#fff'        : theme.inactiveTabText};
                     box-shadow: ${!isGNews ? '0 2px 8px rgba(102,126,234,0.35)' : 'none'};
-                ">
-                    ${manualTabName}
-                </button>
+                ">${manualTabName}</button>
             </div>
 
             ${lastUpdatedTime ? `
@@ -735,11 +667,9 @@ function renderTabView() {
             <h2 style="color: ${theme.sectionTitleColor}; font-size: 20px; font-weight: 700; margin: 0;">
                 ${tabIcon} ${tabTitle}
             </h2>
-            <span style="
-                background: ${tabColor}; color: white;
-                font-size: 12px; padding: 4px 12px;
-                border-radius: 12px; margin-left: auto;
-            ">${activeArticles.length}</span>
+            <span style="background: ${tabColor}; color: white; font-size: 12px; padding: 4px 12px; border-radius: 12px; margin-left: auto;">
+                ${activeArticles.length}
+            </span>
         </div>
     `;
 
@@ -763,35 +693,25 @@ function renderTabView() {
 
 function renderArticleCards(articles) {
     if (!articles || articles.length === 0) return '';
-    
+
     return articles.map((item, index) => {
         const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
         const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
+            day: 'numeric', month: 'short', year: 'numeric'
         }) : "Recent";
-        
-        const excerpt = item.content ? item.content.substring(0, 100) + "..." : "No content";
-        const title = item.title || "Untitled";
-        
-        const isSaved = getSavedArticles().some(s => {
-            const savedId = String(s._id || s.id || s.articleId);
-            return savedId === id;
-        });
-        
+
+        const excerpt  = item.content ? item.content.substring(0, 100) + "..." : "No content";
+        const title    = item.title || "Untitled";
+        const isSaved  = getSavedArticles().some(s => String(s._id || s.id || s.articleId) === id);
         const imageUrl = getImageUrl(item.image);
-        
-        // Store article data safely
-        const articleData = JSON.stringify(item).replace(/"/g, '&quot;');
-        
+
         return `
-            <article class="news-card" 
-                data-article-id="${escapeHtml(id)}" 
+            <article class="news-card"
+                data-article-id="${escapeHtml(id)}"
                 data-article-title="${escapeHtml(title)}"
                 data-article-source="${escapeHtml(item.source || 'Unknown')}"
                 onclick="handleArticleClick(this)">
-                
+
                 <div class="news-content">
                     <h3 class="news-title">${isSaved ? '🔖 ' : ''}${escapeHtml(title)}</h3>
                     <p class="news-excerpt">${escapeHtml(excerpt)}</p>
@@ -801,10 +721,11 @@ function renderArticleCards(articles) {
                         <span>${escapeHtml(date)}</span>
                     </div>
                 </div>
-                
-                ${imageUrl ? `
-                <img src="${escapeHtml(imageUrl)}" class="news-thumb" loading="lazy" onerror="this.style.display='none'" alt="">
-                ` : '<div class="news-thumb" style="background: var(--border);"></div>'}
+
+                ${imageUrl
+                    ? `<img src="${escapeHtml(imageUrl)}" class="news-thumb" loading="lazy" onerror="this.style.display='none'" alt="">`
+                    : '<div class="news-thumb" style="background: var(--border);"></div>'
+                }
             </article>
         `;
     }).join('');
@@ -812,98 +733,76 @@ function renderArticleCards(articles) {
 
 function getImageUrl(imagePath) {
     if (!imagePath) return null;
-    
-    if (imagePath.startsWith('http')) {
-        return imagePath;
-    }
-    
-    if (imagePath.startsWith('/uploads/')) {
-        return API_BASE + imagePath;
-    }
-    
+    if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith('/uploads/')) return API_BASE + imagePath;
     return `${API_BASE}/uploads/${imagePath}`;
 }
 
-// Handle article click - FIXED
 function handleArticleClick(element) {
-    const articleId = element.getAttribute('data-article-id');
-    const articleTitle = element.getAttribute('data-article-title');
+    const articleId     = element.getAttribute('data-article-id');
+    const articleTitle  = element.getAttribute('data-article-title');
     const articleSource = element.getAttribute('data-article-source');
-    
-    // Try to find in cache first
+
     if (articlesCache.has(articleId)) {
-        console.log('Using cached article:', articleId);
         currentArticle = articlesCache.get(articleId);
         displayArticleDetail();
         return;
     }
-    
-    // Try to find by title in current arrays
-    const foundByTitle = allArticles.find(a => 
+
+    const foundByTitle = allArticles.find(a =>
         a.title === articleTitle && a.source === articleSource
     );
-    
+
     if (foundByTitle) {
-        console.log('Found article by title match');
         currentArticle = foundByTitle;
         displayArticleDetail();
         return;
     }
-    
-    // Fallback to API call for manual articles
+
     if (!articleId.startsWith('gnews_')) {
         fetch(`${API_ARTICLES}/${articleId}`)
-            .then(response => response.json())
-            .then(article => {
-                console.log('Fetched article from API:', article);
-                currentArticle = article;
-                displayArticleDetail();
-            })
-            .catch(() => {
-                showToast("Failed to load article");
-            });
+            .then(r => r.json())
+            .then(article => { currentArticle = article; displayArticleDetail(); })
+            .catch(() => showToast("Failed to load article"));
     } else {
         showToast("Article expired. Please refresh.");
     }
 }
 
 function getSavedArticles() {
-    try {
-        return JSON.parse(localStorage.getItem("saved_articles") || "[]");
-    } catch(e) { 
-        return []; 
-    }
+    try { return JSON.parse(localStorage.getItem("saved_articles") || "[]"); }
+    catch (e) { return []; }
 }
 
 function updateSavedFolder() {
-    const folder = document.getElementById("savedFolder");
+    const folder  = document.getElementById("savedFolder");
     const countEl = document.getElementById("savedCount");
-    const saved = getSavedArticles();
-    
-    if(folder) {
+    const saved   = getSavedArticles();
+
+    if (folder) {
         folder.style.display = saved.length > 0 ? 'flex' : 'none';
-        if(countEl) countEl.textContent = `${saved.length} saved`;
+        if (countEl) countEl.textContent = `${saved.length} saved`;
     }
 }
 
 function loadSavedArticles() {
     const container = document.getElementById("savedList");
-    if(!container) return;
-    
+    if (!container) return;
+
     const saved = getSavedArticles();
-    if(saved.length === 0) {
+    if (saved.length === 0) {
         container.innerHTML = `<div class="empty"><div>📁</div><h3>No saved</h3></div>`;
         return;
     }
-    
+
     let html = '';
     saved.forEach(item => {
-        const id = String(item._id || item.articleId || item.id).replace(/[^a-zA-Z0-9-]/g, '');
-        const date = item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved";
+        const id    = String(item._id || item.articleId || item.id).replace(/[^a-zA-Z0-9-]/g, '');
+        const date  = item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved";
         const title = item.title || "Untitled";
-        
+
         html += `
-            <article class="news-card" 
+            <article class="news-card"
                 data-article-id="${escapeHtml(id)}"
                 data-article-title="${escapeHtml(title)}"
                 data-article-source="${escapeHtml(item.source || 'Unknown')}"
@@ -915,7 +814,7 @@ function loadSavedArticles() {
             </article>
         `;
     });
-    
+
     container.innerHTML = html;
 }
 
@@ -924,25 +823,18 @@ function loadSavedArticles() {
 ============================================ */
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
-    
+
     if (articlesCache.has(cleanId)) {
-        console.log('Using cached article:', articlesCache.get(cleanId));
         currentArticle = articlesCache.get(cleanId);
         displayArticleDetail();
         return;
     }
-    
+
     if (!cleanId.startsWith('gnews_')) {
         fetch(`${API_ARTICLES}/${cleanId}`)
-            .then(response => response.json())
-            .then(article => {
-                console.log('Fetched article:', article);
-                currentArticle = article;
-                displayArticleDetail();
-            })
-            .catch(() => {
-                showToast("Failed to load article");
-            });
+            .then(r => r.json())
+            .then(article => { currentArticle = article; displayArticleDetail(); })
+            .catch(() => showToast("Failed to load article"));
     } else {
         showToast("Article expired. Please refresh.");
     }
@@ -950,94 +842,117 @@ function openArticle(id) {
 
 function displayArticleDetail() {
     const articleBody = document.getElementById("articleBody");
-    const saveBtn = document.getElementById("saveBtn");
-    
-    if(!articleBody || !currentArticle) {
-        showToast("Article not found");
-        return;
-    }
-    
-    console.log('Displaying article with data:', currentArticle);
-    
+    const saveBtn     = document.getElementById("saveBtn");
+
+    if (!articleBody || !currentArticle) { showToast("Article not found"); return; }
+
+    // ✅ Reset translation state when opening new article
+    originalArticleContent = null;
+
     const articleId = currentArticle._id || currentArticle.id || currentArticle.articleId;
-    
-    const isSaved = getSavedArticles().some(s => {
-        const savedId = String(s._id || s.id || s.articleId);
-        return savedId === String(articleId);
-    });
-    
-    if(saveBtn) {
+
+    const isSaved = getSavedArticles().some(s =>
+        String(s._id || s.id || s.articleId) === String(articleId)
+    );
+
+    if (saveBtn) {
         saveBtn.innerHTML = isSaved ? '✓ Saved' : '💾 Save';
         saveBtn.classList.toggle('saved', isSaved);
     }
-    
+
     let date = "Recent";
     if (currentArticle.createdAt || currentArticle.publishedAt) {
         const d = new Date(currentArticle.createdAt || currentArticle.publishedAt);
         date = d.toLocaleString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: true
         }).toLowerCase();
     }
-    
+
     const imageUrl = getImageUrl(currentArticle.image);
-    const source = currentArticle.source || 'Unknown';
+    const source   = currentArticle.source   || 'Unknown';
     const category = currentArticle.category || 'General';
-    
+
     let originalLink = '#';
-    if (currentArticle.originalLink) {
-        originalLink = currentArticle.originalLink;
-    } else if (currentArticle['original link']) {
-        originalLink = currentArticle['original link'];
-    } else if (currentArticle.original_link) {
-        originalLink = currentArticle.original_link;
-    } else if (currentArticle.url) {
-        originalLink = currentArticle.url;
-    }
-    
-    const sourceBadge = '';
-    
-    console.log('Source:', source, 'Category:', category, 'Link:', originalLink);
-    
+    if      (currentArticle.originalLink)         originalLink = currentArticle.originalLink;
+    else if (currentArticle['original link'])      originalLink = currentArticle['original link'];
+    else if (currentArticle.original_link)         originalLink = currentArticle.original_link;
+    else if (currentArticle.url)                   originalLink = currentArticle.url;
+
+    // ── Detect theme for article detail ──
+    const isDark = document.body.classList.contains('dark');
+    const detailBg      = isDark ? '#1a1a1a' : '#f5f5f5';
+    const detailBorder  = isDark ? '#2a2a2a' : '#e0e0e0';
+    const metaColor     = isDark ? '#888'    : '#666';
+    const bodyTextColor = isDark ? '#ccc'    : '#222';
+    const cardBg        = isDark ? '#1a1a1a' : '#f8f8f8';
+    const labelColor    = isDark ? '#888'    : '#666';
+    const linkBg        = isDark ? '#1a1a1a' : '#f0f0f0';
+    const linkBorder    = isDark ? '#333'    : '#ddd';
+    const linkColor     = isDark ? '#fff'    : '#111';
+    const translateBg   = isDark ? '#1a1a1a' : '#f5f5f5';
+    const translateBtn  = isDark ? '#111'    : '#e8e8e8';
+    const translateText = isDark ? '#ccc'    : '#444';
+
     articleBody.innerHTML = `
-        ${imageUrl ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
+        ${imageUrl ? `
+        <div class="article-image-container">
+            <img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'">
+        </div>` : ''}
+
         <div class="article-text-content">
-            <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}${sourceBadge}</h1>
-            
-            <div class="article-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px 0; border-bottom: 1px solid #333;">
-                <span class="article-date" style="color: #888; font-size: 14px;">${escapeHtml(date)}</span>
-                <button class="btn-share-inline" onclick="shareCurrentArticle()" title="Share Article" style="background: #4CAF50; border: none; border-radius: 8px; color: white; padding: 8px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px;">📤 Share</button>
+            <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
+
+            <!-- Date + Share Row -->
+            <div class="article-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px 0; border-bottom: 1px solid ${detailBorder};">
+                <span class="article-date" style="color: ${metaColor}; font-size: 14px;">${escapeHtml(date)}</span>
+                <button class="btn-share-inline" onclick="shareCurrentArticle()" title="Share Article"
+                    style="background: #4CAF50; border: none; border-radius: 8px; color: white; padding: 8px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                    📤 Share
+                </button>
             </div>
-            
-            <div class="article-body-text" style="color: #ccc; line-height: 1.8; margin-bottom: 20px; font-size: 16px;">
-                ${escapeHtml(currentArticle.content || currentArticle.description || "No content available")}
-            </div>
-            
-            <!-- Source, Category, Published Info -->
-            <div style="background: #1a1a1a; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #2a2a2a;">
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="color: #888; font-size: 14px; min-width: 80px;">Source:</span>
-                        <span style="color: #667eea; font-size: 14px; font-weight: 600;">${escapeHtml(source)}</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="color: #888; font-size: 14px; min-width: 80px;">Category:</span>
-                        <span style="color: #4CAF50; font-size: 14px; font-weight: 600; text-transform: capitalize;">${escapeHtml(category)}</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="color: #888; font-size: 14px; min-width: 80px;">Published:</span>
-                        <span style="color: #aaa; font-size: 14px;">${escapeHtml(date)}</span>
+
+            <!-- ✅ TRANSLATE BAR -->
+            <div id="translateBar" style="margin-bottom: 16px; padding: 12px 14px; background: ${translateBg}; border-radius: 12px; border: 1px solid ${detailBorder};">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <span style="font-size: 13px; color: ${metaColor}; white-space: nowrap;">🌐 Translate:</span>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; flex: 1;">
+                        <button onclick="translateArticle('hi')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">🇮🇳 Hindi</button>
+                        <button onclick="translateArticle('te')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">తె Telugu</button>
+                        <button onclick="translateArticle('ta')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">த Tamil</button>
+                        <button onclick="translateArticle('bn')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">বাং Bengali</button>
+                        <button onclick="translateArticle('mr')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">म Marathi</button>
+                        <button onclick="translateArticle('en')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #4CAF50; background: ${translateBtn}; color: #4CAF50; font-size: 13px; cursor: pointer; font-weight: 600;">↩ Original</button>
                     </div>
                 </div>
             </div>
 
-            <!-- AI-Generated Summary Card -->
+            <!-- Article Body -->
+            <div class="article-body-text" style="color: ${bodyTextColor}; line-height: 1.8; margin-bottom: 20px; font-size: 16px;">
+                ${escapeHtml(currentArticle.content || currentArticle.description || "No content available")}
+            </div>
+
+            <!-- Source / Category / Published -->
+            <div style="background: ${cardBg}; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid ${detailBorder};">
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: ${labelColor}; font-size: 14px; min-width: 80px;">Source:</span>
+                        <span style="color: #667eea; font-size: 14px; font-weight: 600;">${escapeHtml(source)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: ${labelColor}; font-size: 14px; min-width: 80px;">Category:</span>
+                        <span style="color: #4CAF50; font-size: 14px; font-weight: 600; text-transform: capitalize;">${escapeHtml(category)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: ${labelColor}; font-size: 14px; min-width: 80px;">Published:</span>
+                        <span style="color: ${metaColor}; font-size: 14px;">${escapeHtml(date)}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Summary Card -->
             <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid #2a2a4a; position: relative; overflow: hidden;">
-                <div style="position: absolute; top: -50px; right: -50px; width: 100px; height: 100px; background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%); border-radius: 50%;"></div>
+                <div style="position: absolute; top: -50px; right: -50px; width: 100px; height: 100px; background: radial-gradient(circle, rgba(102,126,234,0.3) 0%, transparent 70%); border-radius: 50%;"></div>
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; position: relative; z-index: 1;">
                     <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                         <svg viewBox="0 0 24 24" fill="white" style="width: 24px; height: 24px;">
@@ -1054,10 +969,14 @@ function displayArticleDetail() {
                 </p>
             </div>
 
-            <!-- Read Full Original Article Link -->
+            <!-- Read Full Original Article -->
             <div style="margin-bottom: 30px;">
                 ${originalLink !== '#' ? `
-                <button onclick="openExternalLink('${escapeHtml(originalLink)}')" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 16px; text-decoration: none; color: #fff; font-size: 15px; font-weight: 500; transition: all 0.2s; width: 100%; cursor: pointer;" onmouseover="this.style.background='#252525'; this.style.borderColor='#667eea'" onmouseout="this.style.background='#1a1a1a'; this.style.borderColor='#333'">
+                <button onclick="openExternalLink('${escapeHtml(originalLink)}')"
+                    style="display: flex; align-items: center; justify-content: center; gap: 10px;
+                    background: ${linkBg}; border: 1px solid ${linkBorder}; border-radius: 12px;
+                    padding: 16px; color: ${linkColor}; font-size: 15px; font-weight: 500;
+                    transition: all 0.2s; width: 100%; cursor: pointer;">
                     <span>📰</span>
                     <span>Read Full Original Article</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-left: auto;">
@@ -1066,134 +985,183 @@ function displayArticleDetail() {
                         <line x1="10" y1="14" x2="21" y2="3"></line>
                     </svg>
                 </button>
-                ` : '<p style="color: #666; text-align: center; font-size: 14px;">Original link not available</p>'}
+                ` : `<p style="color: ${metaColor}; text-align: center; font-size: 14px;">Original link not available</p>`}
             </div>
         </div>
     `;
-    
+
     showScreen("detail");
     const detailContent = document.getElementById("detailContent");
-    if(detailContent) detailContent.scrollTop = 0;
+    if (detailContent) detailContent.scrollTop = 0;
+}
+
+/* ============================================
+   ✅ TRANSLATE ARTICLE
+============================================ */
+async function translateArticle(targetLang) {
+    const bodyEl = document.querySelector('.article-body-text');
+    if (!bodyEl || !currentArticle) return;
+
+    // Restore original
+    if (targetLang === 'en') {
+        if (originalArticleContent) {
+            bodyEl.textContent = originalArticleContent;
+            originalArticleContent = null;
+        }
+        highlightTranslateBtn('en');
+        return;
+    }
+
+    // Save original text once
+    if (!originalArticleContent) {
+        originalArticleContent = bodyEl.textContent;
+    }
+
+    const text = originalArticleContent;
+    bodyEl.innerHTML = '<span style="color:#888; font-size:14px;">🌐 Translating...</span>';
+    highlightTranslateBtn(targetLang);
+
+    try {
+        // Google Translate free endpoint — no API key needed
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+        const response = await fetch(url);
+        const result   = await response.json();
+
+        let translated = '';
+        if (result && result[0]) {
+            result[0].forEach(segment => {
+                if (segment[0]) translated += segment[0];
+            });
+        }
+
+        bodyEl.textContent = translated || 'Translation not available. Please try again.';
+
+    } catch (err) {
+        console.error('Translation error:', err);
+        bodyEl.textContent = originalArticleContent;
+        originalArticleContent = null;
+        showToast('⚠️ Translation failed. Check your internet connection.');
+    }
+}
+
+function highlightTranslateBtn(lang) {
+    const bar = document.getElementById('translateBar');
+    if (!bar) return;
+
+    const isDark = document.body.classList.contains('dark');
+    const inactiveBg   = isDark ? '#111'    : '#e8e8e8';
+    const inactiveText = isDark ? '#ccc'    : '#444';
+    const inactiveBorder = isDark ? '#333'  : '#ddd';
+
+    bar.querySelectorAll('button').forEach(btn => {
+        const isActive = btn.getAttribute('onclick')?.includes(`'${lang}'`);
+        btn.style.background   = isActive ? '#4CAF50' : inactiveBg;
+        btn.style.color        = isActive ? '#fff'    : (lang === 'en' && btn.getAttribute('onclick')?.includes("'en'") ? '#4CAF50' : inactiveText);
+        btn.style.borderColor  = isActive ? '#4CAF50' : (btn.getAttribute('onclick')?.includes("'en'") ? '#4CAF50' : inactiveBorder);
+    });
 }
 
 /* ============================================
    EXTERNAL LINK HANDLER
 ============================================ */
 function openExternalLink(url) {
-    if (!url || url === '#') {
-        showToast("Link not available");
-        return;
-    }
-    
-    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
-        window.Capacitor.Plugins.Browser.open({ url: url });
-    }
-    else if (window.cordova && window.cordova.InAppBrowser) {
+    if (!url || url === '#') { showToast("Link not available"); return; }
+
+    if (window.Capacitor?.Plugins?.Browser) {
+        window.Capacitor.Plugins.Browser.open({ url });
+    } else if (window.cordova?.InAppBrowser) {
         window.cordova.InAppBrowser.open(url, '_system');
-    }
-    else {
+    } else {
         window.open(url, '_blank', 'noopener,noreferrer');
     }
 }
 
+/* ============================================
+   SAVE / BOOKMARK
+============================================ */
 function saveCurrentArticle() {
-    if(!currentArticle) return;
-    
+    if (!currentArticle) return;
+
     const saveBtn = document.getElementById("saveBtn");
     let savedArticles = getSavedArticles();
-    
+
     const articleId = currentArticle._id || currentArticle.id || currentArticle.articleId;
-    const index = savedArticles.findIndex(s => {
-        const savedId = String(s._id || s.id || s.articleId);
-        return savedId === String(articleId);
-    });
-    
-    if(index !== -1) {
+    const index = savedArticles.findIndex(s =>
+        String(s._id || s.id || s.articleId) === String(articleId)
+    );
+
+    if (index !== -1) {
         savedArticles.splice(index, 1);
-        if(saveBtn) {
-            saveBtn.innerHTML = '💾 Save';
-            saveBtn.classList.remove('saved');
-        }
+        if (saveBtn) { saveBtn.innerHTML = '💾 Save'; saveBtn.classList.remove('saved'); }
         showToast("Removed from saved");
     } else {
-        savedArticles.unshift({ 
-            ...currentArticle, 
-            savedAt: new Date().toISOString() 
-        });
-        if(saveBtn) {
-            saveBtn.innerHTML = '✓ Saved';
-            saveBtn.classList.add('saved');
-        }
+        savedArticles.unshift({ ...currentArticle, savedAt: new Date().toISOString() });
+        if (saveBtn) { saveBtn.innerHTML = '✓ Saved'; saveBtn.classList.add('saved'); }
         showToast("Saved!");
     }
-    
+
     localStorage.setItem("saved_articles", JSON.stringify(savedArticles));
     updateSavedFolder();
-    
+
     const homeScreen = document.getElementById('home');
-    if(homeScreen && homeScreen.classList.contains('active')) {
-        loadNews();
-    }
+    if (homeScreen && homeScreen.classList.contains('active')) loadNews();
 }
 
+/* ============================================
+   ✅ SHARE — CLEAN LINK ONLY
+============================================ */
 async function shareCurrentArticle() {
     if (!currentArticle) return;
 
-    const title = currentArticle.title || "Check out this article";
+    const title   = currentArticle.title || "Check out this article";
     const appLink = "https://centrinsicnpt.com";
-
     const shareText = `${title}\n\n📲 Read more on Centrinsic NPT:\n${appLink}`;
 
     if (navigator.share) {
         try {
-            await navigator.share({
-                title: title,
-                text: shareText
-            });
+            await navigator.share({ title, text: shareText });
         } catch (err) {
-            // User cancelled share — do nothing
-            if (err.name !== 'AbortError') {
-                copyToClipboard(appLink, shareText);
-            }
+            if (err.name !== 'AbortError') copyToClipboard(shareText);
         }
     } else {
-        copyToClipboard(appLink, shareText);
+        copyToClipboard(shareText);
     }
 }
 
-function copyToClipboard(link, fullText) {
+function copyToClipboard(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(fullText)
+        navigator.clipboard.writeText(text)
             .then(() => showToast("✅ Link copied to clipboard!"))
-            .catch(() => {
-                // Fallback for older browsers
-                const el = document.createElement('textarea');
-                el.value = fullText;
-                document.body.appendChild(el);
-                el.select();
-                document.execCommand('copy');
-                document.body.removeChild(el);
-                showToast("✅ Link copied!");
-            });
+            .catch(() => fallbackCopy(text));
     } else {
-        const el = document.createElement('textarea');
-        el.value = fullText;
-        document.body.appendChild(el);
-        el.select();
-        document.execCommand('copy');
-        document.body.removeChild(el);
-        showToast("✅ Link copied!");
+        fallbackCopy(text);
     }
 }
 
+function fallbackCopy(text) {
+    const el = document.createElement('textarea');
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast("✅ Link copied!");
+}
+
+/* ============================================
+   REFRESH
+============================================ */
 function refreshFeed() {
     isOnline = false;
     loadNews();
     showToast("Refreshing...");
 }
 
+/* ============================================
+   UTILS
+============================================ */
 function escapeHtml(text) {
-    if(text == null) return '';
+    if (text == null) return '';
     const div = document.createElement('div');
     div.textContent = String(text);
     return div.innerHTML;
@@ -1201,13 +1169,13 @@ function escapeHtml(text) {
 
 function showToast(msg) {
     let toast = document.getElementById('toast');
-    if(!toast) {
+    if (!toast) {
         toast = document.createElement('div');
         toast.id = 'toast';
         toast.className = 'toast';
         document.body.appendChild(toast);
     }
-    if(toastTimeout) clearTimeout(toastTimeout);
+    if (toastTimeout) clearTimeout(toastTimeout);
     toast.textContent = msg;
     toast.classList.add('show');
     toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
@@ -1215,18 +1183,10 @@ function showToast(msg) {
 
 function bindMobileButtons() {
     const logoutBtn = document.getElementById("logoutButton");
-    if(logoutBtn){
-        logoutBtn.onpointerup = () => {
-            logout();
-        };
-    }
+    if (logoutBtn) logoutBtn.onpointerup = () => logout();
 
     const deleteBtn = document.getElementById("deleteDataButton");
-    if(deleteBtn){
-        deleteBtn.onpointerup = () => {
-            clearAll();
-        };
-    }
+    if (deleteBtn) deleteBtn.onpointerup = () => clearAll();
 }
 
-console.log("✅ Centrinsic NPT App loaded - FIXED FILTERING VERSION");
+console.log("✅ Centrinsic NPT App loaded — translate + light/dark tabs + share fixed");
