@@ -922,6 +922,7 @@ function displayArticleDetail() {
                         <button onclick="translateArticle('ta')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">த Tamil</button>
                         <button onclick="translateArticle('bn')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">বাং Bengali</button>
                         <button onclick="translateArticle('mr')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">म Marathi</button>
+                        <button onclick="translateArticle('kn')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">ಕ Kannada</button>
                         <button onclick="translateArticle('en')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #4CAF50; background: ${translateBtn}; color: #4CAF50; font-size: 13px; cursor: pointer; font-weight: 600;">↩ Original</button>
                     </div>
                 </div>
