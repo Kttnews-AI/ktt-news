@@ -1,6 +1,6 @@
 // ============================================
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
-// Fixes: light/dark tab colors, share, translate
+// Fixes: dropdown translate, light/dark tabs, share
 // ============================================
 
 const API_BASE = "https://centrinsicnpt.com";
@@ -70,27 +70,27 @@ function initializeApp() {
    EXPORT ALL FUNCTIONS TO WINDOW
 ============================================ */
 function exportAllFunctions() {
-    window.showScreen          = showScreen;
-    window.goToLogin           = goToLogin;
-    window.skipLoginFromAbout  = skipLoginFromAbout;
-    window.skipToHome          = skipToHome;
-    window.goBackToAbout       = goBackToAbout;
-    window.goBack              = goBack;
-    window.goHome              = goHome;
-    window.logout              = logout;
-    window.clearAll            = clearAll;
-    window.loadNews            = loadNews;
-    window.openArticle         = openArticle;
-    window.saveCurrentArticle  = saveCurrentArticle;
-    window.refreshFeed         = refreshFeed;
-    window.changeTextSize      = changeTextSize;
-    window.toggleDark          = toggleDark;
-    window.showToast           = showToast;
-    window.shareCurrentArticle = shareCurrentArticle;
-    window.openExternalLink    = openExternalLink;
-    window.handleArticleClick  = handleArticleClick;
-    window.switchTab           = switchTab;
-    window.translateArticle    = translateArticle;
+    window.showScreen            = showScreen;
+    window.goToLogin             = goToLogin;
+    window.skipLoginFromAbout    = skipLoginFromAbout;
+    window.skipToHome            = skipToHome;
+    window.goBackToAbout         = goBackToAbout;
+    window.goBack                = goBack;
+    window.goHome                = goHome;
+    window.logout                = logout;
+    window.clearAll              = clearAll;
+    window.loadNews              = loadNews;
+    window.openArticle           = openArticle;
+    window.saveCurrentArticle    = saveCurrentArticle;
+    window.refreshFeed           = refreshFeed;
+    window.changeTextSize        = changeTextSize;
+    window.toggleDark            = toggleDark;
+    window.showToast             = showToast;
+    window.shareCurrentArticle   = shareCurrentArticle;
+    window.openExternalLink      = openExternalLink;
+    window.handleArticleClick    = handleArticleClick;
+    window.switchTab             = switchTab;
+    window.translateArticle      = translateArticle;
     window.highlightTranslateBtn = highlightTranslateBtn;
 }
 
@@ -215,12 +215,12 @@ function showScreen(screenId) {
     setTimeout(bindMobileButtons, 200);
 }
 
-function goToLogin()        { resetLoginForm(); showScreen("login"); }
+function goToLogin()          { resetLoginForm(); showScreen("login"); }
 function skipLoginFromAbout() { showScreen("home"); loadNews(); }
-function skipToHome()       { showScreen("home"); loadNews(); }
-function goBackToAbout()    { showScreen("about"); }
-function goBack()           { showScreen("home"); }
-function goHome()           { showScreen("home"); }
+function skipToHome()         { showScreen("home"); loadNews(); }
+function goBackToAbout()      { showScreen("about"); }
+function goBack()             { showScreen("home"); }
+function goHome()             { showScreen("home"); }
 
 /* ============================================
    USER MANAGEMENT
@@ -242,18 +242,18 @@ function checkLoginStatus() {
 }
 
 function updateUserDisplay() {
-    const userNameEl = document.getElementById("userDisplayName");
+    const userNameEl  = document.getElementById("userDisplayName");
     const userEmailEl = document.getElementById("userDisplayEmail");
-    const logoutBtn  = document.getElementById("logoutButton");
+    const logoutBtn   = document.getElementById("logoutButton");
 
     if (!userNameEl || !userEmailEl) return;
 
     if (currentUser && currentUser.loggedIn) {
-        userNameEl.textContent = currentUser.name || currentUser.email.split('@')[0];
+        userNameEl.textContent  = currentUser.name || currentUser.email.split('@')[0];
         userEmailEl.textContent = currentUser.email;
         if (logoutBtn) logoutBtn.style.display = 'block';
     } else {
-        userNameEl.textContent = "Guest User";
+        userNameEl.textContent  = "Guest User";
         userEmailEl.textContent = "Not signed in";
         if (logoutBtn) logoutBtn.style.display = 'none';
     }
@@ -270,16 +270,13 @@ function logout() {
 
     currentUser = null;
     showToast("Logged out successfully");
-
     setTimeout(() => showScreen("about"), 500);
 }
 
 function clearAll() {
     if (!confirm("Clear all saved data?")) return;
-
     localStorage.clear();
     showToast("All data cleared");
-
     setTimeout(() => location.reload(), 600);
 }
 
@@ -432,7 +429,10 @@ function setupOTPInputs() {
             e.preventDefault();
             const numbers = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
             numbers.split('').forEach((num, i) => {
-                if (newInputs[i]) { newInputs[i].value = num; newInputs[i].classList.add('filled'); }
+                if (newInputs[i]) {
+                    newInputs[i].value = num;
+                    newInputs[i].classList.add('filled');
+                }
             });
             const lastIndex = Math.min(numbers.length, 5);
             if (newInputs[lastIndex]) newInputs[lastIndex].focus();
@@ -462,8 +462,8 @@ function startOTPTimer() {
 }
 
 function verifyOTP() {
-    const inputs = document.querySelectorAll('.otp-input');
-    const email = localStorage.getItem("temp_email");
+    const inputs   = document.querySelectorAll('.otp-input');
+    const email    = localStorage.getItem("temp_email");
     let enteredOTP = '';
     inputs.forEach(input => enteredOTP += input.value);
 
@@ -538,13 +538,13 @@ async function loadNews() {
     container.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading...</p></div>`;
 
     try {
-        const response = await fetch(API_ARTICLES);
-        const data = await response.json();
-
+        const response  = await fetch(API_ARTICLES);
+        const data      = await response.json();
         const newsArray = data.articles || data.data || data;
+
         if (!Array.isArray(newsArray)) throw new Error('Invalid response format');
 
-        if (data.meta && data.meta.lastUpdated) lastUpdatedTime = data.meta.lastUpdated;
+        if (data.meta?.lastUpdated) lastUpdatedTime = data.meta.lastUpdated;
 
         allArticles = newsArray;
 
@@ -555,12 +555,12 @@ async function loadNews() {
         });
 
         localStorage.setItem("news_backup", JSON.stringify(newsArray));
-        localStorage.setItem("news_meta", JSON.stringify(data.meta || {}));
+        localStorage.setItem("news_meta",   JSON.stringify(data.meta || {}));
         isOnline = true;
 
         console.log(`📊 Loaded ${newsArray.length} total articles`);
-        console.log(`   Manual: ${newsArray.filter(a => a.isManual).length}`);
-        console.log(`   GNews: ${newsArray.filter(a => !a.isManual).length}`);
+        console.log(`   Manual: ${newsArray.filter(a =>  a.isManual).length}`);
+        console.log(`   GNews:  ${newsArray.filter(a => !a.isManual).length}`);
 
         renderTabView();
         updateSavedFolder();
@@ -594,14 +594,14 @@ function renderTabView() {
 
     // ✅ Theme-aware colors
     const theme = {
-        headerBg:          isDark ? '#000'     : '#ffffff',
-        headerBorder:      isDark ? '#222'     : '#e0e0e0',
-        inactiveTabBg:     isDark ? '#1a1a1a'  : '#f0f0f0',
-        inactiveTabText:   isDark ? '#888'     : '#555',
-        updatedColor:      isDark ? '#666'     : '#999',
-        sectionTitleColor: isDark ? '#fff'     : '#111',
-        emptyTitleColor:   isDark ? '#fff'     : '#111',
-        emptyTextColor:    isDark ? '#666'     : '#999',
+        headerBg:          isDark ? '#000'    : '#ffffff',
+        headerBorder:      isDark ? '#222'    : '#e0e0e0',
+        inactiveTabBg:     isDark ? '#1a1a1a' : '#f0f0f0',
+        inactiveTabText:   isDark ? '#888'    : '#555',
+        updatedColor:      isDark ? '#666'    : '#999',
+        sectionTitleColor: isDark ? '#fff'    : '#111',
+        emptyTitleColor:   isDark ? '#fff'    : '#111',
+        emptyTextColor:    isDark ? '#666'    : '#999',
     };
 
     const gnewsArticles  = allArticles.filter(a => !a.isManual);
@@ -611,7 +611,7 @@ function renderTabView() {
     const activeArticles = isGNews ? gnewsArticles : manualArticles;
 
     console.log(`Rendering tab: ${currentTab}`);
-    console.log(`   GNews available: ${gnewsArticles.length}`);
+    console.log(`   GNews available:  ${gnewsArticles.length}`);
     console.log(`   Manual available: ${manualArticles.length}`);
     console.log(`   Showing: ${activeArticles.length}`);
 
@@ -626,7 +626,7 @@ function renderTabView() {
 
     let html = '';
 
-    // ── TAB SWITCHER HEADER ──────────────────────────────────────────
+    // ── TAB SWITCHER HEADER ──────────────────────────
     html += `
         <div style="
             position: sticky; top: 0; z-index: 100;
@@ -635,20 +635,19 @@ function renderTabView() {
             border-bottom: 1px solid ${theme.headerBorder};
         ">
             <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-
                 <button onclick="switchTab('gnews')" style="
                     flex: 1; padding: 12px; border-radius: 25px; border: none;
                     font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
-                    background: ${isGNews  ? '#4CAF50'     : theme.inactiveTabBg};
-                    color:      ${isGNews  ? '#fff'        : theme.inactiveTabText};
+                    background: ${isGNews  ? '#4CAF50'    : theme.inactiveTabBg};
+                    color:      ${isGNews  ? '#fff'       : theme.inactiveTabText};
                     box-shadow: ${isGNews  ? '0 2px 8px rgba(76,175,80,0.35)' : 'none'};
                 ">${gnewsTabName}</button>
 
                 <button onclick="switchTab('manual')" style="
                     flex: 1; padding: 12px; border-radius: 25px; border: none;
                     font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
-                    background: ${!isGNews ? '#667eea'     : theme.inactiveTabBg};
-                    color:      ${!isGNews ? '#fff'        : theme.inactiveTabText};
+                    background: ${!isGNews ? '#667eea'    : theme.inactiveTabBg};
+                    color:      ${!isGNews ? '#fff'       : theme.inactiveTabText};
                     box-shadow: ${!isGNews ? '0 2px 8px rgba(102,126,234,0.35)' : 'none'};
                 ">${manualTabName}</button>
             </div>
@@ -660,7 +659,7 @@ function renderTabView() {
         </div>
     `;
 
-    // ── SECTION TITLE ────────────────────────────────────────────────
+    // ── SECTION TITLE ────────────────────────────────
     html += `
         <div style="margin: 20px 16px 12px 16px; display: flex; align-items: center; gap: 10px;">
             <div style="width: 4px; height: 24px; background: ${tabColor}; border-radius: 2px;"></div>
@@ -673,7 +672,7 @@ function renderTabView() {
         </div>
     `;
 
-    // ── ARTICLES LIST ────────────────────────────────────────────────
+    // ── ARTICLES LIST ─────────────────────────────────
     if (activeArticles.length > 0) {
         html += `<div class="articles-list" style="padding: 0 16px 20px 16px;">`;
         html += renderArticleCards(activeArticles);
@@ -691,14 +690,17 @@ function renderTabView() {
     container.innerHTML = html;
 }
 
+/* ============================================
+   RENDER ARTICLE CARDS
+============================================ */
 function renderArticleCards(articles) {
     if (!articles || articles.length === 0) return '';
 
     return articles.map((item, index) => {
         const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
-        const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB', {
-            day: 'numeric', month: 'short', year: 'numeric'
-        }) : "Recent";
+        const date = item.createdAt
+            ? new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+            : "Recent";
 
         const excerpt  = item.content ? item.content.substring(0, 100) + "..." : "No content";
         const title    = item.title || "Untitled";
@@ -874,25 +876,25 @@ function displayArticleDetail() {
     const category = currentArticle.category || 'General';
 
     let originalLink = '#';
-    if      (currentArticle.originalLink)         originalLink = currentArticle.originalLink;
-    else if (currentArticle['original link'])      originalLink = currentArticle['original link'];
-    else if (currentArticle.original_link)         originalLink = currentArticle.original_link;
-    else if (currentArticle.url)                   originalLink = currentArticle.url;
+    if      (currentArticle.originalLink)        originalLink = currentArticle.originalLink;
+    else if (currentArticle['original link'])     originalLink = currentArticle['original link'];
+    else if (currentArticle.original_link)        originalLink = currentArticle.original_link;
+    else if (currentArticle.url)                  originalLink = currentArticle.url;
 
-    // ── Detect theme for article detail ──
-    const isDark = document.body.classList.contains('dark');
-    const detailBg      = isDark ? '#1a1a1a' : '#f5f5f5';
-    const detailBorder  = isDark ? '#2a2a2a' : '#e0e0e0';
-    const metaColor     = isDark ? '#888'    : '#666';
-    const bodyTextColor = isDark ? '#ccc'    : '#222';
-    const cardBg        = isDark ? '#1a1a1a' : '#f8f8f8';
-    const labelColor    = isDark ? '#888'    : '#666';
-    const linkBg        = isDark ? '#1a1a1a' : '#f0f0f0';
-    const linkBorder    = isDark ? '#333'    : '#ddd';
-    const linkColor     = isDark ? '#fff'    : '#111';
-    const translateBg   = isDark ? '#1a1a1a' : '#f5f5f5';
-    const translateBtn  = isDark ? '#111'    : '#e8e8e8';
-    const translateText = isDark ? '#ccc'    : '#444';
+    // ── Theme-aware colors for article detail ──
+    const isDark       = document.body.classList.contains('dark');
+    const detailBorder = isDark ? '#2a2a2a' : '#e0e0e0';
+    const metaColor    = isDark ? '#888'    : '#666';
+    const bodyColor    = isDark ? '#ccc'    : '#222';
+    const cardBg       = isDark ? '#1a1a1a' : '#f8f8f8';
+    const labelColor   = isDark ? '#888'    : '#666';
+    const linkBg       = isDark ? '#1a1a1a' : '#f0f0f0';
+    const linkBorder   = isDark ? '#333'    : '#ddd';
+    const linkColor    = isDark ? '#fff'    : '#111';
+    const transBg      = isDark ? '#1a1a1a' : '#f5f5f5';
+    const selectBg     = isDark ? '#111'    : '#ffffff';
+    const selectColor  = isDark ? '#ccc'    : '#333';
+    const selectBorder = isDark ? '#333'    : '#ccc';
 
     articleBody.innerHTML = `
         ${imageUrl ? `
@@ -904,34 +906,87 @@ function displayArticleDetail() {
             <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
 
             <!-- Date + Share Row -->
-            <div class="article-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px 0; border-bottom: 1px solid ${detailBorder};">
+            <div class="article-meta-row" style="
+                display: flex; justify-content: space-between; align-items: center;
+                margin-bottom: 10px; padding: 10px 0;
+                border-bottom: 1px solid ${detailBorder};
+            ">
                 <span class="article-date" style="color: ${metaColor}; font-size: 14px;">${escapeHtml(date)}</span>
-                <button class="btn-share-inline" onclick="shareCurrentArticle()" title="Share Article"
-                    style="background: #4CAF50; border: none; border-radius: 8px; color: white; padding: 8px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                <button onclick="shareCurrentArticle()" style="
+                    background: #4CAF50; border: none; border-radius: 8px; color: white;
+                    padding: 8px 16px; font-size: 14px; cursor: pointer;
+                    display: flex; align-items: center; gap: 5px;">
                     📤 Share
                 </button>
             </div>
 
-            <!-- ✅ TRANSLATE BAR -->
-            <div id="translateBar" style="margin-bottom: 16px; padding: 12px 14px; background: ${translateBg}; border-radius: 12px; border: 1px solid ${detailBorder};">
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <span style="font-size: 13px; color: ${metaColor}; white-space: nowrap;">🌐 Translate:</span>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap; flex: 1;">
-                        <button onclick="translateArticle('hi')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">🇮🇳 Hindi</button>
-                        <button onclick="translateArticle('te')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">తె Telugu</button>
-                        <button onclick="translateArticle('ta')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">த Tamil</button>
-                        <button onclick="translateArticle('bn')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">বাং Bengali</button>
-                        <button onclick="translateArticle('mr')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">म Marathi</button>
-                        <button onclick="translateArticle('kn')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid ${linkBorder}; background: ${translateBtn}; color: ${translateText}; font-size: 13px; cursor: pointer;">ಕ Kannada</button>
-                        <button onclick="translateArticle('en')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #4CAF50; background: ${translateBtn}; color: #4CAF50; font-size: 13px; cursor: pointer; font-weight: 600;">↩ Original</button>
-                    </div>
-                </div>
+            <!-- ✅ TRANSLATE BAR — CLEAN DROPDOWN -->
+            <div id="translateBar" style="
+                margin-bottom: 16px; padding: 10px 14px;
+                background: ${transBg}; border-radius: 12px;
+                border: 1px solid ${detailBorder};
+                display: flex; align-items: center; gap: 10px;
+            ">
+                <span style="font-size: 13px; color: ${metaColor}; white-space: nowrap;">🌐 Translate:</span>
+                <select
+                    id="translateSelect"
+                    onchange="translateArticle(this.value)"
+                    style="
+                        flex: 1;
+                        background: ${selectBg};
+                        color: ${selectColor};
+                        border: 1px solid ${selectBorder};
+                        border-radius: 20px;
+                        padding: 8px 14px;
+                        font-size: 13px;
+                        font-family: inherit;
+                        cursor: pointer;
+                        outline: none;
+                    "
+                >
+                    <option value="en">↩ Original (English)</option>
+                    <optgroup label="── Indian Languages ──">
+                        <option value="hi">🇮🇳 Hindi</option>
+                        <option value="te">తె Telugu</option>
+                        <option value="ta">த Tamil</option>
+                        <option value="kn">ಕ Kannada</option>
+                        <option value="ml">മ Malayalam</option>
+                        <option value="bn">বাং Bengali</option>
+                        <option value="mr">म Marathi</option>
+                        <option value="gu">ગુ Gujarati</option>
+                        <option value="pa">ਪ Punjabi</option>
+                        <option value="ur">اردو Urdu</option>
+                        <option value="or">ଓ Odia</option>
+                        <option value="as">অ Assamese</option>
+                        <option value="ne">ने Nepali</option>
+                        <option value="si">සි Sinhala</option>
+                    </optgroup>
+                    <optgroup label="── World Languages ──">
+                        <option value="zh">🇨🇳 Chinese</option>
+                        <option value="ar">🇸🇦 Arabic</option>
+                        <option value="fr">🇫🇷 French</option>
+                        <option value="de">🇩🇪 German</option>
+                        <option value="es">🇪🇸 Spanish</option>
+                        <option value="ja">🇯🇵 Japanese</option>
+                        <option value="ko">🇰🇷 Korean</option>
+                        <option value="pt">🇵🇹 Portuguese</option>
+                        <option value="ru">🇷🇺 Russian</option>
+                        <option value="tr">🇹🇷 Turkish</option>
+                        <option value="it">🇮🇹 Italian</option>
+                        <option value="th">🇹🇭 Thai</option>
+                        <option value="vi">🇻🇳 Vietnamese</option>
+                        <option value="id">🇮🇩 Indonesian</option>
+                        <option value="ms">🇲🇾 Malay</option>
+                        <option value="sw">🌍 Swahili</option>
+                    </optgroup>
+                </select>
             </div>
 
             <!-- Article Body -->
-            <div class="article-body-text" style="color: ${bodyTextColor}; line-height: 1.8; margin-bottom: 20px; font-size: 16px;">
-                ${escapeHtml(currentArticle.content || currentArticle.description || "No content available")}
-            </div>
+            <div class="article-body-text" style="
+                color: ${bodyColor}; line-height: 1.8;
+                margin-bottom: 20px; font-size: 16px;
+            ">${escapeHtml(currentArticle.content || currentArticle.description || "No content available")}</div>
 
             <!-- Source / Category / Published -->
             <div style="background: ${cardBg}; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid ${detailBorder};">
@@ -973,11 +1028,11 @@ function displayArticleDetail() {
             <!-- Read Full Original Article -->
             <div style="margin-bottom: 30px;">
                 ${originalLink !== '#' ? `
-                <button onclick="openExternalLink('${escapeHtml(originalLink)}')"
-                    style="display: flex; align-items: center; justify-content: center; gap: 10px;
-                    background: ${linkBg}; border: 1px solid ${linkBorder}; border-radius: 12px;
-                    padding: 16px; color: ${linkColor}; font-size: 15px; font-weight: 500;
-                    transition: all 0.2s; width: 100%; cursor: pointer;">
+                <button onclick="openExternalLink('${escapeHtml(originalLink)}')" style="
+                    display: flex; align-items: center; justify-content: center; gap: 10px;
+                    background: ${linkBg}; border: 1px solid ${linkBorder};
+                    border-radius: 12px; padding: 16px; color: ${linkColor};
+                    font-size: 15px; font-weight: 500; width: 100%; cursor: pointer;">
                     <span>📰</span>
                     <span>Read Full Original Article</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-left: auto;">
@@ -997,13 +1052,14 @@ function displayArticleDetail() {
 }
 
 /* ============================================
-   ✅ TRANSLATE ARTICLE
+   ✅ TRANSLATE — DROPDOWN VERSION
+   Uses Google free endpoint, no API key needed
 ============================================ */
 async function translateArticle(targetLang) {
     const bodyEl = document.querySelector('.article-body-text');
     if (!bodyEl || !currentArticle) return;
 
-    // Restore original
+    // Restore original English
     if (targetLang === 'en') {
         if (originalArticleContent) {
             bodyEl.textContent = originalArticleContent;
@@ -1020,11 +1076,9 @@ async function translateArticle(targetLang) {
 
     const text = originalArticleContent;
     bodyEl.innerHTML = '<span style="color:#888; font-size:14px;">🌐 Translating...</span>';
-    highlightTranslateBtn(targetLang);
 
     try {
-        // Google Translate free endpoint — no API key needed
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+        const url      = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
         const response = await fetch(url);
         const result   = await response.json();
 
@@ -1039,27 +1093,20 @@ async function translateArticle(targetLang) {
 
     } catch (err) {
         console.error('Translation error:', err);
+        // Restore original on error
         bodyEl.textContent = originalArticleContent;
         originalArticleContent = null;
-        showToast('⚠️ Translation failed. Check your internet connection.');
+        // Reset dropdown
+        const select = document.getElementById('translateSelect');
+        if (select) select.value = 'en';
+        showToast('⚠️ Translation failed. Check your internet.');
     }
 }
 
+// Sync the dropdown to show current selected language
 function highlightTranslateBtn(lang) {
-    const bar = document.getElementById('translateBar');
-    if (!bar) return;
-
-    const isDark = document.body.classList.contains('dark');
-    const inactiveBg   = isDark ? '#111'    : '#e8e8e8';
-    const inactiveText = isDark ? '#ccc'    : '#444';
-    const inactiveBorder = isDark ? '#333'  : '#ddd';
-
-    bar.querySelectorAll('button').forEach(btn => {
-        const isActive = btn.getAttribute('onclick')?.includes(`'${lang}'`);
-        btn.style.background   = isActive ? '#4CAF50' : inactiveBg;
-        btn.style.color        = isActive ? '#fff'    : (lang === 'en' && btn.getAttribute('onclick')?.includes("'en'") ? '#4CAF50' : inactiveText);
-        btn.style.borderColor  = isActive ? '#4CAF50' : (btn.getAttribute('onclick')?.includes("'en'") ? '#4CAF50' : inactiveBorder);
-    });
+    const select = document.getElementById('translateSelect');
+    if (select) select.value = lang;
 }
 
 /* ============================================
@@ -1083,7 +1130,7 @@ function openExternalLink(url) {
 function saveCurrentArticle() {
     if (!currentArticle) return;
 
-    const saveBtn = document.getElementById("saveBtn");
+    const saveBtn     = document.getElementById("saveBtn");
     let savedArticles = getSavedArticles();
 
     const articleId = currentArticle._id || currentArticle.id || currentArticle.articleId;
@@ -1109,13 +1156,13 @@ function saveCurrentArticle() {
 }
 
 /* ============================================
-   ✅ SHARE — CLEAN LINK ONLY
+   ✅ SHARE — CLEAN LINK + TITLE ONLY
 ============================================ */
 async function shareCurrentArticle() {
     if (!currentArticle) return;
 
-    const title   = currentArticle.title || "Check out this article";
-    const appLink = "https://centrinsicnpt.com";
+    const title     = currentArticle.title || "Check out this article";
+    const appLink   = "https://centrinsicnpt.com";
     const shareText = `${title}\n\n📲 Read more on Centrinsic NPT:\n${appLink}`;
 
     if (navigator.share) {
@@ -1130,7 +1177,7 @@ async function shareCurrentArticle() {
 }
 
 function copyToClipboard(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+    if (navigator.clipboard?.writeText) {
         navigator.clipboard.writeText(text)
             .then(() => showToast("✅ Link copied to clipboard!"))
             .catch(() => fallbackCopy(text));
@@ -1190,4 +1237,4 @@ function bindMobileButtons() {
     if (deleteBtn) deleteBtn.onpointerup = () => clearAll();
 }
 
-console.log("✅ Centrinsic NPT App loaded — translate + light/dark tabs + share fixed");
+console.log("✅ Centrinsic NPT App — dropdown translate + 30 languages + light/dark tabs + share fixed");
