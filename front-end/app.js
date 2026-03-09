@@ -646,81 +646,118 @@ function switchTab(tab) {
 function renderTabView() {
     const container = document.getElementById("newsFeed");
     if(!container) return;
-    
-    // FILTER articles based on current tab - THIS IS THE KEY FIX
-    const gnewsArticles = allArticles.filter(article => !article.isManual);
-    const manualArticles = allArticles.filter(article => article.isManual);
-    
-    const isGNews = currentTab === 'gnews';
+
+    // ✅ Detect current theme
+    const isDark = document.body.classList.contains('dark');
+
+    // ✅ Theme-aware colors
+    const theme = {
+        headerBg:        isDark ? '#000'     : '#ffffff',
+        headerBorder:    isDark ? '#222'     : '#e0e0e0',
+        inactiveTabBg:   isDark ? '#1a1a1a'  : '#f0f0f0',
+        inactiveTabText: isDark ? '#888'     : '#555',
+        updatedColor:    isDark ? '#666'     : '#999',
+        sectionTitleColor: isDark ? '#fff'   : '#111',
+        emptyTitleColor: isDark ? '#fff'     : '#111',
+        emptyTextColor:  isDark ? '#666'     : '#999',
+    };
+
+    // Filter articles
+    const gnewsArticles  = allArticles.filter(article => !article.isManual);
+    const manualArticles = allArticles.filter(article =>  article.isManual);
+
+    const isGNews       = currentTab === 'gnews';
     const activeArticles = isGNews ? gnewsArticles : manualArticles;
-    
+
     console.log(`Rendering tab: ${currentTab}`);
     console.log(`   GNews available: ${gnewsArticles.length}`);
     console.log(`   Manual available: ${manualArticles.length}`);
     console.log(`   Showing: ${activeArticles.length}`);
-    
-    // CUSTOMIZE NAMES HERE ↓↓↓
-    const gnewsTabName = 'AI-S';
-    const manualTabName = 'AI-D';
-    const gnewsSectionTitle = '🟣 Short AI card';
-    const manualSectionTitle = '🔵 Detailed AI card';
-    // CUSTOMIZE NAMES HERE ↑↑↑
-    
-    const tabTitle = isGNews ? gnewsSectionTitle : manualSectionTitle;
-    const tabColor = isGNews ? '#4CAF50' : '#667eea';
-    const tabIcon = isGNews ? '🩳' : '👖';
-    
+
+    // Tab / section names
+    const gnewsTabName      = 'AI-S';
+    const manualTabName     = 'AI-D';
+    const gnewsSectionTitle = 'Short AI card';
+    const manualSectionTitle= 'Detailed AI card';
+
+    const tabTitle  = isGNews ? gnewsSectionTitle : manualSectionTitle;
+    const tabColor  = isGNews ? '#4CAF50'         : '#667eea';
+    const tabIcon   = isGNews ? '🟢'              : '🔵';
+
     let html = '';
-    
-    // TAB SWITCHER HEADER
+
+    // ── TAB SWITCHER HEADER ──────────────────────────────────────────
     html += `
-        <div style="position: sticky; top: 0; background: #000; z-index: 100; padding: 10px 16px; border-bottom: 1px solid #222;">
+        <div style="
+            position: sticky; top: 0; z-index: 100;
+            background: ${theme.headerBg};
+            padding: 10px 16px;
+            border-bottom: 1px solid ${theme.headerBorder};
+        ">
             <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <button onclick="switchTab('gnews')" 
-                    style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
-                    background: ${isGNews ? '#4CAF50' : '#1a1a1a'}; 
-                    color: ${isGNews ? '#fff' : '#888'};">
+
+                <!-- AI-S button -->
+                <button onclick="switchTab('gnews')" style="
+                    flex: 1; padding: 12px; border-radius: 25px; border: none;
+                    font-weight: 600; font-size: 14px; cursor: pointer;
+                    transition: all 0.3s;
+                    background: ${isGNews  ? '#4CAF50'              : theme.inactiveTabBg};
+                    color:      ${isGNews  ? '#fff'                  : theme.inactiveTabText};
+                    box-shadow: ${isGNews  ? '0 2px 8px rgba(76,175,80,0.35)' : 'none'};
+                ">
                     ${gnewsTabName}
                 </button>
-                <button onclick="switchTab('manual')" 
-                    style="flex: 1; padding: 12px; border-radius: 25px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s;
-                    background: ${!isGNews ? '#667eea' : '#1a1a1a'}; 
-                    color: ${!isGNews ? '#fff' : '#888'};">
+
+                <!-- AI-D button -->
+                <button onclick="switchTab('manual')" style="
+                    flex: 1; padding: 12px; border-radius: 25px; border: none;
+                    font-weight: 600; font-size: 14px; cursor: pointer;
+                    transition: all 0.3s;
+                    background: ${!isGNews ? '#667eea'              : theme.inactiveTabBg};
+                    color:      ${!isGNews ? '#fff'                  : theme.inactiveTabText};
+                    box-shadow: ${!isGNews ? '0 2px 8px rgba(102,126,234,0.35)' : 'none'};
+                ">
                     ${manualTabName}
                 </button>
             </div>
+
             ${lastUpdatedTime ? `
-            <div style="text-align: center; color: #666; font-size: 11px;">
+            <div style="text-align: center; color: ${theme.updatedColor}; font-size: 11px;">
                 🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', hour12: true})}
-            </div>
-            ` : ''}
+            </div>` : ''}
         </div>
     `;
-    
-    // SECTION TITLE
+
+    // ── SECTION TITLE ────────────────────────────────────────────────
     html += `
         <div style="margin: 20px 16px 12px 16px; display: flex; align-items: center; gap: 10px;">
             <div style="width: 4px; height: 24px; background: ${tabColor}; border-radius: 2px;"></div>
-            <h2 style="color: #fff; font-size: 20px; font-weight: 700; margin: 0;">${tabIcon} ${tabTitle}</h2>
-            <span style="background: ${tabColor}; color: white; font-size: 12px; padding: 4px 12px; border-radius: 12px; margin-left: auto;">${activeArticles.length}</span>
+            <h2 style="color: ${theme.sectionTitleColor}; font-size: 20px; font-weight: 700; margin: 0;">
+                ${tabIcon} ${tabTitle}
+            </h2>
+            <span style="
+                background: ${tabColor}; color: white;
+                font-size: 12px; padding: 4px 12px;
+                border-radius: 12px; margin-left: auto;
+            ">${activeArticles.length}</span>
         </div>
     `;
-    
-    // ARTICLES LIST
+
+    // ── ARTICLES LIST ────────────────────────────────────────────────
     if (activeArticles.length > 0) {
         html += `<div class="articles-list" style="padding: 0 16px 20px 16px;">`;
         html += renderArticleCards(activeArticles);
         html += `</div>`;
     } else {
         html += `
-            <div style="text-align: center; padding: 60px 20px; color: #666;">
+            <div style="text-align: center; padding: 60px 20px;">
                 <div style="font-size: 48px; margin-bottom: 16px;">${isGNews ? '📭' : '✍️'}</div>
-                <h3 style="color: #fff; margin-bottom: 8px;">No ${tabTitle}</h3>
-                <p>${isGNews ? 'Check back later for news' : 'Articles coming soon'}</p>
+                <h3 style="color: ${theme.emptyTitleColor}; margin-bottom: 8px;">No ${tabTitle}</h3>
+                <p style="color: ${theme.emptyTextColor};">${isGNews ? 'Check back later for news' : 'Articles coming soon'}</p>
             </div>
         `;
     }
-    
+
     container.innerHTML = html;
 }
 
