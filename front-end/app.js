@@ -972,38 +972,47 @@ function saveCurrentArticle() {
 ============================================ */
 async function shareCurrentArticle() {
     if (!currentArticle) return;
-    const title     = currentArticle.title || "Check out this article";
-    const shareText = `${title}\n\n📲 Read more on Centrinsic NPT:\nhttps://centrinsicnpt.com`;
 
+    const title     = currentArticle.title || "Check out this article";
+    const appLink   = "https://centrinsicnpt.com";
+    const shareText = `${title}\n\n📲 Read more on Centrinsic NPT:\n${appLink}`;
+    const imageUrl  = getImageUrl(currentArticle.image);
+
+    // ── Try sharing with image ──
+    if (navigator.share && imageUrl) {
+        try {
+            // Fetch image as blob
+            const response = await fetch(imageUrl);
+            const blob     = await response.blob();
+            const ext      = blob.type.includes('png') ? 'png' : 'jpg';
+            const file     = new File([blob], `article.${ext}`, { type: blob.type });
+
+            // Check if device supports file sharing
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title,
+                    text:  shareText,
+                    files: [file]
+                });
+                return;
+            }
+        } catch (err) {
+            console.warn('Image share failed, trying text only:', err);
+        }
+    }
+
+    // ── Fallback: share text + link only ──
     if (navigator.share) {
         try {
             await navigator.share({ title, text: shareText });
+            return;
         } catch (err) {
-            if (err.name !== 'AbortError') copyToClipboard(shareText);
+            if (err.name === 'AbortError') return; // user cancelled
         }
-    } else {
-        copyToClipboard(shareText);
     }
-}
 
-function copyToClipboard(text) {
-    if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(text)
-            .then(() => showToast("✅ Link copied to clipboard!"))
-            .catch(() => fallbackCopy(text));
-    } else {
-        fallbackCopy(text);
-    }
-}
-
-function fallbackCopy(text) {
-    const el = document.createElement('textarea');
-    el.value = text;
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand('copy');
-    document.body.removeChild(el);
-    showToast("✅ Link copied!");
+    // ── Last fallback: copy to clipboard ──
+    copyToClipboard(shareText);
 }
 
 /* ============================================
