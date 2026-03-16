@@ -1,6 +1,6 @@
 // ============================================
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
-// Share: screenshot card with html2canvas
+// Share: Capacitor native share (opens WhatsApp etc.)
 // 4 Tabs: AI-S | AI-D | 60 Sec | Current Affairs
 // ============================================
 
@@ -10,14 +10,14 @@ const API_SAVE_EMAIL = `${API_BASE}/api/save-email`;
 
 console.log("🔌 API Base:", API_BASE);
 
-let currentUser    = null;
-let currentArticle = null;
-let isOnline       = false;
-let toastTimeout   = null;
-let articlesCache  = new Map();
+let currentUser     = null;
+let currentArticle  = null;
+let isOnline        = false;
+let toastTimeout    = null;
+let articlesCache   = new Map();
 let lastUpdatedTime = null;
-let allArticles    = [];
-let currentTab     = 'gnews';
+let allArticles     = [];
+let currentTab      = 'gnews';
 
 // ── TRANSLATE STATE ──────────────────────────
 let originalArticleContent = null; // { body: '', title: '' }
@@ -167,7 +167,11 @@ function showScreen(screenId) {
     if (screenId === 'home')        { updateSavedFolder(); setTimeout(loadNews, 100); }
     if (screenId === 'saved')       setTimeout(loadSavedArticles, 100);
     if (screenId === 'preferences') {
-        setTimeout(() => { attachLogoutListener(); attachClearAllListener(); attachDarkModeListener(); }, 300);
+        setTimeout(() => {
+            attachLogoutListener();
+            attachClearAllListener();
+            attachDarkModeListener();
+        }, 300);
         updateUserDisplay();
         highlightSizeButton(localStorage.getItem("font_size") || "medium");
     }
@@ -801,9 +805,9 @@ function displayArticleDetail() {
     const selectColor  = isDark ? '#ccc'    : '#333';
     const selectBorder = isDark ? '#333'    : '#ccc';
 
-    const catLower  = category.toLowerCase();
-    const catColor  = catLower === '60sec' ? '#FF9800' : catLower === 'currentaffairs' ? '#e53935' : '#4CAF50';
-    const catLabel  = catLower === '60sec' ? '⚡ 60 Sec' : catLower === 'currentaffairs' ? '🔴 Current Affairs' : category;
+    const catLower = category.toLowerCase();
+    const catColor = catLower === '60sec' ? '#FF9800' : catLower === 'currentaffairs' ? '#e53935' : '#4CAF50';
+    const catLabel = catLower === '60sec' ? '⚡ 60 Sec' : catLower === 'currentaffairs' ? '🔴 Current Affairs' : category;
 
     articleBody.innerHTML = `
         ${imageUrl ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
@@ -1012,197 +1016,138 @@ function saveCurrentArticle() {
 }
 
 /* ============================================
-   ✅ SHARE — SCREENSHOT CARD + NATIVE SHARE
-   Uses html2canvas to generate a branded image
-   then shares via Capacitor / Web Share API
+   ✅ SHARE — CAPACITOR NATIVE SHARE
+   Opens WhatsApp, Telegram, Instagram etc.
+   Works in Android Capacitor app
 ============================================ */
 async function shareCurrentArticle() {
     if (!currentArticle) return;
 
-    const title    = currentArticle.title || "Check out this article";
-    const appLink  = "https://centrinsicnpt.com";
-    const shareText = `${title}\n\n📲 Read on Centrinsic NPT:\n${appLink}`;
+    const title     = currentArticle.title || "Check out this article";
+    const appLink   = "https://centrinsicnpt.com";
+    const content   = currentArticle.content ? currentArticle.content.substring(0, 200) + '...' : '';
+    const shareText = `📰 ${title}\n\n${content}\n\n📲 Read more on Centrinsic NPT:\n${appLink}`;
+    const imageUrl  = getImageUrl(currentArticle.image);
 
-    // ── Update share button to show loading ──
     const shareBtn = document.getElementById('shareBtn');
-    if (shareBtn) { shareBtn.innerHTML = '⏳ Preparing...'; shareBtn.disabled = true; }
-
-    showToast('📸 Creating share image...');
+    if (shareBtn) { shareBtn.innerHTML = '⏳ Sharing...'; shareBtn.disabled = true; }
 
     try {
-        const imageUrl = getImageUrl(currentArticle.image);
-        const source   = currentArticle.source   || 'Centrinsic NPT';
-        const category = currentArticle.category || 'General';
-        const content  = (currentArticle.content || '').substring(0, 280) + '...';
 
-        let date = '';
-        if (currentArticle.createdAt || currentArticle.publishedAt) {
-            date = new Date(currentArticle.createdAt || currentArticle.publishedAt)
-                .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        }
+        // ── METHOD 1: Capacitor native share (Android app) ──
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share) {
+            const { Share, Filesystem } = window.Capacitor.Plugins;
 
-        // ── Build off-screen share card ──
-        const card = document.createElement('div');
-        card.style.cssText = `
-            position: fixed;
-            left: -9999px;
-            top: 0;
-            width: 420px;
-            background: #0a0a0a;
-            color: #ffffff;
-            font-family: Arial, sans-serif;
-            border-radius: 0;
-            overflow: hidden;
-            z-index: -1;
-        `;
+            let fileUri = null;
 
-        card.innerHTML = `
-            <!-- Branding header -->
-            <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:16px 20px;display:flex;align-items:center;gap:12px;">
-                <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">📰</div>
-                <div>
-                    <div style="font-weight:800;font-size:16px;letter-spacing:0.3px;color:#fff;">Centrinsic NPT</div>
-                    <div style="font-size:11px;color:rgba(255,255,255,0.75);">Know The Truth</div>
-                </div>
-            </div>
+            // Try to download image and save to cache for sharing
+            if (imageUrl && Filesystem) {
+                try {
+                    const imgResponse = await fetch(imageUrl);
+                    const imgBlob     = await imgResponse.blob();
 
-            <!-- Article image -->
-            ${imageUrl
-                ? `<div style="width:100%;height:210px;overflow:hidden;"><img src="${imageUrl}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
-                : `<div style="width:100%;height:100px;background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;align-items:center;justify-content:center;font-size:48px;">📰</div>`
+                    // Convert to base64
+                    const base64 = await new Promise((resolve, reject) => {
+                        const reader   = new FileReader();
+                        reader.onload  = () => resolve(reader.result.split(',')[1]);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(imgBlob);
+                    });
+
+                    // Write to cache directory
+                    const fileName    = `centrinsic_${Date.now()}.jpg`;
+                    const writeResult = await Filesystem.writeFile({
+                        path:      fileName,
+                        data:      base64,
+                        directory: 'CACHE'
+                    });
+
+                    // Get file URI
+                    const uriResult = await Filesystem.getUri({
+                        path:      fileName,
+                        directory: 'CACHE'
+                    });
+
+                    fileUri = uriResult.uri;
+                    console.log('✅ Image saved for sharing:', fileUri);
+
+                } catch (imgErr) {
+                    console.warn('⚠️ Image download failed, sharing without image:', imgErr.message);
+                    fileUri = null;
+                }
             }
 
-            <!-- Content area -->
-            <div style="padding:20px;background:#111;">
-                <!-- Badges -->
-                <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-                    <span style="background:#667eea;color:white;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;">${escapeHtml(category)}</span>
-                    <span style="background:#1a1a2e;color:#aaa;font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid #333;">${escapeHtml(source)}</span>
-                    ${date ? `<span style="color:#666;font-size:11px;padding:4px 0;">${escapeHtml(date)}</span>` : ''}
-                </div>
-
-                <!-- Title -->
-                <div style="font-size:19px;font-weight:800;line-height:1.4;color:#ffffff;margin-bottom:14px;">${escapeHtml(title)}</div>
-
-                <!-- Content preview -->
-                <div style="font-size:13px;color:#999;line-height:1.7;margin-bottom:18px;">${escapeHtml(content)}</div>
-
-                <!-- Divider -->
-                <div style="height:1px;background:#222;margin-bottom:14px;"></div>
-
-                <!-- Footer -->
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <div style="font-size:12px;color:#555;">Read the full story on</div>
-                    <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;font-size:12px;font-weight:700;padding:7px 16px;border-radius:20px;">centrinsicnpt.com</div>
-                </div>
-            </div>
-
-            <!-- Bottom bar -->
-            <div style="background:#0a0a0a;padding:10px 20px;text-align:center;">
-                <div style="font-size:11px;color:#444;">Shared via Centrinsic NPT App</div>
-            </div>
-        `;
-
-        document.body.appendChild(card);
-
-        // ── Wait for article image to load ──
-        if (imageUrl) {
-            await new Promise(resolve => {
-                const img = card.querySelector('img');
-                if (!img) return resolve();
-                if (img.complete && img.naturalHeight !== 0) return resolve();
-                img.onload  = resolve;
-                img.onerror = resolve;
-                setTimeout(resolve, 4000);
-            });
-        }
-
-        // ── Check if html2canvas is available ──
-        if (typeof html2canvas === 'undefined') {
-            console.warn('html2canvas not loaded, falling back to text share');
-            document.body.removeChild(card);
-            throw new Error('html2canvas not available');
-        }
-
-        // ── Generate screenshot ──
-        const canvas = await html2canvas(card, {
-            useCORS:         true,
-            allowTaint:      true,
-            backgroundColor: '#0a0a0a',
-            scale:           2,
-            logging:         false,
-            imageTimeout:    5000
-        });
-
-        document.body.removeChild(card);
-
-        // ── Convert canvas to blob ──
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-        const file = new File([blob], 'centrinsic-news.jpg', { type: 'image/jpeg' });
-
-        // ── SHARE METHOD 1: Capacitor (Android app) ──
-        if (window.Capacitor?.Plugins?.Share && window.Capacitor?.Plugins?.Filesystem) {
-            try {
-                const { Filesystem, Share } = window.Capacitor.Plugins;
-                const base64 = await new Promise((resolve, reject) => {
-                    const reader   = new FileReader();
-                    reader.onload  = () => resolve(reader.result.split(',')[1]);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
+            // Share — with image if available, without if not
+            if (fileUri) {
+                await Share.share({
+                    title,
+                    text:  shareText,
+                    url:   appLink,
+                    files: [fileUri]
                 });
-                const fileName = `centrinsic_${Date.now()}.jpg`;
-                await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
-                const { uri } = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
-                await Share.share({ title, text: shareText, url: appLink, files: [uri] });
-                return;
-            } catch (capErr) {
-                if (capErr?.message?.includes('cancel') || capErr?.errorMessage?.includes('cancel')) return;
-                console.warn('Capacitor share failed, trying Web Share:', capErr);
+            } else {
+                // This still opens the full Android share sheet
+                await Share.share({
+                    title,
+                    text: shareText,
+                    url:  appLink
+                });
             }
+            return;
         }
 
-        // ── SHARE METHOD 2: Web Share API with file (Android Chrome) ──
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        // ── METHOD 2: Web Share API with image file (Android browser) ──
+        if (navigator.share && imageUrl) {
             try {
-                await navigator.share({ title, text: shareText, files: [file] });
-                return;
-            } catch (webErr) {
-                if (webErr.name === 'AbortError') return;
-                console.warn('Web Share with file failed:', webErr);
+                const imgRes  = await fetch(imageUrl);
+                const imgBlob = await imgRes.blob();
+                const file    = new File([imgBlob], 'centrinsic-news.jpg', { type: 'image/jpeg' });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ title, text: shareText, files: [file] });
+                    return;
+                }
+            } catch (e) {
+                console.warn('Web Share with image failed:', e.message);
             }
         }
 
-        // ── SHARE METHOD 3: Web Share text only ──
+        // ── METHOD 3: Web Share API text only ──
         if (navigator.share) {
             try {
-                await navigator.share({ title, text: shareText });
+                await navigator.share({ title, text: shareText, url: appLink });
                 return;
             } catch (err) {
-                if (err.name === 'AbortError') return;
+                if (err.name === 'AbortError') return; // user cancelled
             }
         }
 
-        // ── SHARE METHOD 4: Download image + copy link (desktop fallback) ──
-        const url = URL.createObjectURL(blob);
-        const a   = document.createElement('a');
-        a.href     = url;
-        a.download = 'centrinsic-news.jpg';
-        a.click();
-        URL.revokeObjectURL(url);
+        // ── METHOD 4: Clipboard fallback ──
         copyToClipboard(shareText);
-        showToast('📥 Image saved + link copied!');
+        showToast('🔗 Link copied to clipboard!');
 
     } catch (err) {
         console.error('Share error:', err);
-        // Final fallback — just copy link
+
+        // User cancelled — don't show error
+        const msg = (err?.message || err?.errorMessage || '').toLowerCase();
+        if (msg.includes('cancel') || err?.name === 'AbortError') return;
+
+        // Last resort — try plain text share
+        if (window.Capacitor?.Plugins?.Share) {
+            try {
+                await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: appLink });
+                return;
+            } catch (e2) {
+                console.warn('Plain share also failed:', e2);
+            }
+        }
+
         copyToClipboard(shareText);
-        showToast('🔗 Link copied to clipboard!');
+        showToast('🔗 Link copied!');
+
     } finally {
-        // Restore share button
         if (shareBtn) { shareBtn.innerHTML = '📤 Share'; shareBtn.disabled = false; }
-        // Clean up card if still in DOM
-        const leftover = document.querySelector('div[style*="-9999px"]');
-        if (leftover) document.body.removeChild(leftover);
     }
 }
 
@@ -1251,7 +1196,7 @@ function escapeHtml(text) {
 function showToast(msg) {
     let toast = document.getElementById('toast');
     if (!toast) {
-        toast = document.createElement('div');
+        toast           = document.createElement('div');
         toast.id        = 'toast';
         toast.className = 'toast';
         document.body.appendChild(toast);
@@ -1269,4 +1214,4 @@ function bindMobileButtons() {
     if (deleteBtn) deleteBtn.onpointerup = () => clearAll();
 }
 
-console.log("✅ Centrinsic NPT — screenshot share + 4 tabs + translate + light/dark");
+console.log("✅ Centrinsic NPT — Capacitor native share + 4 tabs + translate + light/dark");
