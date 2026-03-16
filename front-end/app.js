@@ -1,6 +1,6 @@
 // ============================================
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
-// Fixes: title+body translate, dropdown, light/dark tabs, share
+// 4 Tabs: AI-S | AI-D | 60 Sec | Current Affairs
 // ============================================
 
 const API_BASE = "https://centrinsicnpt.com";
@@ -9,14 +9,14 @@ const API_SAVE_EMAIL = `${API_BASE}/api/save-email`;
 
 console.log("🔌 API Base:", API_BASE);
 
-let currentUser = null;
+let currentUser    = null;
 let currentArticle = null;
-let isOnline = false;
-let toastTimeout = null;
-let articlesCache = new Map();
+let isOnline       = false;
+let toastTimeout   = null;
+let articlesCache  = new Map();
 let lastUpdatedTime = null;
-let allArticles = [];
-let currentTab = 'gnews';
+let allArticles    = [];
+let currentTab     = 'gnews'; // 'gnews' | 'manual' | '60sec' | 'currentaffairs'
 
 // ── TRANSLATE STATE ──────────────────────────
 let originalArticleContent = null; // { body: '', title: '' }
@@ -90,6 +90,8 @@ function exportAllFunctions() {
     window.switchTab             = switchTab;
     window.translateArticle      = translateArticle;
     window.highlightTranslateBtn = highlightTranslateBtn;
+    window.copyToClipboard       = copyToClipboard;
+    window.fallbackCopy          = fallbackCopy;
 }
 
 /* ============================================
@@ -110,9 +112,7 @@ function attachDarkModeListener() {
     if (!darkToggle) return;
     const newToggle = darkToggle.cloneNode(true);
     darkToggle.parentNode.replaceChild(newToggle, darkToggle);
-    newToggle.addEventListener('change', function () {
-        toggleDark(this.checked);
-    });
+    newToggle.addEventListener('change', function () { toggleDark(this.checked); });
 }
 
 function attachLogoutListener() {
@@ -120,7 +120,7 @@ function attachLogoutListener() {
     if (!logoutBtn) return;
     const newBtn = logoutBtn.cloneNode(true);
     logoutBtn.parentNode.replaceChild(newBtn, logoutBtn);
-    newBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); logout(); });
+    newBtn.addEventListener('click',    (e) => { e.preventDefault(); e.stopPropagation(); logout(); });
     newBtn.addEventListener('touchend', (e) => { e.preventDefault(); logout(); });
 }
 
@@ -129,19 +129,17 @@ function attachClearAllListener() {
     if (!clearBtn) return;
     const newBtn = clearBtn.cloneNode(true);
     clearBtn.parentNode.replaceChild(newBtn, clearBtn);
-    newBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); clearAll(); });
+    newBtn.addEventListener('click',    (e) => { e.preventDefault(); e.stopPropagation(); clearAll(); });
     newBtn.addEventListener('touchend', (e) => { e.preventDefault(); clearAll(); });
 }
 
 function setupOtherListeners() {
     document.querySelectorAll('.size-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
-            changeTextSize(this.getAttribute('data-size'));
-        });
+        btn.addEventListener('click', function () { changeTextSize(this.getAttribute('data-size')); });
     });
-    const sendOtpBtn = document.getElementById('sendOtpBtn');
-    if (sendOtpBtn) sendOtpBtn.addEventListener('click', sendOTP);
+    const sendOtpBtn   = document.getElementById('sendOtpBtn');
     const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+    if (sendOtpBtn)   sendOtpBtn.addEventListener('click', sendOTP);
     if (verifyOtpBtn) verifyOtpBtn.addEventListener('click', verifyOTP);
 }
 
@@ -168,11 +166,7 @@ function showScreen(screenId) {
     if (screenId === 'home')        { updateSavedFolder(); setTimeout(loadNews, 100); }
     if (screenId === 'saved')       setTimeout(loadSavedArticles, 100);
     if (screenId === 'preferences') {
-        setTimeout(() => {
-            attachLogoutListener();
-            attachClearAllListener();
-            attachDarkModeListener();
-        }, 300);
+        setTimeout(() => { attachLogoutListener(); attachClearAllListener(); attachDarkModeListener(); }, 300);
         updateUserDisplay();
         highlightSizeButton(localStorage.getItem("font_size") || "medium");
     }
@@ -195,7 +189,6 @@ function checkLoginStatus() {
     const isLoggedIn = localStorage.getItem("centrinsic_logged") === "true";
     const userEmail  = localStorage.getItem("user_email");
     const userName   = localStorage.getItem("user_name");
-
     if (isLoggedIn && userEmail) {
         currentUser = { email: userEmail, loggedIn: true, name: userName || userEmail.split('@')[0] };
     } else {
@@ -208,7 +201,6 @@ function updateUserDisplay() {
     const userEmailEl = document.getElementById("userDisplayEmail");
     const logoutBtn   = document.getElementById("logoutButton");
     if (!userNameEl || !userEmailEl) return;
-
     if (currentUser && currentUser.loggedIn) {
         userNameEl.textContent  = currentUser.name || currentUser.email.split('@')[0];
         userEmailEl.textContent = currentUser.email;
@@ -243,9 +235,8 @@ function clearAll() {
    THEME
 ============================================ */
 function toggleDark(checked) {
-    const checkbox = document.getElementById('darkToggle');
+    const checkbox     = document.getElementById('darkToggle');
     const shouldBeDark = typeof checked === 'boolean' ? checked : !document.body.classList.contains('dark');
-
     if (shouldBeDark) {
         document.body.classList.add('dark');
         localStorage.setItem('theme', 'dark');
@@ -253,7 +244,6 @@ function toggleDark(checked) {
         document.body.classList.remove('dark');
         localStorage.setItem('theme', 'light');
     }
-
     if (checkbox) checkbox.checked = shouldBeDark;
     if (allArticles.length > 0) renderTabView();
     console.log("Dark mode:", shouldBeDark ? "ON" : "OFF");
@@ -284,36 +274,32 @@ function highlightSizeButton(size) {
 /* ============================================
    OTP LOGIN
 ============================================ */
-let otpTimer = null;
-let otpCountdown = 60;
+let otpTimer            = null;
+let otpCountdown        = 60;
 let otpRequestInProgress = false;
 
 function sendOTP() {
     if (otpRequestInProgress) return;
     const emailInput = document.getElementById("loginEmail");
-    const email = emailInput.value.trim();
-    const btn = document.getElementById("sendOtpBtn");
+    const email      = emailInput.value.trim();
+    const btn        = document.getElementById("sendOtpBtn");
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showToast("Please enter a valid email"); return;
-    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast("Please enter a valid email"); return; }
 
     otpRequestInProgress = true;
     btn.classList.add("loading");
-    btn.disabled = true;
+    btn.disabled  = true;
     btn.innerText = "Sending...";
     localStorage.setItem("temp_email", email);
 
     fetch(`${API_BASE}/api/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email })
     })
     .then(r => r.json())
     .then(data => {
         otpRequestInProgress = false;
         btn.classList.remove("loading");
-        btn.disabled = false;
+        btn.disabled  = false;
         btn.innerText = "Send OTP";
         if (data.success) { showOTPStep(email); showToast("📧 OTP sent!"); }
         else showToast(data.message || "Failed to send OTP");
@@ -321,7 +307,7 @@ function sendOTP() {
     .catch(() => {
         otpRequestInProgress = false;
         btn.classList.remove("loading");
-        btn.disabled = false;
+        btn.disabled  = false;
         btn.innerText = "Send OTP";
         showToast("Network error");
     });
@@ -372,7 +358,7 @@ function startOTPTimer() {
     const resendBtn = document.getElementById("resendBtn");
     if (resendBtn) resendBtn.classList.add("hidden");
     if (timerSpan) timerSpan.classList.remove("hidden");
-    if (otpTimer) clearInterval(otpTimer);
+    if (otpTimer)  clearInterval(otpTimer);
     otpTimer = setInterval(() => {
         otpCountdown--;
         if (timerSpan) timerSpan.textContent = `Resend OTP in ${otpCountdown}s`;
@@ -396,9 +382,7 @@ function verifyOTP() {
     btn.disabled = true;
 
     fetch(`${API_BASE}/api/auth/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp: enteredOTP })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp: enteredOTP })
     })
     .then(r => r.json())
     .then(data => {
@@ -445,7 +429,12 @@ function resetLoginForm() {
 async function loadNews() {
     const container = document.getElementById("newsFeed");
     if (!container) return;
-    container.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading...</p></div>`;
+    container.innerHTML = `
+        <div class="loading" style="padding:60px 20px;text-align:center;">
+            <div class="spinner"></div>
+            <p style="margin-top:16px;font-weight:600;">Loading news...</p>
+            <p style="color:#888;font-size:13px;margin-top:8px;">First load may take 30 seconds.<br>Please wait...</p>
+        </div>`;
 
     try {
         const response  = await fetch(API_ARTICLES);
@@ -465,6 +454,11 @@ async function loadNews() {
         isOnline = true;
 
         console.log(`📊 Loaded ${newsArray.length} total articles`);
+        console.log(`   GNews:           ${newsArray.filter(a => !a.isManual).length}`);
+        console.log(`   Manual (AI-D):   ${newsArray.filter(a => a.isManual && !['60sec','currentaffairs'].includes((a.category||'').toLowerCase())).length}`);
+        console.log(`   60 Sec:          ${newsArray.filter(a => a.isManual && (a.category||'').toLowerCase() === '60sec').length}`);
+        console.log(`   Current Affairs: ${newsArray.filter(a => a.isManual && (a.category||'').toLowerCase() === 'currentaffairs').length}`);
+
         renderTabView();
         updateSavedFolder();
 
@@ -475,6 +469,14 @@ async function loadNews() {
             allArticles = JSON.parse(backup);
             renderTabView();
             showToast("Offline mode");
+        } else {
+            container.innerHTML = `
+                <div style="text-align:center;padding:60px 20px;">
+                    <div style="font-size:48px;margin-bottom:16px;">📵</div>
+                    <h3>Unable to load news</h3>
+                    <p style="color:#888;">Check your internet connection</p>
+                    <button onclick="loadNews()" style="margin-top:16px;padding:12px 24px;background:#4CAF50;color:white;border:none;border-radius:20px;font-size:14px;cursor:pointer;">Try Again</button>
+                </div>`;
         }
     }
 }
@@ -482,17 +484,75 @@ async function loadNews() {
 function switchTab(tab) {
     currentTab = tab;
     renderTabView();
+    // Scroll to top when switching tabs
+    const container = document.getElementById("newsFeed");
+    if (container) container.scrollTop = 0;
+    window.scrollTo(0, 0);
 }
 
 /* ============================================
-   ✅ RENDER TAB VIEW — LIGHT/DARK AWARE
+   ✅ TAB CONFIG — Add/edit tabs here
+============================================ */
+const TAB_CONFIG = {
+    gnews: {
+        label:       'AI-S',
+        title:       'Short AI Card',
+        icon:        '🟢',
+        color:       '#4CAF50',
+        shadow:      'rgba(76,175,80,0.35)',
+        emptyIcon:   '📭',
+        emptyMsg:    'Check back later for news',
+        filter:      (articles) => articles.filter(a => !a.isManual)
+    },
+    manual: {
+        label:       'AI-D',
+        title:       'Detailed AI Card',
+        icon:        '🔵',
+        color:       '#667eea',
+        shadow:      'rgba(102,126,234,0.35)',
+        emptyIcon:   '✍️',
+        emptyMsg:    'Detailed articles coming soon',
+        filter:      (articles) => articles.filter(a =>
+            a.isManual && !['60sec','currentaffairs'].includes((a.category || '').toLowerCase())
+        )
+    },
+    '60sec': {
+        label:       '60 Sec',
+        title:       '60 Second News',
+        icon:        '⚡',
+        color:       '#FF9800',
+        shadow:      'rgba(255,152,0,0.35)',
+        emptyIcon:   '⏱️',
+        emptyMsg:    '60-second stories coming soon',
+        filter:      (articles) => articles.filter(a =>
+            a.isManual && (a.category || '').toLowerCase() === '60sec'
+        )
+    },
+    currentaffairs: {
+        label:       'Current',
+        title:       'Current Affairs',
+        icon:        '🔴',
+        color:       '#e53935',
+        shadow:      'rgba(229,57,53,0.35)',
+        emptyIcon:   '🗞️',
+        emptyMsg:    'Current affairs coming soon',
+        filter:      (articles) => articles.filter(a =>
+            a.isManual && (a.category || '').toLowerCase() === 'currentaffairs'
+        )
+    }
+};
+
+const TAB_ORDER = ['gnews', 'manual', '60sec', 'currentaffairs'];
+
+/* ============================================
+   ✅ RENDER TAB VIEW — 4 TABS, LIGHT/DARK AWARE
 ============================================ */
 function renderTabView() {
     const container = document.getElementById("newsFeed");
     if (!container) return;
 
     const isDark = document.body.classList.contains('dark');
-    const theme = {
+    const theme  = {
         headerBg:          isDark ? '#000'    : '#ffffff',
         headerBorder:      isDark ? '#222'    : '#e0e0e0',
         inactiveTabBg:     isDark ? '#1a1a1a' : '#f0f0f0',
@@ -503,44 +563,71 @@ function renderTabView() {
         emptyTextColor:    isDark ? '#666'    : '#999',
     };
 
-    const gnewsArticles  = allArticles.filter(a => !a.isManual);
-    const manualArticles = allArticles.filter(a =>  a.isManual);
-    const isGNews        = currentTab === 'gnews';
-    const activeArticles = isGNews ? gnewsArticles : manualArticles;
-    const tabTitle       = isGNews ? 'Short AI card'   : 'Detailed AI card';
-    const tabColor       = isGNews ? '#4CAF50'         : '#667eea';
-    const tabIcon        = isGNews ? '🟢'             : '🔵';
+    const cfg            = TAB_CONFIG[currentTab] || TAB_CONFIG.gnews;
+    const activeArticles = cfg.filter(allArticles);
+
+    // ── TAB BUTTONS ──────────────────────────────────
+    const tabButtons = TAB_ORDER.map(tabKey => {
+        const t        = TAB_CONFIG[tabKey];
+        const isActive = currentTab === tabKey;
+        const count    = t.filter(allArticles).length;
+        return `
+            <button onclick="switchTab('${tabKey}')" style="
+                flex:1; padding:10px 4px; border-radius:22px; border:none;
+                font-weight:600; font-size:12px; cursor:pointer; transition:all 0.3s;
+                background:${isActive ? t.color       : theme.inactiveTabBg};
+                color:     ${isActive ? '#fff'         : theme.inactiveTabText};
+                box-shadow:${isActive ? `0 2px 8px ${t.shadow}` : 'none'};
+                position: relative;
+            ">
+                ${t.label}
+                ${count > 0 ? `<span style="
+                    position:absolute; top:-4px; right:-2px;
+                    background:${isActive ? 'rgba(255,255,255,0.3)' : t.color};
+                    color:white; font-size:9px; font-weight:700;
+                    padding:1px 5px; border-radius:8px; min-width:14px; line-height:16px;
+                ">${count}</span>` : ''}
+            </button>`;
+    }).join('');
 
     let html = `
         <div style="position:sticky;top:0;z-index:100;background:${theme.headerBg};padding:10px 16px;border-bottom:1px solid ${theme.headerBorder};">
-            <div style="display:flex;gap:10px;margin-bottom:10px;">
-                <button onclick="switchTab('gnews')" style="flex:1;padding:12px;border-radius:25px;border:none;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.3s;
-                    background:${isGNews ? '#4CAF50' : theme.inactiveTabBg};
-                    color:${isGNews ? '#fff' : theme.inactiveTabText};
-                    box-shadow:${isGNews ? '0 2px 8px rgba(76,175,80,0.35)' : 'none'};">AI-S</button>
-                <button onclick="switchTab('manual')" style="flex:1;padding:12px;border-radius:25px;border:none;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.3s;
-                    background:${!isGNews ? '#667eea' : theme.inactiveTabBg};
-                    color:${!isGNews ? '#fff' : theme.inactiveTabText};
-                    box-shadow:${!isGNews ? '0 2px 8px rgba(102,126,234,0.35)' : 'none'};">AI-D</button>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+                ${tabButtons}
             </div>
-            ${lastUpdatedTime ? `<div style="text-align:center;color:${theme.updatedColor};font-size:11px;">🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})}</div>` : ''}
+            ${lastUpdatedTime ? `
+            <div style="text-align:center;color:${theme.updatedColor};font-size:11px;">
+                🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})}
+            </div>` : ''}
         </div>
 
         <div style="margin:20px 16px 12px 16px;display:flex;align-items:center;gap:10px;">
-            <div style="width:4px;height:24px;background:${tabColor};border-radius:2px;"></div>
-            <h2 style="color:${theme.sectionTitleColor};font-size:20px;font-weight:700;margin:0;">${tabIcon} ${tabTitle}</h2>
-            <span style="background:${tabColor};color:white;font-size:12px;padding:4px 12px;border-radius:12px;margin-left:auto;">${activeArticles.length}</span>
+            <div style="width:4px;height:24px;background:${cfg.color};border-radius:2px;"></div>
+            <h2 style="color:${theme.sectionTitleColor};font-size:20px;font-weight:700;margin:0;">
+                ${cfg.icon} ${cfg.title}
+            </h2>
+            <span style="background:${cfg.color};color:white;font-size:12px;padding:4px 12px;border-radius:12px;margin-left:auto;">
+                ${activeArticles.length}
+            </span>
         </div>
     `;
 
     if (activeArticles.length > 0) {
-        html += `<div class="articles-list" style="padding:0 16px 20px 16px;">${renderArticleCards(activeArticles)}</div>`;
+        // ⚡ 60 Sec tab gets special compact card style
+        if (currentTab === '60sec') {
+            html += `<div style="padding:0 16px 20px 16px;">${render60SecCards(activeArticles)}</div>`;
+        } else {
+            html += `<div class="articles-list" style="padding:0 16px 20px 16px;">${renderArticleCards(activeArticles)}</div>`;
+        }
     } else {
         html += `
             <div style="text-align:center;padding:60px 20px;">
-                <div style="font-size:48px;margin-bottom:16px;">${isGNews ? '📭' : '✍️'}</div>
-                <h3 style="color:${theme.emptyTitleColor};margin-bottom:8px;">No ${tabTitle}</h3>
-                <p style="color:${theme.emptyTextColor};">${isGNews ? 'Check back later for news' : 'Articles coming soon'}</p>
+                <div style="font-size:48px;margin-bottom:16px;">${cfg.emptyIcon}</div>
+                <h3 style="color:${theme.emptyTitleColor};margin-bottom:8px;">Nothing here yet</h3>
+                <p style="color:${theme.emptyTextColor};">${cfg.emptyMsg}</p>
+                ${currentTab !== 'gnews' ? `<p style="color:${theme.emptyTextColor};font-size:12px;margin-top:8px;">
+                    Upload articles with category "<strong>${currentTab === '60sec' ? '60sec' : 'currentaffairs'}</strong>" in admin panel
+                </p>` : ''}
             </div>`;
     }
 
@@ -548,7 +635,63 @@ function renderTabView() {
 }
 
 /* ============================================
-   RENDER ARTICLE CARDS
+   ⚡ 60 SEC SPECIAL CARD STYLE
+   Compact cards with timer badge + bullet points
+============================================ */
+function render60SecCards(articles) {
+    const isDark = document.body.classList.contains('dark');
+    const cardBg     = isDark ? '#1a1a1a' : '#fff';
+    const cardBorder = isDark ? '#2a2a2a' : '#e8e8e8';
+    const titleColor = isDark ? '#fff'    : '#111';
+    const metaColor  = isDark ? '#888'    : '#666';
+    const bodyColor  = isDark ? '#ccc'    : '#333';
+
+    return articles.map((item, index) => {
+        const id       = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
+        const date     = item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : "Recent";
+        const title    = item.title   || "Untitled";
+        const content  = item.content || item.description || '';
+        const imageUrl = getImageUrl(item.image);
+        const isSaved  = getSavedArticles().some(s => String(s._id || s.id || s.articleId) === id);
+
+        // Split content into bullet points (split by newline or period)
+        const sentences = content.split(/\n|(?<=\.)\s+/).filter(s => s.trim().length > 10).slice(0, 4);
+        const bullets   = sentences.map(s => `<li style="margin-bottom:6px;line-height:1.5;color:${bodyColor};font-size:14px;">${escapeHtml(s.trim())}</li>`).join('');
+
+        return `
+            <article style="
+                background:${cardBg}; border-radius:16px; margin-bottom:14px;
+                border:1px solid ${cardBorder}; overflow:hidden; cursor:pointer;
+                box-shadow:0 2px 8px rgba(0,0,0,0.08);"
+                data-article-id="${escapeHtml(id)}"
+                data-article-title="${escapeHtml(title)}"
+                data-article-source="${escapeHtml(item.source || 'Unknown')}"
+                onclick="handleArticleClick(this)">
+
+                ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" style="width:100%;height:160px;object-fit:cover;display:block;" loading="lazy" onerror="this.style.display='none'" alt="">` : ''}
+
+                <div style="padding:14px 16px;">
+                    <!-- Timer badge + source row -->
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                        <span style="background:#FF9800;color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">⚡ 60 SEC</span>
+                        <span style="color:${metaColor};font-size:12px;">${escapeHtml(item.source || 'Unknown')}</span>
+                        <span style="color:${metaColor};font-size:12px;margin-left:auto;">${escapeHtml(date)}</span>
+                    </div>
+
+                    <!-- Title -->
+                    <h3 style="color:${titleColor};font-size:16px;font-weight:700;margin:0 0 10px 0;line-height:1.4;">
+                        ${isSaved ? '🔖 ' : ''}${escapeHtml(title)}
+                    </h3>
+
+                    <!-- Bullet points -->
+                    ${bullets ? `<ul style="margin:0;padding-left:18px;">${bullets}</ul>` : `<p style="color:${bodyColor};font-size:14px;margin:0;">${escapeHtml(content.substring(0,120))}...</p>`}
+                </div>
+            </article>`;
+    }).join('');
+}
+
+/* ============================================
+   RENDER STANDARD ARTICLE CARDS
 ============================================ */
 function renderArticleCards(articles) {
     if (!articles || articles.length === 0) return '';
@@ -561,6 +704,9 @@ function renderArticleCards(articles) {
         const isSaved  = getSavedArticles().some(s => String(s._id || s.id || s.articleId) === id);
         const imageUrl = getImageUrl(item.image);
 
+        // Current Affairs gets a special red badge
+        const isCA     = (item.category || '').toLowerCase() === 'currentaffairs';
+
         return `
             <article class="news-card"
                 data-article-id="${escapeHtml(id)}"
@@ -568,6 +714,7 @@ function renderArticleCards(articles) {
                 data-article-source="${escapeHtml(item.source || 'Unknown')}"
                 onclick="handleArticleClick(this)">
                 <div class="news-content">
+                    ${isCA ? `<span style="background:#e53935;color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;display:inline-block;margin-bottom:6px;">🔴 CURRENT AFFAIRS</span>` : ''}
                     <h3 class="news-title">${isSaved ? '🔖 ' : ''}${escapeHtml(title)}</h3>
                     <p class="news-excerpt">${escapeHtml(excerpt)}</p>
                     <div class="news-meta">
@@ -661,11 +808,7 @@ function loadSavedArticles() {
 ============================================ */
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
-    if (articlesCache.has(cleanId)) {
-        currentArticle = articlesCache.get(cleanId);
-        displayArticleDetail();
-        return;
-    }
+    if (articlesCache.has(cleanId)) { currentArticle = articlesCache.get(cleanId); displayArticleDetail(); return; }
     if (!cleanId.startsWith('gnews_')) {
         fetch(`${API_ARTICLES}/${cleanId}`)
             .then(r => r.json())
@@ -681,7 +824,7 @@ function displayArticleDetail() {
     const saveBtn     = document.getElementById("saveBtn");
     if (!articleBody || !currentArticle) { showToast("Article not found"); return; }
 
-    // ✅ Reset translation state
+    // Reset translation state
     originalArticleContent = null;
 
     const articleId = currentArticle._id || currentArticle.id || currentArticle.articleId;
@@ -699,17 +842,17 @@ function displayArticleDetail() {
             .toLowerCase();
     }
 
-    const imageUrl   = getImageUrl(currentArticle.image);
-    const source     = currentArticle.source   || 'Unknown';
-    const category   = currentArticle.category || 'General';
+    const imageUrl  = getImageUrl(currentArticle.image);
+    const source    = currentArticle.source   || 'Unknown';
+    const category  = currentArticle.category || 'General';
 
     let originalLink = '#';
-    if      (currentArticle.originalLink)    originalLink = currentArticle.originalLink;
+    if      (currentArticle.originalLink)     originalLink = currentArticle.originalLink;
     else if (currentArticle['original link']) originalLink = currentArticle['original link'];
     else if (currentArticle.original_link)   originalLink = currentArticle.original_link;
     else if (currentArticle.url)             originalLink = currentArticle.url;
 
-    // ── Theme colors ──
+    // Theme
     const isDark       = document.body.classList.contains('dark');
     const detailBorder = isDark ? '#2a2a2a' : '#e0e0e0';
     const metaColor    = isDark ? '#888'    : '#666';
@@ -724,6 +867,11 @@ function displayArticleDetail() {
     const selectColor  = isDark ? '#ccc'    : '#333';
     const selectBorder = isDark ? '#333'    : '#ccc';
 
+    // Category badge color
+    const catLower    = category.toLowerCase();
+    const catColor    = catLower === '60sec' ? '#FF9800' : catLower === 'currentaffairs' ? '#e53935' : '#4CAF50';
+    const catLabel    = catLower === '60sec' ? '⚡ 60 Sec' : catLower === 'currentaffairs' ? '🔴 Current Affairs' : category;
+
     articleBody.innerHTML = `
         ${imageUrl ? `
         <div class="article-image-container">
@@ -731,7 +879,6 @@ function displayArticleDetail() {
         </div>` : ''}
 
         <div class="article-text-content">
-
             <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
 
             <!-- Date + Share Row -->
@@ -742,14 +889,11 @@ function displayArticleDetail() {
                 </button>
             </div>
 
-            <!-- ✅ TRANSLATE BAR — DROPDOWN (translates title + body) -->
+            <!-- TRANSLATE BAR -->
             <div id="translateBar" style="margin-bottom:16px;padding:10px 14px;background:${transBg};border-radius:12px;border:1px solid ${detailBorder};display:flex;align-items:center;gap:10px;">
                 <span style="font-size:13px;color:${metaColor};white-space:nowrap;">🌐 Translate:</span>
-                <select
-                    id="translateSelect"
-                    onchange="translateArticle(this.value)"
-                    style="flex:1;background:${selectBg};color:${selectColor};border:1px solid ${selectBorder};border-radius:20px;padding:8px 14px;font-size:13px;font-family:inherit;cursor:pointer;outline:none;"
-                >
+                <select id="translateSelect" onchange="translateArticle(this.value)"
+                    style="flex:1;background:${selectBg};color:${selectColor};border:1px solid ${selectBorder};border-radius:20px;padding:8px 14px;font-size:13px;font-family:inherit;cursor:pointer;outline:none;">
                     <option value="en">↩ Original (English)</option>
                     <optgroup label="── Indian Languages ──">
                         <option value="hi">🇮🇳 Hindi</option>
@@ -800,7 +944,7 @@ function displayArticleDetail() {
                     </div>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <span style="color:${labelColor};font-size:14px;min-width:80px;">Category:</span>
-                        <span style="color:#4CAF50;font-size:14px;font-weight:600;text-transform:capitalize;">${escapeHtml(category)}</span>
+                        <span style="background:${catColor};color:white;font-size:12px;font-weight:600;padding:3px 10px;border-radius:10px;">${escapeHtml(catLabel)}</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <span style="color:${labelColor};font-size:14px;min-width:80px;">Published:</span>
@@ -830,8 +974,7 @@ function displayArticleDetail() {
             <div style="margin-bottom:30px;">
                 ${originalLink !== '#' ? `
                 <button onclick="openExternalLink('${escapeHtml(originalLink)}')" style="display:flex;align-items:center;justify-content:center;gap:10px;background:${linkBg};border:1px solid ${linkBorder};border-radius:12px;padding:16px;color:${linkColor};font-size:15px;font-weight:500;width:100%;cursor:pointer;">
-                    <span>📰</span>
-                    <span>Read Full Original Article</span>
+                    <span>📰</span><span>Read Full Original Article</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;margin-left:auto;">
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                         <polyline points="15 3 21 3 21 9"></polyline>
@@ -848,15 +991,13 @@ function displayArticleDetail() {
 }
 
 /* ============================================
-   ✅ TRANSLATE — TITLE + BODY BOTH TRANSLATE
-   Uses Google free endpoint, no API key needed
+   TRANSLATE — TITLE + BODY
 ============================================ */
 async function translateArticle(targetLang) {
     const bodyEl     = document.querySelector('.article-body-text');
     const headlineEl = document.querySelector('.article-headline');
     if (!bodyEl || !currentArticle) return;
 
-    // ── Restore original English ──
     if (targetLang === 'en') {
         if (originalArticleContent) {
             bodyEl.textContent = originalArticleContent.body;
@@ -867,53 +1008,36 @@ async function translateArticle(targetLang) {
         return;
     }
 
-    // ── Save originals once ──
     if (!originalArticleContent) {
-        originalArticleContent = {
-            body:  bodyEl.textContent,
-            title: headlineEl ? headlineEl.textContent : ''
-        };
+        originalArticleContent = { body: bodyEl.textContent, title: headlineEl ? headlineEl.textContent : '' };
     }
 
-    // ── Show loading ──
     bodyEl.innerHTML = '<span style="color:#888;font-size:14px;">🌐 Translating...</span>';
     if (headlineEl) headlineEl.style.opacity = '0.5';
 
     try {
-        // Translate body
-        const bodyUrl      = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.body)}`;
-        const bodyResponse = await fetch(bodyUrl);
-        const bodyResult   = await bodyResponse.json();
+        const bodyUrl  = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.body)}`;
+        const bodyRes  = await fetch(bodyUrl);
+        const bodyData = await bodyRes.json();
 
-        let translatedBody = '';
-        if (bodyResult && bodyResult[0]) {
-            bodyResult[0].forEach(seg => { if (seg[0]) translatedBody += seg[0]; });
-        }
-        bodyEl.textContent = translatedBody || 'Translation not available. Please try again.';
+        let translated = '';
+        if (bodyData && bodyData[0]) bodyData[0].forEach(seg => { if (seg[0]) translated += seg[0]; });
+        bodyEl.textContent = translated || 'Translation not available.';
 
-        // ✅ Translate title too
         if (headlineEl && originalArticleContent.title) {
-            const titleUrl      = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.title)}`;
-            const titleResponse = await fetch(titleUrl);
-            const titleResult   = await titleResponse.json();
-
+            const titleUrl  = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.title)}`;
+            const titleRes  = await fetch(titleUrl);
+            const titleData = await titleRes.json();
             let translatedTitle = '';
-            if (titleResult && titleResult[0]) {
-                titleResult[0].forEach(seg => { if (seg[0]) translatedTitle += seg[0]; });
-            }
+            if (titleData && titleData[0]) titleData[0].forEach(seg => { if (seg[0]) translatedTitle += seg[0]; });
             if (translatedTitle) headlineEl.textContent = translatedTitle;
         }
-
         if (headlineEl) headlineEl.style.opacity = '1';
 
     } catch (err) {
         console.error('Translation error:', err);
-        // Restore originals on error
         bodyEl.textContent = originalArticleContent.body;
-        if (headlineEl) {
-            headlineEl.textContent = originalArticleContent.title;
-            headlineEl.style.opacity = '1';
-        }
+        if (headlineEl) { headlineEl.textContent = originalArticleContent.title; headlineEl.style.opacity = '1'; }
         originalArticleContent = null;
         const select = document.getElementById('translateSelect');
         if (select) select.value = 'en';
@@ -921,7 +1045,6 @@ async function translateArticle(targetLang) {
     }
 }
 
-// Sync dropdown to show current language
 function highlightTranslateBtn(lang) {
     const select = document.getElementById('translateSelect');
     if (select) select.value = lang;
@@ -968,51 +1091,77 @@ function saveCurrentArticle() {
 }
 
 /* ============================================
-   ✅ SHARE — CLEAN LINK + TITLE ONLY
+   SHARE
 ============================================ */
 async function shareCurrentArticle() {
     if (!currentArticle) return;
-
     const title     = currentArticle.title || "Check out this article";
-    const appLink   = "https://centrinsicnpt.com";
-    const shareText = `${title}\n\n📲 Read more on Centrinsic NPT:\n${appLink}`;
+    const shareText = `${title}\n\n📲 Read more on Centrinsic NPT:\nhttps://centrinsicnpt.com`;
     const imageUrl  = getImageUrl(currentArticle.image);
 
-    // ── Try sharing with image ──
-    if (navigator.share && imageUrl) {
+    // Try Capacitor native share with image
+    if (window.Capacitor?.Plugins?.Share) {
         try {
-            // Fetch image as blob
-            const response = await fetch(imageUrl);
-            const blob     = await response.blob();
-            const ext      = blob.type.includes('png') ? 'png' : 'jpg';
-            const file     = new File([blob], `article.${ext}`, { type: blob.type });
-
-            // Check if device supports file sharing
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    title,
-                    text:  shareText,
-                    files: [file]
+            const Share = window.Capacitor.Plugins.Share;
+            if (imageUrl) {
+                const { Filesystem } = window.Capacitor.Plugins;
+                const imgResponse    = await fetch(imageUrl);
+                const imgBlob        = await imgResponse.blob();
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload  = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(imgBlob);
                 });
+                const fileName = `share_${Date.now()}.jpg`;
+                await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
+                const { uri } = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
+                await Share.share({ title, text: shareText, url: 'https://centrinsicnpt.com', files: [uri] });
+                return;
+            } else {
+                await Share.share({ title, text: shareText, url: 'https://centrinsicnpt.com' });
                 return;
             }
         } catch (err) {
-            console.warn('Image share failed, trying text only:', err);
+            if (err?.message?.includes('cancel') || err?.errorMessage?.includes('cancel')) return;
+            console.warn('Capacitor Share failed:', err);
         }
     }
 
-    // ── Fallback: share text + link only ──
+    // Cordova fallback
+    if (window.plugins?.socialsharing) {
+        window.plugins.socialsharing.shareWithOptions({ message: shareText, subject: title, files: imageUrl ? [imageUrl] : [], url: 'https://centrinsicnpt.com' });
+        return;
+    }
+
+    // Web share API fallback
     if (navigator.share) {
-        try {
-            await navigator.share({ title, text: shareText });
-            return;
-        } catch (err) {
-            if (err.name === 'AbortError') return; // user cancelled
-        }
+        try { await navigator.share({ title, text: shareText }); return; }
+        catch (err) { if (err.name === 'AbortError') return; }
     }
 
-    // ── Last fallback: copy to clipboard ──
+    // Last resort: copy
     copyToClipboard(shareText);
+}
+
+function copyToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text)
+            .then(() => showToast("✅ Link copied!"))
+            .catch(() => fallbackCopy(text));
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    const el = document.createElement('textarea');
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast("✅ Link copied!");
 }
 
 /* ============================================
@@ -1055,4 +1204,4 @@ function bindMobileButtons() {
     if (deleteBtn) deleteBtn.onpointerup = () => clearAll();
 }
 
-console.log("✅ Centrinsic NPT — title+body translate + dropdown + light/dark tabs + share");
+console.log("✅ Centrinsic NPT — 4 tabs (AI-S | AI-D | 60 Sec | Current Affairs)");
