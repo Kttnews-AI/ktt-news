@@ -1,6 +1,6 @@
 // ============================================
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
-// Share: Capacitor native share (opens WhatsApp etc.)
+// 60 Sec: Colorful text-only bulletin cards
 // 4 Tabs: AI-S | AI-D | 60 Sec | Current Affairs
 // ============================================
 
@@ -607,45 +607,181 @@ function renderTabView() {
 }
 
 /* ============================================
-   60 SEC SPECIAL CARD
+   ⚡ 60 SEC — COLORFUL TEXT-ONLY BULLETIN
+   No images, no links — pure bold colored cards
+   Each category gets its own fixed color
 ============================================ */
 function render60SecCards(articles) {
-    const isDark     = document.body.classList.contains('dark');
-    const cardBg     = isDark ? '#1a1a1a' : '#fff';
-    const cardBorder = isDark ? '#2a2a2a' : '#e8e8e8';
-    const titleColor = isDark ? '#fff'    : '#111';
-    const metaColor  = isDark ? '#888'    : '#666';
-    const bodyColor  = isDark ? '#ccc'    : '#333';
+    // Color palettes — rich, vivid backgrounds
+    const colorPalettes = [
+        { bg: '#1a237e', text: '#fff', shadow: 'rgba(26,35,126,0.4)'   }, // Deep Blue      — Technology
+        { bg: '#1b5e20', text: '#fff', shadow: 'rgba(27,94,32,0.4)'    }, // Deep Green     — Politics
+        { bg: '#4a148c', text: '#fff', shadow: 'rgba(74,20,140,0.4)'   }, // Deep Purple    — Business
+        { bg: '#e65100', text: '#fff', shadow: 'rgba(230,81,0,0.4)'    }, // Deep Orange    — Sports
+        { bg: '#880e4f', text: '#fff', shadow: 'rgba(136,14,79,0.4)'   }, // Deep Pink      — Entertainment
+        { bg: '#006064', text: '#fff', shadow: 'rgba(0,96,100,0.4)'    }, // Deep Teal      — Health
+        { bg: '#33691e', text: '#fff', shadow: 'rgba(51,105,30,0.4)'   }, // Olive Green    — Science
+        { bg: '#b71c1c', text: '#fff', shadow: 'rgba(183,28,28,0.4)'   }, // Deep Red       — World
+        { bg: '#0d47a1', text: '#fff', shadow: 'rgba(13,71,161,0.4)'   }, // Royal Blue     — India
+        { bg: '#4e342e', text: '#fff', shadow: 'rgba(78,52,46,0.4)'    }, // Deep Brown     — General
+        { bg: '#1a237e', text: '#fff', shadow: 'rgba(26,35,126,0.4)'   }, // repeat for more
+        { bg: '#37474f', text: '#fff', shadow: 'rgba(55,71,79,0.4)'    }, // Blue Grey
+    ];
+
+    // Category → fixed color so same topic always same color
+    const categoryColorMap = {
+        'technology':     0,
+        'tech':           0,
+        'politics':       1,
+        'business':       2,
+        'economy':        2,
+        'finance':        2,
+        'sports':         3,
+        'sport':          3,
+        'entertainment':  4,
+        'movies':         4,
+        'health':         5,
+        'medical':        5,
+        'science':        6,
+        'world':          7,
+        'international':  7,
+        'india':          8,
+        'national':       8,
+        'general':        9,
+        'education':      10,
+        'environment':    11,
+    };
+
+    if (!articles || articles.length === 0) {
+        return `<div style="text-align:center;padding:60px 20px;">
+            <div style="font-size:48px;margin-bottom:16px;">⏱️</div>
+            <h3>No 60 Sec stories yet</h3>
+        </div>`;
+    }
 
     return articles.map((item, index) => {
-        const id       = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
-        const date     = item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : "Recent";
-        const title    = item.title   || "Untitled";
-        const content  = item.content || item.description || '';
-        const imageUrl = getImageUrl(item.image);
-        const isSaved  = getSavedArticles().some(s => String(s._id || s.id || s.articleId) === id);
-        const sentences = content.split(/\n|(?<=\.)\s+/).filter(s => s.trim().length > 10).slice(0, 4);
-        const bullets   = sentences.map(s => `<li style="margin-bottom:6px;line-height:1.5;color:${bodyColor};font-size:14px;">${escapeHtml(s.trim())}</li>`).join('');
+        const id      = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
+        const title   = item.title   || "Untitled";
+        const content = item.content || item.description || '';
+        const source  = item.source  || 'Centrinsic NPT';
+        const catRaw  = (item.category || 'general').toLowerCase();
+
+        // Pick palette — fixed by category, fallback to index cycling
+        const colorIndex = categoryColorMap[catRaw] !== undefined
+            ? categoryColorMap[catRaw]
+            : index % colorPalettes.length;
+        const palette = colorPalettes[colorIndex % colorPalettes.length];
+
+        const date = item.createdAt
+            ? new Date(item.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+            : "Recent";
+
+        // Split content into readable bullet points
+        const points = content
+            .split(/\n|(?<=[.!?])\s+/)
+            .map(s => s.trim())
+            .filter(s => s.length > 8)
+            .slice(0, 5);
+
+        // Clean category label
+        const catLabel = catRaw === '60sec'
+            ? 'Quick News'
+            : catRaw.charAt(0).toUpperCase() + catRaw.slice(1);
 
         return `
-            <article style="background:${cardBg};border-radius:16px;margin-bottom:14px;border:1px solid ${cardBorder};overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.08);"
+            <div onclick="handleArticleClick(this)"
                 data-article-id="${escapeHtml(id)}"
                 data-article-title="${escapeHtml(title)}"
-                data-article-source="${escapeHtml(item.source || 'Unknown')}"
-                onclick="handleArticleClick(this)">
-                ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" style="width:100%;height:160px;object-fit:cover;display:block;" loading="lazy" onerror="this.style.display='none'" alt="">` : ''}
-                <div style="padding:14px 16px;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                        <span style="background:#FF9800;color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">⚡ 60 SEC</span>
-                        <span style="color:${metaColor};font-size:12px;">${escapeHtml(item.source || 'Unknown')}</span>
-                        <span style="color:${metaColor};font-size:12px;margin-left:auto;">${escapeHtml(date)}</span>
-                    </div>
-                    <h3 style="color:${titleColor};font-size:16px;font-weight:700;margin:0 0 10px 0;line-height:1.4;">
-                        ${isSaved ? '🔖 ' : ''}${escapeHtml(title)}
-                    </h3>
-                    ${bullets ? `<ul style="margin:0;padding-left:18px;">${bullets}</ul>` : `<p style="color:${bodyColor};font-size:14px;margin:0;">${escapeHtml(content.substring(0,120))}...</p>`}
+                data-article-source="${escapeHtml(source)}"
+                style="
+                    background: ${palette.bg};
+                    border-radius: 20px;
+                    margin-bottom: 16px;
+                    padding: 22px 20px;
+                    cursor: pointer;
+                    position: relative;
+                    overflow: hidden;
+                    box-shadow: 0 6px 24px ${palette.shadow};
+                ">
+
+                <!-- Decorative background shapes -->
+                <div style="position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:rgba(255,255,255,0.06);border-radius:50%;pointer-events:none;"></div>
+                <div style="position:absolute;bottom:-30px;left:-30px;width:100px;height:100px;background:rgba(255,255,255,0.04);border-radius:50%;pointer-events:none;"></div>
+                <div style="position:absolute;top:50%;right:-60px;width:120px;height:120px;background:rgba(255,255,255,0.03);border-radius:50%;pointer-events:none;"></div>
+
+                <!-- Top badges row -->
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;position:relative;z-index:1;flex-wrap:wrap;">
+                    <span style="
+                        background:rgba(255,255,255,0.22);
+                        color:#fff;
+                        font-size:10px;font-weight:800;
+                        padding:4px 12px;border-radius:20px;
+                        text-transform:uppercase;letter-spacing:1px;">
+                        ${escapeHtml(catLabel)}
+                    </span>
+                    <span style="
+                        background:rgba(255,255,255,0.15);
+                        color:#fff;
+                        font-size:10px;font-weight:700;
+                        padding:4px 10px;border-radius:20px;">
+                        ⚡ 60 SEC
+                    </span>
+                    <span style="margin-left:auto;color:rgba(255,255,255,0.55);font-size:11px;">
+                        ${escapeHtml(date)}
+                    </span>
                 </div>
-            </article>`;
+
+                <!-- Title -->
+                <h2 style="
+                    color: #fff;
+                    font-size: 18px;
+                    font-weight: 800;
+                    line-height: 1.4;
+                    margin: 0 0 16px 0;
+                    position: relative;
+                    z-index: 1;
+                    letter-spacing: -0.2px;
+                ">${escapeHtml(title)}</h2>
+
+                <!-- Divider -->
+                <div style="height:1px;background:rgba(255,255,255,0.18);margin-bottom:16px;position:relative;z-index:1;"></div>
+
+                <!-- Numbered bullet points -->
+                <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:10px;">
+                    ${points.length > 0
+                        ? points.map((point, i) => `
+                            <div style="display:flex;gap:12px;align-items:flex-start;">
+                                <span style="
+                                    background:rgba(255,255,255,0.22);
+                                    color:#fff;
+                                    font-size:11px;font-weight:800;
+                                    min-width:24px;height:24px;
+                                    border-radius:50%;
+                                    display:flex;align-items:center;justify-content:center;
+                                    flex-shrink:0;margin-top:1px;">
+                                    ${i + 1}
+                                </span>
+                                <span style="color:rgba(255,255,255,0.92);font-size:14px;line-height:1.65;flex:1;">
+                                    ${escapeHtml(point)}
+                                </span>
+                            </div>`).join('')
+                        : `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.7;margin:0;">
+                            ${escapeHtml(content.substring(0, 250))}
+                           </p>`
+                    }
+                </div>
+
+                <!-- Footer -->
+                <div style="
+                    margin-top:16px;
+                    padding-top:12px;
+                    border-top:1px solid rgba(255,255,255,0.12);
+                    display:flex;align-items:center;justify-content:space-between;
+                    position:relative;z-index:1;">
+                    <span style="color:rgba(255,255,255,0.45);font-size:11px;">📰 ${escapeHtml(source)}</span>
+                    <span style="color:rgba(255,255,255,0.35);font-size:11px;">Tap to read →</span>
+                </div>
+            </div>`;
     }).join('');
 }
 
@@ -1016,143 +1152,63 @@ function saveCurrentArticle() {
 }
 
 /* ============================================
-   ✅ SHARE — CAPACITOR NATIVE SHARE
-   Opens WhatsApp, Telegram, Instagram etc.
-   Works in Android Capacitor app
+   SHARE — CAPACITOR NATIVE
 ============================================ */
 async function shareCurrentArticle() {
     if (!currentArticle) return;
-
     const title     = currentArticle.title || "Check out this article";
     const appLink   = "https://centrinsicnpt.com";
     const content   = currentArticle.content ? currentArticle.content.substring(0, 200) + '...' : '';
     const shareText = `📰 ${title}\n\n${content}\n\n📲 Read more on Centrinsic NPT:\n${appLink}`;
     const imageUrl  = getImageUrl(currentArticle.image);
-
-    const shareBtn = document.getElementById('shareBtn');
+    const shareBtn  = document.getElementById('shareBtn');
     if (shareBtn) { shareBtn.innerHTML = '⏳ Sharing...'; shareBtn.disabled = true; }
 
     try {
-
-        // ── METHOD 1: Capacitor native share (Android app) ──
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share) {
+        if (window.Capacitor?.Plugins?.Share) {
             const { Share, Filesystem } = window.Capacitor.Plugins;
-
             let fileUri = null;
-
-            // Try to download image and save to cache for sharing
             if (imageUrl && Filesystem) {
                 try {
-                    const imgResponse = await fetch(imageUrl);
-                    const imgBlob     = await imgResponse.blob();
-
-                    // Convert to base64
-                    const base64 = await new Promise((resolve, reject) => {
-                        const reader   = new FileReader();
-                        reader.onload  = () => resolve(reader.result.split(',')[1]);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(imgBlob);
+                    const imgBlob = await (await fetch(imageUrl)).blob();
+                    const base64  = await new Promise((res, rej) => {
+                        const r = new FileReader();
+                        r.onload  = () => res(r.result.split(',')[1]);
+                        r.onerror = rej;
+                        r.readAsDataURL(imgBlob);
                     });
-
-                    // Write to cache directory
-                    const fileName    = `centrinsic_${Date.now()}.jpg`;
-                    const writeResult = await Filesystem.writeFile({
-                        path:      fileName,
-                        data:      base64,
-                        directory: 'CACHE'
-                    });
-
-                    // Get file URI
-                    const uriResult = await Filesystem.getUri({
-                        path:      fileName,
-                        directory: 'CACHE'
-                    });
-
+                    const fileName = `centrinsic_${Date.now()}.jpg`;
+                    await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
+                    const uriResult = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
                     fileUri = uriResult.uri;
-                    console.log('✅ Image saved for sharing:', fileUri);
-
-                } catch (imgErr) {
-                    console.warn('⚠️ Image download failed, sharing without image:', imgErr.message);
-                    fileUri = null;
-                }
+                } catch (e) { console.warn('Image download failed:', e.message); }
             }
-
-            // Share — with image if available, without if not
-            if (fileUri) {
-                await Share.share({
-                    title,
-                    text:  shareText,
-                    url:   appLink,
-                    files: [fileUri]
-                });
-            } else {
-                // This still opens the full Android share sheet
-                await Share.share({
-                    title,
-                    text: shareText,
-                    url:  appLink
-                });
-            }
+            if (fileUri) { await Share.share({ title, text: shareText, url: appLink, files: [fileUri] }); }
+            else          { await Share.share({ title, text: shareText, url: appLink }); }
             return;
         }
-
-        // ── METHOD 2: Web Share API with image file (Android browser) ──
-        if (navigator.share && imageUrl) {
-            try {
-                const imgRes  = await fetch(imageUrl);
-                const imgBlob = await imgRes.blob();
-                const file    = new File([imgBlob], 'centrinsic-news.jpg', { type: 'image/jpeg' });
-
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({ title, text: shareText, files: [file] });
-                    return;
-                }
-            } catch (e) {
-                console.warn('Web Share with image failed:', e.message);
-            }
-        }
-
-        // ── METHOD 3: Web Share API text only ──
         if (navigator.share) {
-            try {
-                await navigator.share({ title, text: shareText, url: appLink });
-                return;
-            } catch (err) {
-                if (err.name === 'AbortError') return; // user cancelled
-            }
+            try { await navigator.share({ title, text: shareText, url: appLink }); return; }
+            catch (e) { if (e.name === 'AbortError') return; }
         }
-
-        // ── METHOD 4: Clipboard fallback ──
-        copyToClipboard(shareText);
-        showToast('🔗 Link copied to clipboard!');
-
-    } catch (err) {
-        console.error('Share error:', err);
-
-        // User cancelled — don't show error
-        const msg = (err?.message || err?.errorMessage || '').toLowerCase();
-        if (msg.includes('cancel') || err?.name === 'AbortError') return;
-
-        // Last resort — try plain text share
-        if (window.Capacitor?.Plugins?.Share) {
-            try {
-                await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: appLink });
-                return;
-            } catch (e2) {
-                console.warn('Plain share also failed:', e2);
-            }
-        }
-
         copyToClipboard(shareText);
         showToast('🔗 Link copied!');
-
+    } catch (err) {
+        const msg = (err?.message || err?.errorMessage || '').toLowerCase();
+        if (msg.includes('cancel') || err?.name === 'AbortError') return;
+        if (window.Capacitor?.Plugins?.Share) {
+            try { await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: appLink }); return; }
+            catch (e) {}
+        }
+        copyToClipboard(shareText);
+        showToast('🔗 Link copied!');
     } finally {
         if (shareBtn) { shareBtn.innerHTML = '📤 Share'; shareBtn.disabled = false; }
     }
 }
 
 /* ============================================
-   CLIPBOARD HELPERS
+   CLIPBOARD
 ============================================ */
 function copyToClipboard(text) {
     if (navigator.clipboard?.writeText) {
@@ -1214,4 +1270,4 @@ function bindMobileButtons() {
     if (deleteBtn) deleteBtn.onpointerup = () => clearAll();
 }
 
-console.log("✅ Centrinsic NPT — Capacitor native share + 4 tabs + translate + light/dark");
+console.log("✅ Centrinsic NPT — colorful 60sec + 4 tabs + translate + Capacitor share");
