@@ -1,6 +1,6 @@
 // ============================================
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
-// 60 Sec: Colorful text-only bulletin cards
+// 60 Sec: Daily bulletin digest — scroll format
 // 4 Tabs: AI-S | AI-D | 60 Sec | Current Affairs
 // ============================================
 
@@ -20,7 +20,7 @@ let allArticles     = [];
 let currentTab      = 'gnews';
 
 // ── TRANSLATE STATE ──────────────────────────
-let originalArticleContent = null; // { body: '', title: '' }
+let originalArticleContent = null;
 
 /* ============================================
    INITIALIZATION
@@ -93,6 +93,7 @@ function exportAllFunctions() {
     window.highlightTranslateBtn = highlightTranslateBtn;
     window.copyToClipboard       = copyToClipboard;
     window.fallbackCopy          = fallbackCopy;
+    window.open60SecBulletin     = open60SecBulletin;
 }
 
 /* ============================================
@@ -167,11 +168,7 @@ function showScreen(screenId) {
     if (screenId === 'home')        { updateSavedFolder(); setTimeout(loadNews, 100); }
     if (screenId === 'saved')       setTimeout(loadSavedArticles, 100);
     if (screenId === 'preferences') {
-        setTimeout(() => {
-            attachLogoutListener();
-            attachClearAllListener();
-            attachDarkModeListener();
-        }, 300);
+        setTimeout(() => { attachLogoutListener(); attachClearAllListener(); attachDarkModeListener(); }, 300);
         updateUserDisplay();
         highlightSizeButton(localStorage.getItem("font_size") || "medium");
     }
@@ -449,7 +446,6 @@ async function loadNews() {
         localStorage.setItem("news_backup", JSON.stringify(newsArray));
         localStorage.setItem("news_meta",   JSON.stringify(data.meta || {}));
         isOnline = true;
-        console.log(`📊 Loaded ${newsArray.length} total articles`);
         renderTabView();
         updateSavedFolder();
     } catch (error) {
@@ -482,57 +478,35 @@ function switchTab(tab) {
 ============================================ */
 const TAB_CONFIG = {
     gnews: {
-        label:     'AI-S',
-        title:     'Short AI Card',
-        icon:      '🟢',
-        color:     '#4CAF50',
-        shadow:    'rgba(76,175,80,0.35)',
-        emptyIcon: '📭',
-        emptyMsg:  'Check back later for news',
-        filter:    (articles) => articles.filter(a => !a.isManual)
+        label: 'AI-S', title: 'Short AI Card', icon: '🟢',
+        color: '#4CAF50', shadow: 'rgba(76,175,80,0.35)',
+        emptyIcon: '📭', emptyMsg: 'Check back later for news',
+        filter: (a) => a.filter(x => !x.isManual)
     },
     manual: {
-        label:     'AI-D',
-        title:     'Detailed AI Card',
-        icon:      '🔵',
-        color:     '#667eea',
-        shadow:    'rgba(102,126,234,0.35)',
-        emptyIcon: '✍️',
-        emptyMsg:  'Detailed articles coming soon',
-        filter:    (articles) => articles.filter(a =>
-            a.isManual && !['60sec','currentaffairs'].includes((a.category || '').toLowerCase())
-        )
+        label: 'AI-D', title: 'Detailed AI Card', icon: '🔵',
+        color: '#667eea', shadow: 'rgba(102,126,234,0.35)',
+        emptyIcon: '✍️', emptyMsg: 'Detailed articles coming soon',
+        filter: (a) => a.filter(x => x.isManual && !['60sec','currentaffairs'].includes((x.category||'').toLowerCase()))
     },
     '60sec': {
-        label:     '60 Sec',
-        title:     '60 Second News',
-        icon:      '⚡',
-        color:     '#FF9800',
-        shadow:    'rgba(255,152,0,0.35)',
-        emptyIcon: '⏱️',
-        emptyMsg:  '60-second stories coming soon',
-        filter:    (articles) => articles.filter(a =>
-            a.isManual && (a.category || '').toLowerCase() === '60sec'
-        )
+        label: '60 Sec', title: '60 Second Digest', icon: '⚡',
+        color: '#FF9800', shadow: 'rgba(255,152,0,0.35)',
+        emptyIcon: '⏱️', emptyMsg: '60-second digest coming soon',
+        filter: (a) => a.filter(x => x.isManual && (x.category||'').toLowerCase() === '60sec')
     },
     currentaffairs: {
-        label:     'Current',
-        title:     'Current Affairs',
-        icon:      '🔴',
-        color:     '#e53935',
-        shadow:    'rgba(229,57,53,0.35)',
-        emptyIcon: '🗞️',
-        emptyMsg:  'Current affairs coming soon',
-        filter:    (articles) => articles.filter(a =>
-            a.isManual && (a.category || '').toLowerCase() === 'currentaffairs'
-        )
+        label: 'Current', title: 'Current Affairs', icon: '🔴',
+        color: '#e53935', shadow: 'rgba(229,57,53,0.35)',
+        emptyIcon: '🗞️', emptyMsg: 'Current affairs coming soon',
+        filter: (a) => a.filter(x => x.isManual && (x.category||'').toLowerCase() === 'currentaffairs')
     }
 };
 
 const TAB_ORDER = ['gnews', 'manual', '60sec', 'currentaffairs'];
 
 /* ============================================
-   RENDER TAB VIEW — 4 TABS, LIGHT/DARK AWARE
+   RENDER TAB VIEW
 ============================================ */
 function renderTabView() {
     const container = document.getElementById("newsFeed");
@@ -561,26 +535,19 @@ function renderTabView() {
             <button onclick="switchTab('${tabKey}')" style="
                 flex:1;padding:10px 4px;border-radius:22px;border:none;
                 font-weight:600;font-size:12px;cursor:pointer;transition:all 0.3s;
-                background:${isActive ? t.color       : theme.inactiveTabBg};
-                color:     ${isActive ? '#fff'         : theme.inactiveTabText};
+                background:${isActive ? t.color : theme.inactiveTabBg};
+                color:${isActive ? '#fff' : theme.inactiveTabText};
                 box-shadow:${isActive ? `0 2px 8px ${t.shadow}` : 'none'};
                 position:relative;">
                 ${t.label}
-                ${count > 0 ? `<span style="
-                    position:absolute;top:-4px;right:-2px;
-                    background:${isActive ? 'rgba(255,255,255,0.3)' : t.color};
-                    color:white;font-size:9px;font-weight:700;
-                    padding:1px 5px;border-radius:8px;min-width:14px;line-height:16px;">
-                    ${count}</span>` : ''}
+                ${count > 0 ? `<span style="position:absolute;top:-4px;right:-2px;background:${isActive ? 'rgba(255,255,255,0.3)' : t.color};color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;min-width:14px;line-height:16px;">${count}</span>` : ''}
             </button>`;
     }).join('');
 
     let html = `
         <div style="position:sticky;top:0;z-index:100;background:${theme.headerBg};padding:10px 16px;border-bottom:1px solid ${theme.headerBorder};">
             <div style="display:flex;gap:8px;margin-bottom:10px;">${tabButtons}</div>
-            ${lastUpdatedTime ? `<div style="text-align:center;color:${theme.updatedColor};font-size:11px;">
-                🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})}
-            </div>` : ''}
+            ${lastUpdatedTime ? `<div style="text-align:center;color:${theme.updatedColor};font-size:11px;">🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})}</div>` : ''}
         </div>
         <div style="margin:20px 16px 12px 16px;display:flex;align-items:center;gap:10px;">
             <div style="width:4px;height:24px;background:${cfg.color};border-radius:2px;"></div>
@@ -590,7 +557,8 @@ function renderTabView() {
 
     if (activeArticles.length > 0) {
         if (currentTab === '60sec') {
-            html += `<div style="padding:0 16px 20px 16px;">${render60SecCards(activeArticles)}</div>`;
+            // ✅ 60 Sec = full bulletin digest view
+            html += `<div style="padding:0 16px 20px 16px;">${render60SecDigest(activeArticles)}</div>`;
         } else {
             html += `<div class="articles-list" style="padding:0 16px 20px 16px;">${renderArticleCards(activeArticles)}</div>`;
         }
@@ -607,182 +575,236 @@ function renderTabView() {
 }
 
 /* ============================================
-   ⚡ 60 SEC — COLORFUL TEXT-ONLY BULLETIN
-   No images, no links — pure bold colored cards
-   Each category gets its own fixed color
+   ⚡ 60 SEC — BULLETIN DIGEST VIEW
+   Parses pasted bulletin format:
+   Section Header → colored block
+   1. Point text → numbered item
+   Scroll through all sections
 ============================================ */
-function render60SecCards(articles) {
-    // Color palettes — rich, vivid backgrounds
-    const colorPalettes = [
-        { bg: '#1a237e', text: '#fff', shadow: 'rgba(26,35,126,0.4)'   }, // Deep Blue      — Technology
-        { bg: '#1b5e20', text: '#fff', shadow: 'rgba(27,94,32,0.4)'    }, // Deep Green     — Politics
-        { bg: '#4a148c', text: '#fff', shadow: 'rgba(74,20,140,0.4)'   }, // Deep Purple    — Business
-        { bg: '#e65100', text: '#fff', shadow: 'rgba(230,81,0,0.4)'    }, // Deep Orange    — Sports
-        { bg: '#880e4f', text: '#fff', shadow: 'rgba(136,14,79,0.4)'   }, // Deep Pink      — Entertainment
-        { bg: '#006064', text: '#fff', shadow: 'rgba(0,96,100,0.4)'    }, // Deep Teal      — Health
-        { bg: '#33691e', text: '#fff', shadow: 'rgba(51,105,30,0.4)'   }, // Olive Green    — Science
-        { bg: '#b71c1c', text: '#fff', shadow: 'rgba(183,28,28,0.4)'   }, // Deep Red       — World
-        { bg: '#0d47a1', text: '#fff', shadow: 'rgba(13,71,161,0.4)'   }, // Royal Blue     — India
-        { bg: '#4e342e', text: '#fff', shadow: 'rgba(78,52,46,0.4)'    }, // Deep Brown     — General
-        { bg: '#1a237e', text: '#fff', shadow: 'rgba(26,35,126,0.4)'   }, // repeat for more
-        { bg: '#37474f', text: '#fff', shadow: 'rgba(55,71,79,0.4)'    }, // Blue Grey
-    ];
 
-    // Category → fixed color so same topic always same color
-    const categoryColorMap = {
-        'technology':     0,
-        'tech':           0,
-        'politics':       1,
-        'business':       2,
-        'economy':        2,
-        'finance':        2,
-        'sports':         3,
-        'sport':          3,
-        'entertainment':  4,
-        'movies':         4,
-        'health':         5,
-        'medical':        5,
-        'science':        6,
-        'world':          7,
-        'international':  7,
-        'india':          8,
-        'national':       8,
-        'general':        9,
-        'education':      10,
-        'environment':    11,
-    };
+// Section header → color mapping
+const SECTION_COLORS = [
+    '#1a237e', // Deep Blue
+    '#1b5e20', // Deep Green
+    '#4a148c', // Purple
+    '#b71c1c', // Deep Red
+    '#e65100', // Deep Orange
+    '#006064', // Teal
+    '#33691e', // Olive
+    '#880e4f', // Pink
+    '#0d47a1', // Royal Blue
+    '#37474f', // Blue Grey
+    '#4e342e', // Brown
+    '#1a5c2a', // Forest Green
+];
 
-    if (!articles || articles.length === 0) {
-        return `<div style="text-align:center;padding:60px 20px;">
-            <div style="font-size:48px;margin-bottom:16px;">⏱️</div>
-            <h3>No 60 Sec stories yet</h3>
-        </div>`;
+function parseBulletinContent(content) {
+    if (!content) return [];
+
+    const lines    = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const sections = [];
+    let currentSection = null;
+
+    for (const line of lines) {
+        // Detect section header: line that doesn't start with a number and isn't a bullet point
+        // Section headers are lines like "Global Conflict & Middle East Crisis"
+        const isNumberedPoint = /^\d+[\.\)]\s/.test(line);
+        const isBulletPoint   = /^[-•*]\s/.test(line);
+
+        if (!isNumberedPoint && !isBulletPoint && line.length > 3) {
+            // New section header
+            currentSection = { header: line, points: [] };
+            sections.push(currentSection);
+        } else if (isNumberedPoint && currentSection) {
+            // Numbered point — strip the number prefix
+            const text = line.replace(/^\d+[\.\)]\s*/, '').trim();
+            if (text) currentSection.points.push(text);
+        } else if (isBulletPoint && currentSection) {
+            // Bullet point
+            const text = line.replace(/^[-•*]\s*/, '').trim();
+            if (text) currentSection.points.push(text);
+        } else if (currentSection && line.length > 5) {
+            // Plain text line under a section
+            currentSection.points.push(line);
+        } else if (!currentSection && line.length > 5) {
+            // Text before first header — create unnamed section
+            currentSection = { header: '', points: [line] };
+            sections.push(currentSection);
+        }
     }
 
-    return articles.map((item, index) => {
-        const id      = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
-        const title   = item.title   || "Untitled";
+    return sections;
+}
+
+function render60SecDigest(articles) {
+    const isDark   = document.body.classList.contains('dark');
+    const pageBg   = isDark ? '#111' : '#f5f5f5';
+    const cardText = isDark ? '#ccc' : '#222';
+    const metaBg   = isDark ? '#1a1a1a' : '#fff';
+    const metaBorder = isDark ? '#2a2a2a' : '#e0e0e0';
+
+    // Sort by createdAt descending — newest first
+    const sorted = [...articles].sort((a, b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
+
+    return sorted.map((item, articleIndex) => {
+        const id      = String(item._id || item.articleId || item.id || articleIndex).replace(/[^a-zA-Z0-9-]/g, '');
+        const title   = item.title   || 'Today\'s Digest';
         const content = item.content || item.description || '';
         const source  = item.source  || 'Centrinsic NPT';
-        const catRaw  = (item.category || 'general').toLowerCase();
+        const date    = item.createdAt
+            ? new Date(item.createdAt).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+            : 'Today';
 
-        // Pick palette — fixed by category, fallback to index cycling
-        const colorIndex = categoryColorMap[catRaw] !== undefined
-            ? categoryColorMap[catRaw]
-            : index % colorPalettes.length;
-        const palette = colorPalettes[colorIndex % colorPalettes.length];
+        // Parse the bulletin content into sections
+        const sections = parseBulletinContent(content);
 
-        const date = item.createdAt
-            ? new Date(item.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
-            : "Recent";
+        // Count total points
+        const totalPoints = sections.reduce((sum, s) => sum + s.points.length, 0);
 
-        // Split content into readable bullet points
-        const points = content
-            .split(/\n|(?<=[.!?])\s+/)
-            .map(s => s.trim())
-            .filter(s => s.length > 8)
-            .slice(0, 5);
+        // Build the full digest HTML
+        let digestHTML = '';
 
-        // Clean category label
-        const catLabel = catRaw === '60sec'
-            ? 'Quick News'
-            : catRaw.charAt(0).toUpperCase() + catRaw.slice(1);
+        // If parsing found sections, render them
+        if (sections.length > 0) {
+            sections.forEach((section, sIdx) => {
+                const color = SECTION_COLORS[sIdx % SECTION_COLORS.length];
+
+                digestHTML += `
+                    <!-- Section Header -->
+                    <div style="
+                        background: ${color};
+                        padding: 12px 16px;
+                        margin: ${sIdx === 0 ? '0' : '20px'} -16px 14px -16px;
+                        display: flex; align-items: center; gap: 10px;
+                    ">
+                        <div style="width:3px;height:20px;background:rgba(255,255,255,0.5);border-radius:2px;flex-shrink:0;"></div>
+                        <span style="color:#fff;font-size:14px;font-weight:800;letter-spacing:0.3px;line-height:1.3;">
+                            ${escapeHtml(section.header)}
+                        </span>
+                    </div>`;
+
+                // Points
+                section.points.forEach((point, pIdx) => {
+                    // Extract bold part if format is "Bold Part: rest of text"
+                    const colonIdx = point.indexOf(':');
+                    let boldPart = '';
+                    let restPart = point;
+
+                    if (colonIdx > 0 && colonIdx < 60) {
+                        boldPart = point.substring(0, colonIdx);
+                        restPart = point.substring(colonIdx + 1).trim();
+                    }
+
+                    digestHTML += `
+                        <div style="
+                            display: flex; gap: 12px; align-items: flex-start;
+                            padding: 10px 0;
+                            border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'};
+                        ">
+                            <!-- Number bubble -->
+                            <span style="
+                                background: ${color};
+                                color: white;
+                                font-size: 11px; font-weight: 800;
+                                min-width: 26px; height: 26px;
+                                border-radius: 50%;
+                                display: flex; align-items: center; justify-content: center;
+                                flex-shrink: 0; margin-top: 1px;
+                            ">${pIdx + 1}</span>
+                            <!-- Text -->
+                            <span style="color:${cardText};font-size:14px;line-height:1.65;flex:1;">
+                                ${boldPart ? `<strong style="color:${isDark ? '#fff' : '#111'};">${escapeHtml(boldPart)}:</strong> ` : ''}${escapeHtml(restPart)}
+                            </span>
+                        </div>`;
+                });
+            });
+        } else {
+            // Fallback: just display content as plain text
+            digestHTML = `<p style="color:${cardText};font-size:14px;line-height:1.7;padding:8px 0;">${escapeHtml(content)}</p>`;
+        }
 
         return `
-            <div onclick="handleArticleClick(this)"
-                data-article-id="${escapeHtml(id)}"
-                data-article-title="${escapeHtml(title)}"
-                data-article-source="${escapeHtml(source)}"
-                style="
-                    background: ${palette.bg};
-                    border-radius: 20px;
-                    margin-bottom: 16px;
-                    padding: 22px 20px;
-                    cursor: pointer;
-                    position: relative;
-                    overflow: hidden;
-                    box-shadow: 0 6px 24px ${palette.shadow};
+            <div style="
+                background: ${metaBg};
+                border-radius: 20px;
+                margin-bottom: 20px;
+                overflow: hidden;
+                border: 1px solid ${metaBorder};
+                box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            ">
+                <!-- Digest Header Card -->
+                <div style="
+                    background: linear-gradient(135deg, #FF9800, #F57C00);
+                    padding: 18px 20px;
                 ">
-
-                <!-- Decorative background shapes -->
-                <div style="position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:rgba(255,255,255,0.06);border-radius:50%;pointer-events:none;"></div>
-                <div style="position:absolute;bottom:-30px;left:-30px;width:100px;height:100px;background:rgba(255,255,255,0.04);border-radius:50%;pointer-events:none;"></div>
-                <div style="position:absolute;top:50%;right:-60px;width:120px;height:120px;background:rgba(255,255,255,0.03);border-radius:50%;pointer-events:none;"></div>
-
-                <!-- Top badges row -->
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;position:relative;z-index:1;flex-wrap:wrap;">
-                    <span style="
-                        background:rgba(255,255,255,0.22);
-                        color:#fff;
-                        font-size:10px;font-weight:800;
-                        padding:4px 12px;border-radius:20px;
-                        text-transform:uppercase;letter-spacing:1px;">
-                        ${escapeHtml(catLabel)}
-                    </span>
-                    <span style="
-                        background:rgba(255,255,255,0.15);
-                        color:#fff;
-                        font-size:10px;font-weight:700;
-                        padding:4px 10px;border-radius:20px;">
-                        ⚡ 60 SEC
-                    </span>
-                    <span style="margin-left:auto;color:rgba(255,255,255,0.55);font-size:11px;">
-                        ${escapeHtml(date)}
-                    </span>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                        <span style="font-size:22px;">⚡</span>
+                        <div>
+                            <div style="color:#fff;font-size:17px;font-weight:800;line-height:1.3;">${escapeHtml(title)}</div>
+                            <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:2px;">${escapeHtml(date)}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">
+                            ${sections.length} sections
+                        </span>
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">
+                            ${totalPoints} updates
+                        </span>
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;padding:3px 10px;border-radius:12px;">
+                            📰 ${escapeHtml(source)}
+                        </span>
+                    </div>
                 </div>
 
-                <!-- Title -->
-                <h2 style="
-                    color: #fff;
-                    font-size: 18px;
-                    font-weight: 800;
-                    line-height: 1.4;
-                    margin: 0 0 16px 0;
-                    position: relative;
-                    z-index: 1;
-                    letter-spacing: -0.2px;
-                ">${escapeHtml(title)}</h2>
-
-                <!-- Divider -->
-                <div style="height:1px;background:rgba(255,255,255,0.18);margin-bottom:16px;position:relative;z-index:1;"></div>
-
-                <!-- Numbered bullet points -->
-                <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:10px;">
-                    ${points.length > 0
-                        ? points.map((point, i) => `
-                            <div style="display:flex;gap:12px;align-items:flex-start;">
-                                <span style="
-                                    background:rgba(255,255,255,0.22);
-                                    color:#fff;
-                                    font-size:11px;font-weight:800;
-                                    min-width:24px;height:24px;
-                                    border-radius:50%;
-                                    display:flex;align-items:center;justify-content:center;
-                                    flex-shrink:0;margin-top:1px;">
-                                    ${i + 1}
-                                </span>
-                                <span style="color:rgba(255,255,255,0.92);font-size:14px;line-height:1.65;flex:1;">
-                                    ${escapeHtml(point)}
-                                </span>
-                            </div>`).join('')
-                        : `<p style="color:rgba(255,255,255,0.85);font-size:14px;line-height:1.7;margin:0;">
-                            ${escapeHtml(content.substring(0, 250))}
-                           </p>`
-                    }
+                <!-- All Sections Content -->
+                <div style="padding:0 16px 16px 16px;">
+                    ${digestHTML}
                 </div>
 
                 <!-- Footer -->
                 <div style="
-                    margin-top:16px;
-                    padding-top:12px;
-                    border-top:1px solid rgba(255,255,255,0.12);
-                    display:flex;align-items:center;justify-content:space-between;
-                    position:relative;z-index:1;">
-                    <span style="color:rgba(255,255,255,0.45);font-size:11px;">📰 ${escapeHtml(source)}</span>
-                    <span style="color:rgba(255,255,255,0.35);font-size:11px;">Tap to read →</span>
+                    padding: 12px 16px;
+                    border-top: 1px solid ${metaBorder};
+                    display: flex; align-items: center; justify-content: space-between;
+                    background: ${isDark ? '#0a0a0a' : '#fafafa'};
+                ">
+                    <span style="color:${isDark?'#555':'#aaa'};font-size:11px;">Centrinsic NPT • 60 Sec Digest</span>
+                    <button onclick="share60SecDigest('${id}')"
+                        style="background:#FF9800;border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">
+                        📤 Share
+                    </button>
                 </div>
             </div>`;
     }).join('');
+}
+
+/* ── Share 60 Sec digest ── */
+async function share60SecDigest(articleId) {
+    const article = articlesCache.get(articleId) || allArticles.find(a => String(a._id||a.id||a.articleId).replace(/[^a-zA-Z0-9-]/g,'') === articleId);
+    if (!article) return;
+
+    const title     = article.title || "Today's 60 Sec Digest";
+    const shareText = `⚡ ${title}\n\n📲 Read today's digest on Centrinsic NPT:\nhttps://centrinsicnpt.com`;
+
+    if (window.Capacitor?.Plugins?.Share) {
+        try {
+            await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: 'https://centrinsicnpt.com' });
+            return;
+        } catch(e) { if ((e?.message||'').toLowerCase().includes('cancel')) return; }
+    }
+    if (navigator.share) {
+        try { await navigator.share({ title, text: shareText }); return; }
+        catch(e) { if (e.name === 'AbortError') return; }
+    }
+    copyToClipboard(shareText);
+    showToast('🔗 Link copied!');
+}
+
+/* ── Open full 60sec bulletin (tap on digest card) ── */
+function open60SecBulletin(articleId) {
+    const article = articlesCache.get(articleId);
+    if (article) { currentArticle = article; displayArticleDetail(); }
 }
 
 /* ============================================
@@ -795,22 +817,22 @@ function renderArticleCards(articles) {
         const date     = item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : "Recent";
         const excerpt  = item.content ? item.content.substring(0, 100) + "..." : "No content";
         const title    = item.title || "Untitled";
-        const isSaved  = getSavedArticles().some(s => String(s._id || s.id || s.articleId) === id);
+        const isSaved  = getSavedArticles().some(s => String(s._id||s.id||s.articleId) === id);
         const imageUrl = getImageUrl(item.image);
-        const isCA     = (item.category || '').toLowerCase() === 'currentaffairs';
+        const isCA     = (item.category||'').toLowerCase() === 'currentaffairs';
 
         return `
             <article class="news-card"
                 data-article-id="${escapeHtml(id)}"
                 data-article-title="${escapeHtml(title)}"
-                data-article-source="${escapeHtml(item.source || 'Unknown')}"
+                data-article-source="${escapeHtml(item.source||'Unknown')}"
                 onclick="handleArticleClick(this)">
                 <div class="news-content">
                     ${isCA ? `<span style="background:#e53935;color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;display:inline-block;margin-bottom:6px;">🔴 CURRENT AFFAIRS</span>` : ''}
                     <h3 class="news-title">${isSaved ? '🔖 ' : ''}${escapeHtml(title)}</h3>
                     <p class="news-excerpt">${escapeHtml(excerpt)}</p>
                     <div class="news-meta">
-                        <span>${escapeHtml(item.source || 'Unknown')}</span>
+                        <span>${escapeHtml(item.source||'Unknown')}</span>
                         <span>•</span>
                         <span>${escapeHtml(date)}</span>
                     </div>
@@ -835,31 +857,22 @@ function handleArticleClick(element) {
     const articleTitle  = element.getAttribute('data-article-title');
     const articleSource = element.getAttribute('data-article-source');
     if (articlesCache.has(articleId)) { currentArticle = articlesCache.get(articleId); displayArticleDetail(); return; }
-    const foundByTitle = allArticles.find(a => a.title === articleTitle && a.source === articleSource);
-    if (foundByTitle) { currentArticle = foundByTitle; displayArticleDetail(); return; }
+    const found = allArticles.find(a => a.title === articleTitle && a.source === articleSource);
+    if (found) { currentArticle = found; displayArticleDetail(); return; }
     if (!articleId.startsWith('gnews_')) {
-        fetch(`${API_ARTICLES}/${articleId}`)
-            .then(r => r.json())
-            .then(article => { currentArticle = article; displayArticleDetail(); })
-            .catch(() => showToast("Failed to load article"));
-    } else {
-        showToast("Article expired. Please refresh.");
-    }
+        fetch(`${API_ARTICLES}/${articleId}`).then(r => r.json()).then(a => { currentArticle = a; displayArticleDetail(); }).catch(() => showToast("Failed to load article"));
+    } else { showToast("Article expired. Please refresh."); }
 }
 
 function getSavedArticles() {
-    try { return JSON.parse(localStorage.getItem("saved_articles") || "[]"); }
-    catch (e) { return []; }
+    try { return JSON.parse(localStorage.getItem("saved_articles") || "[]"); } catch (e) { return []; }
 }
 
 function updateSavedFolder() {
     const folder  = document.getElementById("savedFolder");
     const countEl = document.getElementById("savedCount");
     const saved   = getSavedArticles();
-    if (folder) {
-        folder.style.display = saved.length > 0 ? 'flex' : 'none';
-        if (countEl) countEl.textContent = `${saved.length} saved`;
-    }
+    if (folder) { folder.style.display = saved.length > 0 ? 'flex' : 'none'; if (countEl) countEl.textContent = `${saved.length} saved`; }
 }
 
 function loadSavedArticles() {
@@ -871,17 +884,9 @@ function loadSavedArticles() {
         const id    = String(item._id || item.articleId || item.id).replace(/[^a-zA-Z0-9-]/g, '');
         const date  = item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved";
         const title = item.title || "Untitled";
-        return `
-            <article class="news-card"
-                data-article-id="${escapeHtml(id)}"
-                data-article-title="${escapeHtml(title)}"
-                data-article-source="${escapeHtml(item.source || 'Unknown')}"
-                onclick="handleArticleClick(this)">
-                <div class="news-content">
-                    <h3 class="news-title">🔖 ${escapeHtml(title)}</h3>
-                    <p class="news-meta"><span>${escapeHtml(date)}</span></p>
-                </div>
-            </article>`;
+        return `<article class="news-card" data-article-id="${escapeHtml(id)}" data-article-title="${escapeHtml(title)}" data-article-source="${escapeHtml(item.source||'Unknown')}" onclick="handleArticleClick(this)">
+            <div class="news-content"><h3 class="news-title">🔖 ${escapeHtml(title)}</h3><p class="news-meta"><span>${escapeHtml(date)}</span></p></div>
+        </article>`;
     }).join('');
 }
 
@@ -892,10 +897,7 @@ function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
     if (articlesCache.has(cleanId)) { currentArticle = articlesCache.get(cleanId); displayArticleDetail(); return; }
     if (!cleanId.startsWith('gnews_')) {
-        fetch(`${API_ARTICLES}/${cleanId}`)
-            .then(r => r.json())
-            .then(article => { currentArticle = article; displayArticleDetail(); })
-            .catch(() => showToast("Failed to load article"));
+        fetch(`${API_ARTICLES}/${cleanId}`).then(r => r.json()).then(a => { currentArticle = a; displayArticleDetail(); }).catch(() => showToast("Failed to load article"));
     } else { showToast("Article expired. Please refresh."); }
 }
 
@@ -907,19 +909,18 @@ function displayArticleDetail() {
     originalArticleContent = null;
 
     const articleId = currentArticle._id || currentArticle.id || currentArticle.articleId;
-    const isSaved   = getSavedArticles().some(s => String(s._id || s.id || s.articleId) === String(articleId));
+    const isSaved   = getSavedArticles().some(s => String(s._id||s.id||s.articleId) === String(articleId));
     if (saveBtn) { saveBtn.innerHTML = isSaved ? '✓ Saved' : '💾 Save'; saveBtn.classList.toggle('saved', isSaved); }
 
     let date = "Recent";
     if (currentArticle.createdAt || currentArticle.publishedAt) {
         date = new Date(currentArticle.createdAt || currentArticle.publishedAt)
-            .toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true})
-            .toLowerCase();
+            .toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}).toLowerCase();
     }
 
-    const imageUrl  = getImageUrl(currentArticle.image);
-    const source    = currentArticle.source   || 'Unknown';
-    const category  = currentArticle.category || 'General';
+    const imageUrl = getImageUrl(currentArticle.image);
+    const source   = currentArticle.source   || 'Unknown';
+    const category = currentArticle.category || 'General';
 
     let originalLink = '#';
     if      (currentArticle.originalLink)     originalLink = currentArticle.originalLink;
@@ -940,115 +941,94 @@ function displayArticleDetail() {
     const selectBg     = isDark ? '#111'    : '#ffffff';
     const selectColor  = isDark ? '#ccc'    : '#333';
     const selectBorder = isDark ? '#333'    : '#ccc';
+    const catLower     = category.toLowerCase();
+    const catColor     = catLower === '60sec' ? '#FF9800' : catLower === 'currentaffairs' ? '#e53935' : '#4CAF50';
+    const catLabel     = catLower === '60sec' ? '⚡ 60 Sec' : catLower === 'currentaffairs' ? '🔴 Current Affairs' : category;
 
-    const catLower = category.toLowerCase();
-    const catColor = catLower === '60sec' ? '#FF9800' : catLower === 'currentaffairs' ? '#e53935' : '#4CAF50';
-    const catLabel = catLower === '60sec' ? '⚡ 60 Sec' : catLower === 'currentaffairs' ? '🔴 Current Affairs' : category;
+    // For 60sec articles, render the full bulletin in detail view too
+    const is60sec = catLower === '60sec';
+    let bodyContent = '';
+
+    if (is60sec) {
+        const sections = parseBulletinContent(currentArticle.content || '');
+        if (sections.length > 0) {
+            bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;">`;
+            sections.forEach((section, sIdx) => {
+                const color = SECTION_COLORS[sIdx % SECTION_COLORS.length];
+                bodyContent += `
+                    <div style="background:${color};padding:10px 14px;border-radius:10px;margin:${sIdx===0?'0':'16px'} 0 10px 0;">
+                        <span style="color:#fff;font-size:14px;font-weight:800;">${escapeHtml(section.header)}</span>
+                    </div>`;
+                section.points.forEach((point, pIdx) => {
+                    const colonIdx = point.indexOf(':');
+                    let boldPart = '', restPart = point;
+                    if (colonIdx > 0 && colonIdx < 60) { boldPart = point.substring(0, colonIdx); restPart = point.substring(colonIdx+1).trim(); }
+                    bodyContent += `
+                        <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid ${detailBorder};">
+                            <span style="background:${color};color:white;font-size:11px;font-weight:800;min-width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">${pIdx+1}</span>
+                            <span style="color:${bodyColor};font-size:14px;line-height:1.65;flex:1;">
+                                ${boldPart ? `<strong style="color:${isDark?'#fff':'#111'};">${escapeHtml(boldPart)}:</strong> ` : ''}${escapeHtml(restPart)}
+                            </span>
+                        </div>`;
+                });
+            });
+            bodyContent += `</div>`;
+        } else {
+            bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;font-size:14px;">${escapeHtml(currentArticle.content||'')}</div>`;
+        }
+    } else {
+        bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;font-size:16px;">${escapeHtml(currentArticle.content || currentArticle.description || "No content available")}</div>`;
+    }
 
     articleBody.innerHTML = `
-        ${imageUrl ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
+        ${imageUrl && !is60sec ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
         <div class="article-text-content">
             <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
-
-            <!-- Date + Share Row -->
             <div class="article-meta-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:10px 0;border-bottom:1px solid ${detailBorder};">
                 <span class="article-date" style="color:${metaColor};font-size:14px;">${escapeHtml(date)}</span>
-                <button onclick="shareCurrentArticle()" id="shareBtn" style="background:#4CAF50;border:none;border-radius:8px;color:white;padding:8px 16px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:5px;">
-                    📤 Share
-                </button>
+                <button onclick="shareCurrentArticle()" id="shareBtn" style="background:#4CAF50;border:none;border-radius:8px;color:white;padding:8px 16px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:5px;">📤 Share</button>
             </div>
 
-            <!-- TRANSLATE BAR -->
+            ${!is60sec ? `
             <div id="translateBar" style="margin-bottom:16px;padding:10px 14px;background:${transBg};border-radius:12px;border:1px solid ${detailBorder};display:flex;align-items:center;gap:10px;">
                 <span style="font-size:13px;color:${metaColor};white-space:nowrap;">🌐 Translate:</span>
-                <select id="translateSelect" onchange="translateArticle(this.value)"
-                    style="flex:1;background:${selectBg};color:${selectColor};border:1px solid ${selectBorder};border-radius:20px;padding:8px 14px;font-size:13px;font-family:inherit;cursor:pointer;outline:none;">
+                <select id="translateSelect" onchange="translateArticle(this.value)" style="flex:1;background:${selectBg};color:${selectColor};border:1px solid ${selectBorder};border-radius:20px;padding:8px 14px;font-size:13px;font-family:inherit;cursor:pointer;outline:none;">
                     <option value="en">↩ Original (English)</option>
                     <optgroup label="── Indian Languages ──">
-                        <option value="hi">🇮🇳 Hindi</option>
-                        <option value="te">తె Telugu</option>
-                        <option value="ta">த Tamil</option>
-                        <option value="kn">ಕ Kannada</option>
-                        <option value="ml">മ Malayalam</option>
-                        <option value="bn">বাং Bengali</option>
-                        <option value="mr">म Marathi</option>
-                        <option value="gu">ગુ Gujarati</option>
-                        <option value="pa">ਪ Punjabi</option>
-                        <option value="ur">اردو Urdu</option>
-                        <option value="or">ଓ Odia</option>
-                        <option value="as">অ Assamese</option>
-                        <option value="ne">ने Nepali</option>
-                        <option value="si">සි Sinhala</option>
+                        <option value="hi">🇮🇳 Hindi</option><option value="te">తె Telugu</option><option value="ta">த Tamil</option>
+                        <option value="kn">ಕ Kannada</option><option value="ml">മ Malayalam</option><option value="bn">বাং Bengali</option>
+                        <option value="mr">म Marathi</option><option value="gu">ગુ Gujarati</option><option value="pa">ਪ Punjabi</option>
+                        <option value="ur">اردو Urdu</option><option value="or">ଓ Odia</option><option value="as">অ Assamese</option>
+                        <option value="ne">ने Nepali</option><option value="si">සි Sinhala</option>
                     </optgroup>
                     <optgroup label="── World Languages ──">
-                        <option value="zh">🇨🇳 Chinese</option>
-                        <option value="ar">🇸🇦 Arabic</option>
-                        <option value="fr">🇫🇷 French</option>
-                        <option value="de">🇩🇪 German</option>
-                        <option value="es">🇪🇸 Spanish</option>
-                        <option value="ja">🇯🇵 Japanese</option>
-                        <option value="ko">🇰🇷 Korean</option>
-                        <option value="pt">🇵🇹 Portuguese</option>
-                        <option value="ru">🇷🇺 Russian</option>
-                        <option value="tr">🇹🇷 Turkish</option>
-                        <option value="it">🇮🇹 Italian</option>
-                        <option value="th">🇹🇭 Thai</option>
-                        <option value="vi">🇻🇳 Vietnamese</option>
-                        <option value="id">🇮🇩 Indonesian</option>
-                        <option value="ms">🇲🇾 Malay</option>
+                        <option value="zh">🇨🇳 Chinese</option><option value="ar">🇸🇦 Arabic</option><option value="fr">🇫🇷 French</option>
+                        <option value="de">🇩🇪 German</option><option value="es">🇪🇸 Spanish</option><option value="ja">🇯🇵 Japanese</option>
+                        <option value="ko">🇰🇷 Korean</option><option value="pt">🇵🇹 Portuguese</option><option value="ru">🇷🇺 Russian</option>
+                        <option value="tr">🇹🇷 Turkish</option><option value="it">🇮🇹 Italian</option><option value="th">🇹🇭 Thai</option>
+                        <option value="vi">🇻🇳 Vietnamese</option><option value="id">🇮🇩 Indonesian</option><option value="ms">🇲🇾 Malay</option>
                         <option value="sw">🌍 Swahili</option>
                     </optgroup>
                 </select>
-            </div>
+            </div>` : ''}
 
-            <!-- Article Body -->
-            <div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;font-size:16px;">${escapeHtml(currentArticle.content || currentArticle.description || "No content available")}</div>
+            ${bodyContent}
 
-            <!-- Source / Category / Published -->
             <div style="background:${cardBg};border-radius:12px;padding:20px;margin:20px 0;border:1px solid ${detailBorder};">
                 <div style="display:flex;flex-direction:column;gap:12px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="color:${labelColor};font-size:14px;min-width:80px;">Source:</span>
-                        <span style="color:#667eea;font-size:14px;font-weight:600;">${escapeHtml(source)}</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="color:${labelColor};font-size:14px;min-width:80px;">Category:</span>
-                        <span style="background:${catColor};color:white;font-size:12px;font-weight:600;padding:3px 10px;border-radius:10px;">${escapeHtml(catLabel)}</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span style="color:${labelColor};font-size:14px;min-width:80px;">Published:</span>
-                        <span style="color:${metaColor};font-size:14px;">${escapeHtml(date)}</span>
-                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Source:</span><span style="color:#667eea;font-size:14px;font-weight:600;">${escapeHtml(source)}</span></div>
+                    <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Category:</span><span style="background:${catColor};color:white;font-size:12px;font-weight:600;padding:3px 10px;border-radius:10px;">${escapeHtml(catLabel)}</span></div>
+                    <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Published:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(date)}</span></div>
                 </div>
             </div>
 
-            <!-- AI Summary Card -->
-            <div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border-radius:16px;padding:20px;margin-bottom:20px;border:1px solid #2a2a4a;position:relative;overflow:hidden;">
-                <div style="position:absolute;top:-50px;right:-50px;width:100px;height:100px;background:radial-gradient(circle,rgba(102,126,234,0.3) 0%,transparent 70%);border-radius:50%;"></div>
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;position:relative;z-index:1;">
-                    <div style="width:40px;height:40px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                        <svg viewBox="0 0 24 24" fill="white" style="width:24px;height:24px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                    </div>
-                    <div>
-                        <h3 style="color:#fff;font-size:16px;font-weight:600;margin:0;">AI-Generated Summary</h3>
-                        <p style="color:#888;font-size:12px;margin:4px 0 0 0;">Powered by Advanced AI</p>
-                    </div>
-                </div>
-                <p style="color:#ccc;font-size:14px;line-height:1.6;margin:0;position:relative;z-index:1;">This article has been processed by our AI to provide you with key insights and a concise summary of the main points.</p>
-            </div>
-
-            <!-- Read Full Original -->
+            ${originalLink !== '#' ? `
             <div style="margin-bottom:30px;">
-                ${originalLink !== '#' ? `
                 <button onclick="openExternalLink('${escapeHtml(originalLink)}')" style="display:flex;align-items:center;justify-content:center;gap:10px;background:${linkBg};border:1px solid ${linkBorder};border-radius:12px;padding:16px;color:${linkColor};font-size:15px;font-weight:500;width:100%;cursor:pointer;">
                     <span>📰</span><span>Read Full Original Article</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;margin-left:auto;">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                    </svg>
-                </button>` : `<p style="color:${metaColor};text-align:center;font-size:14px;">Original link not available</p>`}
-            </div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;margin-left:auto;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </button>
+            </div>` : ''}
         </div>`;
 
     showScreen("detail");
@@ -1063,68 +1043,42 @@ async function translateArticle(targetLang) {
     const bodyEl     = document.querySelector('.article-body-text');
     const headlineEl = document.querySelector('.article-headline');
     if (!bodyEl || !currentArticle) return;
-
     if (targetLang === 'en') {
-        if (originalArticleContent) {
-            bodyEl.textContent = originalArticleContent.body;
-            if (headlineEl) headlineEl.textContent = originalArticleContent.title;
-            originalArticleContent = null;
-        }
-        highlightTranslateBtn('en');
-        return;
+        if (originalArticleContent) { bodyEl.textContent = originalArticleContent.body; if (headlineEl) headlineEl.textContent = originalArticleContent.title; originalArticleContent = null; }
+        highlightTranslateBtn('en'); return;
     }
-
-    if (!originalArticleContent) {
-        originalArticleContent = { body: bodyEl.textContent, title: headlineEl ? headlineEl.textContent : '' };
-    }
-
+    if (!originalArticleContent) { originalArticleContent = { body: bodyEl.textContent, title: headlineEl ? headlineEl.textContent : '' }; }
     bodyEl.innerHTML = '<span style="color:#888;font-size:14px;">🌐 Translating...</span>';
     if (headlineEl) headlineEl.style.opacity = '0.5';
-
     try {
-        const bodyRes  = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.body)}`);
-        const bodyData = await bodyRes.json();
-        let translated = '';
-        if (bodyData && bodyData[0]) bodyData[0].forEach(seg => { if (seg[0]) translated += seg[0]; });
+        const bodyData = await (await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.body)}`)).json();
+        let translated = ''; if (bodyData && bodyData[0]) bodyData[0].forEach(seg => { if (seg[0]) translated += seg[0]; });
         bodyEl.textContent = translated || 'Translation not available.';
-
         if (headlineEl && originalArticleContent.title) {
-            const titleRes  = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.title)}`);
-            const titleData = await titleRes.json();
-            let translatedTitle = '';
-            if (titleData && titleData[0]) titleData[0].forEach(seg => { if (seg[0]) translatedTitle += seg[0]; });
+            const titleData = await (await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.title)}`)).json();
+            let translatedTitle = ''; if (titleData && titleData[0]) titleData[0].forEach(seg => { if (seg[0]) translatedTitle += seg[0]; });
             if (translatedTitle) headlineEl.textContent = translatedTitle;
         }
         if (headlineEl) headlineEl.style.opacity = '1';
-
     } catch (err) {
-        console.error('Translation error:', err);
         bodyEl.textContent = originalArticleContent.body;
         if (headlineEl) { headlineEl.textContent = originalArticleContent.title; headlineEl.style.opacity = '1'; }
         originalArticleContent = null;
-        const select = document.getElementById('translateSelect');
-        if (select) select.value = 'en';
+        const select = document.getElementById('translateSelect'); if (select) select.value = 'en';
         showToast('⚠️ Translation failed.');
     }
 }
 
-function highlightTranslateBtn(lang) {
-    const select = document.getElementById('translateSelect');
-    if (select) select.value = lang;
-}
+function highlightTranslateBtn(lang) { const s = document.getElementById('translateSelect'); if (s) s.value = lang; }
 
 /* ============================================
    EXTERNAL LINK
 ============================================ */
 function openExternalLink(url) {
     if (!url || url === '#') { showToast("Link not available"); return; }
-    if (window.Capacitor?.Plugins?.Browser) {
-        window.Capacitor.Plugins.Browser.open({ url });
-    } else if (window.cordova?.InAppBrowser) {
-        window.cordova.InAppBrowser.open(url, '_system');
-    } else {
-        window.open(url, '_blank', 'noopener,noreferrer');
-    }
+    if (window.Capacitor?.Plugins?.Browser) { window.Capacitor.Plugins.Browser.open({ url }); }
+    else if (window.cordova?.InAppBrowser)  { window.cordova.InAppBrowser.open(url, '_system'); }
+    else window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 /* ============================================
@@ -1135,7 +1089,7 @@ function saveCurrentArticle() {
     const saveBtn     = document.getElementById("saveBtn");
     let savedArticles = getSavedArticles();
     const articleId   = currentArticle._id || currentArticle.id || currentArticle.articleId;
-    const index       = savedArticles.findIndex(s => String(s._id || s.id || s.articleId) === String(articleId));
+    const index       = savedArticles.findIndex(s => String(s._id||s.id||s.articleId) === String(articleId));
     if (index !== -1) {
         savedArticles.splice(index, 1);
         if (saveBtn) { saveBtn.innerHTML = '💾 Save'; saveBtn.classList.remove('saved'); }
@@ -1152,7 +1106,7 @@ function saveCurrentArticle() {
 }
 
 /* ============================================
-   SHARE — CAPACITOR NATIVE
+   SHARE
 ============================================ */
 async function shareCurrentArticle() {
     if (!currentArticle) return;
@@ -1163,7 +1117,6 @@ async function shareCurrentArticle() {
     const imageUrl  = getImageUrl(currentArticle.image);
     const shareBtn  = document.getElementById('shareBtn');
     if (shareBtn) { shareBtn.innerHTML = '⏳ Sharing...'; shareBtn.disabled = true; }
-
     try {
         if (window.Capacitor?.Plugins?.Share) {
             const { Share, Filesystem } = window.Capacitor.Plugins;
@@ -1171,35 +1124,24 @@ async function shareCurrentArticle() {
             if (imageUrl && Filesystem) {
                 try {
                     const imgBlob = await (await fetch(imageUrl)).blob();
-                    const base64  = await new Promise((res, rej) => {
-                        const r = new FileReader();
-                        r.onload  = () => res(r.result.split(',')[1]);
-                        r.onerror = rej;
-                        r.readAsDataURL(imgBlob);
-                    });
+                    const base64  = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(imgBlob); });
                     const fileName = `centrinsic_${Date.now()}.jpg`;
                     await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
                     const uriResult = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
                     fileUri = uriResult.uri;
-                } catch (e) { console.warn('Image download failed:', e.message); }
+                } catch(e) {}
             }
             if (fileUri) { await Share.share({ title, text: shareText, url: appLink, files: [fileUri] }); }
             else          { await Share.share({ title, text: shareText, url: appLink }); }
             return;
         }
-        if (navigator.share) {
-            try { await navigator.share({ title, text: shareText, url: appLink }); return; }
-            catch (e) { if (e.name === 'AbortError') return; }
-        }
+        if (navigator.share) { try { await navigator.share({ title, text: shareText, url: appLink }); return; } catch(e) { if (e.name === 'AbortError') return; } }
         copyToClipboard(shareText);
         showToast('🔗 Link copied!');
     } catch (err) {
         const msg = (err?.message || err?.errorMessage || '').toLowerCase();
         if (msg.includes('cancel') || err?.name === 'AbortError') return;
-        if (window.Capacitor?.Plugins?.Share) {
-            try { await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: appLink }); return; }
-            catch (e) {}
-        }
+        if (window.Capacitor?.Plugins?.Share) { try { await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: appLink }); return; } catch(e) {} }
         copyToClipboard(shareText);
         showToast('🔗 Link copied!');
     } finally {
@@ -1211,33 +1153,20 @@ async function shareCurrentArticle() {
    CLIPBOARD
 ============================================ */
 function copyToClipboard(text) {
-    if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(text)
-            .then(() => showToast("✅ Link copied!"))
-            .catch(() => fallbackCopy(text));
-    } else {
-        fallbackCopy(text);
-    }
+    if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(text).then(() => showToast("✅ Link copied!")).catch(() => fallbackCopy(text)); }
+    else fallbackCopy(text);
 }
 
 function fallbackCopy(text) {
     const el = document.createElement('textarea');
-    el.value = text;
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand('copy');
-    document.body.removeChild(el);
+    el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
     showToast("✅ Link copied!");
 }
 
 /* ============================================
    REFRESH
 ============================================ */
-function refreshFeed() {
-    isOnline = false;
-    loadNews();
-    showToast("Refreshing...");
-}
+function refreshFeed() { isOnline = false; loadNews(); showToast("Refreshing..."); }
 
 /* ============================================
    UTILS
@@ -1251,15 +1180,9 @@ function escapeHtml(text) {
 
 function showToast(msg) {
     let toast = document.getElementById('toast');
-    if (!toast) {
-        toast           = document.createElement('div');
-        toast.id        = 'toast';
-        toast.className = 'toast';
-        document.body.appendChild(toast);
-    }
+    if (!toast) { toast = document.createElement('div'); toast.id = 'toast'; toast.className = 'toast'; document.body.appendChild(toast); }
     if (toastTimeout) clearTimeout(toastTimeout);
-    toast.textContent = msg;
-    toast.classList.add('show');
+    toast.textContent = msg; toast.classList.add('show');
     toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
@@ -1270,4 +1193,4 @@ function bindMobileButtons() {
     if (deleteBtn) deleteBtn.onpointerup = () => clearAll();
 }
 
-console.log("✅ Centrinsic NPT — colorful 60sec + 4 tabs + translate + Capacitor share");
+console.log("✅ Centrinsic NPT — 60sec bulletin digest + 4 tabs + translate + share");
