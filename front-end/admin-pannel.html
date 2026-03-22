@@ -419,6 +419,11 @@ India National News
             <span id="60sec-pointCount" style="color:var(--accent2);font-weight:700;">0</span> total points
           </div>
 
+          <!-- IMPORTANT NOTE — category is auto-set to '60sec' -->
+          <div style="background:rgba(255,152,0,0.12);border:1px solid rgba(255,152,0,0.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;">
+            ✅ <strong style="color:var(--orange);">Category is automatically set to "60sec"</strong> — no need to select anything. This ensures the article always appears in the ⚡ 60 Sec tab.
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label>Source / Edition</label>
@@ -791,7 +796,14 @@ async function uploadArticle(prefix) {
   } else {
     category = 'General';
   }
-  console.log('[Admin Upload] prefix:', prefix, '→ category:', category);
+  // Safety check: 60sec must always be category="60sec"
+  console.log("[Admin Upload] prefix=" + prefix + " category=" + category);
+  if (prefix === "60sec" && category !== "60sec") {
+    showToast("ERROR: Wrong category! Got: " + category, "error");
+    btn.disabled = false;
+    btn.innerHTML = "Publish 60 Sec Digest";
+    return;
+  }
   formData.append('category', category);
 
   const linkEl = document.getElementById(`${prefix}-link`);
