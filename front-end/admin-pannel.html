@@ -14,7 +14,6 @@
     --accent: #6c63ff;
     --accent2: #00d4aa;
     --danger: #ff4757;
-    --warning: #ffa502;
     --text: #e8e8f0;
     --muted: #6b6b80;
     --green: #2ed573;
@@ -24,95 +23,55 @@
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    font-size: 15px;
-  }
-
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
   .layout { display: flex; min-height: 100vh; }
 
-  .sidebar {
-    width: 240px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
-    z-index: 50;
-    overflow-y: auto;
-  }
-
+  /* SIDEBAR */
+  .sidebar { width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; overflow-y: auto; }
   .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border); }
   .sidebar-logo h1 { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: #fff; }
   .sidebar-logo span { font-size: 11px; color: var(--accent); font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; }
-
   .sidebar-nav { padding: 16px 12px; flex: 1; }
-
   .nav-section-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding: 12px 12px 6px; }
-
-  .nav-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; border-radius: 10px; cursor: pointer;
-    color: var(--muted); font-size: 14px; font-weight: 500;
-    transition: all 0.2s; margin-bottom: 2px;
-    border: none; background: none; width: 100%; text-align: left;
-  }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; cursor: pointer; color: var(--muted); font-size: 14px; font-weight: 500; transition: all 0.2s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left; }
   .nav-item:hover { background: var(--surface2); color: var(--text); }
   .nav-item.active { background: var(--accent); color: #fff; }
   .nav-item.active-orange { background: var(--orange); color: #fff; }
   .nav-item.active-red    { background: var(--red);    color: #fff; }
   .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
-
   .sidebar-footer { padding: 16px 12px; border-top: 1px solid var(--border); }
   .admin-badge { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface2); border-radius: 10px; }
-  .admin-avatar { width: 32px; height: 32px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; font-family: 'Syne', sans-serif; }
+  .admin-avatar { width: 32px; height: 32px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; }
   .admin-info { flex: 1; min-width: 0; }
   .admin-info .name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .admin-info .role { font-size: 11px; color: var(--accent); font-family: 'DM Mono', monospace; }
 
+  /* MAIN */
   .main { margin-left: 240px; flex: 1; display: flex; flex-direction: column; }
-
   .topbar { padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface); position: sticky; top: 0; z-index: 40; }
   .topbar h2 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
   .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); display: inline-block; }
   .status-text { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; }
-
   .content { padding: 28px 32px; }
   .panel { display: none; }
   .panel.active { display: block; }
 
+  /* LOGIN */
   #loginScreen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; }
   .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px; width: 380px; max-width: 90vw; }
   .login-card h2 { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 6px; }
   .login-card p  { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
 
+  /* FORMS */
   .form-group { margin-bottom: 18px; }
   .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 7px; letter-spacing: 0.3px; }
-  .form-group input, .form-group textarea, .form-group select {
-    width: 100%; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; color: var(--text); padding: 11px 14px;
-    font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none;
-    transition: border-color 0.2s; resize: vertical;
-  }
+  .form-group input, .form-group textarea, .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 11px 14px; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; resize: vertical; }
   .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--accent); }
   .form-group textarea { min-height: 140px; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-  /* Color preview for category selector */
-  .category-preview {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 14px; border-radius: 10px;
-    background: var(--surface2); border: 1px solid var(--border);
-    margin-top: 8px; font-size: 13px;
-  }
-  .category-color-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
-
+  /* BUTTONS */
   .btn { padding: 11px 22px; border-radius: 10px; border: none; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 7px; }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-primary:hover { background: #7c74ff; transform: translateY(-1px); }
@@ -129,72 +88,74 @@
   .btn-sm { padding: 7px 14px; font-size: 13px; border-radius: 8px; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
 
+  /* UPLOAD CARDS */
   .upload-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; position: relative; overflow: hidden; }
   .upload-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
   .upload-card.blue::before   { background: var(--accent); }
   .upload-card.orange::before { background: var(--orange); }
   .upload-card.red::before    { background: var(--red); }
-
   .upload-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
   .upload-card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
   .upload-card-icon.blue   { background: rgba(108,99,255,0.15); }
   .upload-card-icon.orange { background: rgba(255,152,0,0.15); }
   .upload-card-icon.red    { background: rgba(229,57,53,0.15); }
 
-  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
   .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; position: relative; overflow: hidden; }
   .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
   .stat-card.purple::before { background: var(--accent); }
   .stat-card.teal::before   { background: var(--accent2); }
   .stat-card.green::before  { background: var(--green); }
-  .stat-card.red::before    { background: var(--danger); }
+  .stat-card.red-b::before  { background: var(--danger); }
   .stat-card.orange::before { background: var(--orange); }
+  .stat-card.dark-red::before { background: var(--red); }
   .stat-label { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
   .stat-value { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; line-height: 1; }
   .stat-sub   { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
+  /* ARTICLE CARDS */
   .article-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
   .article-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; display: flex; align-items: flex-start; gap: 16px; transition: border-color 0.2s; }
   .article-card:hover { border-color: var(--accent); }
-  .article-thumb { width: 70px; height: 60px; border-radius: 8px; object-fit: cover; background: var(--surface2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; border: 1px solid var(--border); }
-  .article-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+  .article-thumb { width: 70px; height: 60px; border-radius: 8px; background: var(--surface2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; border: 1px solid var(--border); overflow: hidden; }
+  .article-thumb img { width: 100%; height: 100%; object-fit: cover; }
   .article-info { flex: 1; min-width: 0; }
   .article-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 5px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .article-meta { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 8px; }
+  .article-meta  { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 8px; }
   .article-excerpt { font-size: 13px; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .article-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
 
-  .image-drop { border: 2px dashed var(--border); border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+  /* IMAGE UPLOAD */
+  .image-drop { border: 2px dashed var(--border); border-radius: 12px; padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
   .image-drop:hover { border-color: var(--accent); background: rgba(108,99,255,0.05); }
   .image-drop.dragover { border-color: var(--accent2); background: rgba(0,212,170,0.07); }
   .image-drop input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .image-drop .drop-icon { font-size: 32px; margin-bottom: 10px; }
+  .image-drop .drop-icon { font-size: 28px; margin-bottom: 8px; }
   .image-drop .drop-text { font-size: 14px; color: var(--muted); }
   .image-drop .drop-sub  { font-size: 12px; color: var(--border); margin-top: 4px; font-family: 'DM Mono', monospace; }
   .image-preview { width: 100%; max-height: 180px; border-radius: 10px; object-fit: cover; margin-top: 12px; border: 1px solid var(--border); display: none; }
 
-  #toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; font-size: 14px; z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 320px; display: flex; align-items: center; gap: 10px; }
+  /* TOAST */
+  #toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; font-size: 14px; z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 320px; }
   #toast.show    { transform: translateY(0); opacity: 1; }
   #toast.success { border-color: var(--green); }
   #toast.error   { border-color: var(--danger); }
 
+  /* MISC */
   .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .section-header h3 { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; }
   .divider { height: 1px; background: var(--border); margin: 24px 0; }
-
   .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   .loading-row { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 40px; color: var(--muted); }
   .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
   .empty-state .empty-icon { font-size: 48px; margin-bottom: 14px; }
   .empty-state h4 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-
   .search-bar { position: relative; margin-bottom: 20px; }
   .search-bar input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 14px 10px 40px; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; }
   .search-bar input:focus { border-color: var(--accent); }
   .search-bar .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 15px; }
-
   .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; }
   .badge-purple { background: rgba(108,99,255,0.15); color: var(--accent); }
   .badge-teal   { background: rgba(0,212,170,0.15);  color: var(--accent2); }
@@ -202,6 +163,7 @@
   .badge-red    { background: rgba(255,71,87,0.15);  color: var(--danger); }
   .badge-orange { background: rgba(255,152,0,0.15);  color: var(--orange); }
 
+  /* MODALS */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(4px); }
   .modal-overlay.open { display: flex; }
   .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 32px; max-width: 400px; width: 90%; }
@@ -209,6 +171,7 @@
   .modal p  { color: var(--muted); font-size: 14px; margin-bottom: 24px; line-height: 1.6; }
   .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
 
+  /* RESPONSIVE */
   @media (max-width: 768px) {
     .sidebar { width: 60px; }
     .sidebar-logo h1, .sidebar-logo span, .nav-item span, .admin-info, .nav-section-label { display: none; }
@@ -238,8 +201,8 @@
       <input type="password" id="loginPassword" placeholder="••••••••" />
     </div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In →</button>
-    <p style="margin-top:16px;font-size:12px;text-align:center;color:var(--muted);">OTP login — enter email then verify OTP</p>
-    <div id="otpSection" style="display:none;margin-top:20px;">
+    <p style="margin-top:14px;font-size:12px;text-align:center;color:var(--muted);">OTP login — enter email then verify OTP below</p>
+    <div id="otpSection" style="display:none;margin-top:16px;">
       <div class="divider"></div>
       <div class="form-group">
         <label>Enter OTP sent to your email</label>
@@ -262,7 +225,7 @@
       <button class="nav-item active" onclick="showPanel('dashboard')"><span class="icon">📊</span><span>Dashboard</span></button>
       <div class="nav-section-label">Upload</div>
       <button class="nav-item" onclick="showPanel('upload-aid')"><span class="icon">🔵</span><span>AI-D Upload</span></button>
-      <button class="nav-item" onclick="showPanel('upload-60sec')"><span class="icon">⚡</span><span>60 Sec Upload</span></button>
+      <button class="nav-item" onclick="showPanel('upload-60sec')"><span class="icon">⚡</span><span>60 Sec Digest</span></button>
       <button class="nav-item" onclick="showPanel('upload-ca')"><span class="icon">🔴</span><span>Current Affairs</span></button>
       <div class="nav-section-label">Manage</div>
       <button class="nav-item" onclick="showPanel('articles')"><span class="icon">📰</span><span>All Articles</span></button>
@@ -292,26 +255,26 @@
 
     <div class="content">
 
-      <!-- DASHBOARD -->
+      <!-- ══ DASHBOARD ══ -->
       <div class="panel active" id="panel-dashboard">
         <div class="stats-grid">
           <div class="stat-card purple"><div class="stat-label">AI-D Articles</div><div class="stat-value" id="statManual">—</div><div class="stat-sub">Detailed cards</div></div>
-          <div class="stat-card orange"><div class="stat-label">60 Sec Articles</div><div class="stat-value" id="stat60sec">—</div><div class="stat-sub">Quick reads</div></div>
-          <div class="stat-card red"><div class="stat-label">Current Affairs</div><div class="stat-value" id="statCA">—</div><div class="stat-sub">Current affairs</div></div>
+          <div class="stat-card orange"><div class="stat-label">60 Sec Digests</div><div class="stat-value" id="stat60sec">—</div><div class="stat-sub">Daily bulletins</div></div>
+          <div class="stat-card dark-red"><div class="stat-label">Current Affairs</div><div class="stat-value" id="statCA">—</div><div class="stat-sub">Current affairs</div></div>
           <div class="stat-card teal"><div class="stat-label">GNews Cached</div><div class="stat-value" id="statGnews">—</div><div class="stat-sub">AI-S cards</div></div>
           <div class="stat-card green"><div class="stat-label">Total Users</div><div class="stat-value" id="statUsers">—</div><div class="stat-sub">Registered</div></div>
-          <div class="stat-card red"><div class="stat-label">Bookmarks</div><div class="stat-value" id="statBookmarks">—</div><div class="stat-sub">Saved by users</div></div>
+          <div class="stat-card red-b"><div class="stat-label">Bookmarks</div><div class="stat-value" id="statBookmarks">—</div><div class="stat-sub">Saved by users</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
             <div class="section-header"><h3>Quick Upload</h3></div>
             <div style="display:flex;flex-direction:column;gap:10px;">
-              <button class="btn btn-primary"  onclick="showPanel('upload-aid')">🔵 Upload AI-D Article</button>
-              <button class="btn btn-orange"   onclick="showPanel('upload-60sec')">⚡ Upload 60 Sec Article</button>
-              <button class="btn btn-red"      onclick="showPanel('upload-ca')">🔴 Upload Current Affairs</button>
+              <button class="btn btn-primary" onclick="showPanel('upload-aid')">🔵 Upload AI-D Article</button>
+              <button class="btn btn-orange"  onclick="showPanel('upload-60sec')">⚡ Upload 60 Sec Digest</button>
+              <button class="btn btn-red"     onclick="showPanel('upload-ca')">🔴 Upload Current Affairs</button>
               <div class="divider" style="margin:4px 0;"></div>
-              <button class="btn btn-ghost"    onclick="refreshGNews()">🔄 Refresh GNews Cache</button>
-              <button class="btn btn-danger"   onclick="openDeleteAllModal()">🗑️ Delete All Manual News</button>
+              <button class="btn btn-ghost"   onclick="refreshGNews()">🔄 Refresh GNews Cache</button>
+              <button class="btn btn-danger"  onclick="openDeleteAllModal()">🗑️ Delete All Manual News</button>
             </div>
           </div>
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
@@ -321,7 +284,7 @@
         </div>
       </div>
 
-      <!-- UPLOAD AI-D -->
+      <!-- ══ UPLOAD AI-D ══ -->
       <div class="panel" id="panel-upload-aid">
         <div class="section-header">
           <h3>🔵 Upload AI-D Article</h3>
@@ -332,7 +295,7 @@
             <div class="upload-card-icon blue">🔵</div>
             <div>
               <div style="font-weight:700;font-size:16px;color:var(--accent);">Detailed AI Card (AI-D)</div>
-              <div style="font-size:13px;color:var(--muted);">Full detailed articles shown in AI-D tab.</div>
+              <div style="font-size:13px;color:var(--muted);">Full detailed articles with image shown in AI-D tab.</div>
             </div>
           </div>
           <div class="form-group">
@@ -398,99 +361,74 @@
         </div>
       </div>
 
-      <!-- ══ UPLOAD 60 SEC — WITH CATEGORY COLOR PICKER ══ -->
+      <!-- ══ UPLOAD 60 SEC BULLETIN DIGEST ══ -->
       <div class="panel" id="panel-upload-60sec">
         <div class="section-header">
-          <h3>⚡ Upload 60 Sec Article</h3>
+          <h3>⚡ Upload 60 Sec Digest</h3>
           <button class="btn btn-ghost btn-sm" onclick="resetForm('60sec')">🔁 Reset</button>
         </div>
         <div class="upload-card orange">
           <div class="upload-card-header">
             <div class="upload-card-icon orange">⚡</div>
             <div>
-              <div style="font-weight:700;font-size:16px;color:var(--orange);">60 Second Quick Read</div>
-              <div style="font-size:13px;color:var(--muted);">Text-only colorful cards. Each topic gets its own color automatically.</div>
+              <div style="font-weight:700;font-size:16px;color:var(--orange);">Daily News Bulletin Digest</div>
+              <div style="font-size:13px;color:var(--muted);">Paste the entire bulletin — sections auto-parse with colored headers. One upload per day.</div>
             </div>
           </div>
 
-          <!-- Color guide -->
-          <div style="background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.2);border-radius:12px;padding:16px;margin-bottom:20px;">
-            <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">🎨 Topic → Card Color</div>
-            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:12px;">
-              <div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#1a237e;display:inline-block;flex-shrink:0;"></span><span style="color:var(--muted);">Technology → Deep Blue</span></div>
-              <div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#1b5e20;display:inline-block;flex-shrink:0;"></span><span style="color:var(--muted);">Politics → Deep Green</span></div>
-              <div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#4a148c;display:inline-block;flex-shrink:0;"></span><span style="color:var(--muted);">Business → Purple</span></div>
-              <div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#e65100;display:inline-block;flex-shrink:0;"></span><span style="color:var(--muted);">Sports → Deep Orange</span></div>
-              <div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#880e4f;display:inline-block;flex-shrink:0;"></span><span style="color:var(--muted);">Entertainment → Pink</span></div>
-              <div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#006064;display:inline-block;flex-shrink:0;"></span><span style="color:var(--muted);">Health → Teal</span></div>
-              <div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#33691e;display:inline-block;flex-shrink:0;"></span><span style="color:var(--muted);">Science → Olive</span></div>
-              <div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#b71c1c;display:inline-block;flex-shrink:0;"></span><span style="color:var(--muted);">World → Deep Red</span></div>
-              <div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#0d47a1;display:inline-block;flex-shrink:0;"></span><span style="color:var(--muted);">India → Royal Blue</span></div>
-              <div style="display:flex;align-items:center;gap:8px;"><span style="width:12px;height:12px;border-radius:50%;background:#4e342e;display:inline-block;flex-shrink:0;"></span><span style="color:var(--muted);">General → Brown</span></div>
+          <!-- FORMAT GUIDE -->
+          <div style="background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+            <div style="font-size:12px;font-weight:800;color:var(--orange);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📋 Paste Format Guide</div>
+            <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);line-height:1.8;background:var(--surface2);padding:12px;border-radius:8px;">
+              <span style="color:#FF9800;font-weight:700;">Global Conflict &amp; Middle East</span><br>
+              1. Iran Threatens Infrastructure: Tehran warns...<br>
+              2. Strait of Hormuz: Iran's blockade continues...<br>
+              <br>
+              <span style="color:#4CAF50;font-weight:700;">India National News</span><br>
+              1. PM Modi's Meet: Prime Minister held...<br>
+              2. Petrol Price Hike: Premium prices hiked...<br>
             </div>
-          </div>
-
-          <div style="background:rgba(255,152,0,0.06);border:1px solid rgba(255,152,0,0.15);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--orange);">
-            💡 <strong>Tip:</strong> Write content as short bullet points, one per line:<br>
-            <span style="color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;">
-              Point 1: Short fact here.<br>
-              Point 2: Another quick update.<br>
-              Point 3: Keep it snappy.
-            </span>
+            <div style="margin-top:10px;font-size:12px;color:var(--muted);">
+              ✅ Section name on its own line → becomes a colored header<br>
+              ✅ <code style="color:var(--accent2);">1. Bold Title: Content here</code> → numbered point with bold title<br>
+              ✅ Each section auto-gets a unique color automatically
+            </div>
           </div>
 
           <div class="form-group">
-            <label>Article Title *</label>
-            <input type="text" id="60sec-title" placeholder="Short, punchy headline..." />
+            <label>Digest Title * <span style="color:var(--muted);font-size:12px;">e.g. "Daily Digest — 23 March 2026"</span></label>
+            <input type="text" id="60sec-title" placeholder="Daily Digest — 23 March 2026" />
           </div>
 
           <div class="form-group">
-            <label>Content * <span style="color:var(--muted);font-size:12px;">(one bullet point per line)</span></label>
-            <textarea id="60sec-content" placeholder="Point 1: Short description here.&#10;Point 2: Another quick fact.&#10;Point 3: Keep it snappy." style="min-height:180px;"></textarea>
+            <label>Full Bulletin Content * <span style="color:var(--orange);font-size:12px;">— paste entire bulletin here</span></label>
+            <textarea id="60sec-content"
+              placeholder="Global Conflict &amp; Middle East Crisis
+1. Iran Threatens Infrastructure: Tehran warns it will target all U.S. facilities.
+2. Strait of Hormuz Blockade: Iran's blockade cutting off 20% of global oil.
+
+India National News
+1. Shaheed Diwas: India observes Martyrs' Day today.
+2. PM Modi's Meet: Prime Minister held a meeting on West Asia."
+              style="min-height:380px;font-family:'DM Mono',monospace;font-size:13px;line-height:1.7;"></textarea>
           </div>
 
-          <!-- ✅ TOPIC SELECTOR — controls card color -->
-          <div class="form-row">
-            <div class="form-group">
-              <label>📌 Topic / Category <span style="color:var(--orange);font-size:11px;font-weight:700;">— controls card color</span></label>
-              <select id="60sec-topic" onchange="update60SecColorPreview(this.value)"
-                style="border:2px solid var(--orange);">
-                <option value="Technology">Technology</option>
-                <option value="Politics">Politics</option>
-                <option value="Business">Business</option>
-                <option value="Sports">Sports</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Health">Health</option>
-                <option value="Science">Science</option>
-                <option value="World">World</option>
-                <option value="India">India</option>
-                <option value="General" selected>General</option>
-                <option value="Education">Education</option>
-                <option value="Environment">Environment</option>
-              </select>
-              <!-- Live color preview -->
-              <div class="category-preview" id="60sec-colorPreview">
-                <span class="category-color-dot" id="60sec-colorDot" style="background:#4e342e;"></span>
-                <span id="60sec-colorLabel" style="color:var(--muted);">General → Brown card</span>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Source</label>
-              <input type="text" id="60sec-source" placeholder="e.g. BBC, CNN, PIB..." />
-            </div>
+          <!-- Live preview count -->
+          <div id="60sec-parsePreview" style="background:var(--surface2);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted);display:none;">
+            📊 Detected: <span id="60sec-sectionCount" style="color:var(--orange);font-weight:700;">0</span> sections,
+            <span id="60sec-pointCount" style="color:var(--accent2);font-weight:700;">0</span> total points
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label>Original Article Link (optional)</label>
-              <input type="url" id="60sec-link" placeholder="https://..." />
+              <label>Source / Edition</label>
+              <input type="text" id="60sec-source" placeholder="e.g. Centrinsic NPT Daily" />
             </div>
             <div class="form-group">
               <label>Auto-Expire Date (optional)</label>
               <input type="datetime-local" id="60sec-expiry" />
             </div>
           </div>
-
           <div class="form-group">
             <label>Status</label>
             <select id="60sec-status">
@@ -500,13 +438,13 @@
           </div>
 
           <div style="display:flex;gap:12px;margin-top:8px;">
-            <button class="btn btn-orange" id="60sec-uploadBtn" onclick="uploadArticle('60sec')" style="flex:1;justify-content:center;">⚡ Publish 60 Sec Article</button>
+            <button class="btn btn-orange" id="60sec-uploadBtn" onclick="uploadArticle('60sec')" style="flex:1;justify-content:center;">⚡ Publish 60 Sec Digest</button>
             <button class="btn btn-ghost" onclick="resetForm('60sec')">Cancel</button>
           </div>
         </div>
       </div>
 
-      <!-- UPLOAD CURRENT AFFAIRS -->
+      <!-- ══ UPLOAD CURRENT AFFAIRS ══ -->
       <div class="panel" id="panel-upload-ca">
         <div class="section-header">
           <h3>🔴 Upload Current Affairs</h3>
@@ -517,7 +455,7 @@
             <div class="upload-card-icon red">🔴</div>
             <div>
               <div style="font-weight:700;font-size:16px;color:var(--red);">Current Affairs Article</div>
-              <div style="font-size:13px;color:var(--muted);">Important current affairs, exam-relevant content, government policies.</div>
+              <div style="font-size:13px;color:var(--muted);">Exam-relevant content, government policies, major events.</div>
             </div>
           </div>
           <div style="background:rgba(229,57,53,0.08);border:1px solid rgba(229,57,53,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--red);">
@@ -585,7 +523,7 @@
         </div>
       </div>
 
-      <!-- ALL ARTICLES -->
+      <!-- ══ ALL ARTICLES ══ -->
       <div class="panel" id="panel-articles">
         <div class="section-header">
           <h3>All Manual Articles</h3>
@@ -596,19 +534,19 @@
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-          <button class="btn btn-sm" id="filter-all"   onclick="filterByCategory('all')"    style="background:var(--accent);color:#fff;">All</button>
+          <button class="btn btn-sm" id="filter-all"   onclick="filterByCategory('all')"    style="background:var(--accent);color:#fff;border:none;">All</button>
           <button class="btn btn-sm btn-ghost" id="filter-aid"   onclick="filterByCategory('aid')">🔵 AI-D</button>
           <button class="btn btn-sm btn-ghost" id="filter-60sec" onclick="filterByCategory('60sec')">⚡ 60 Sec</button>
           <button class="btn btn-sm btn-ghost" id="filter-ca"    onclick="filterByCategory('ca')">🔴 Current Affairs</button>
         </div>
         <div class="search-bar">
           <span class="search-icon">🔍</span>
-          <input type="text" id="searchInput" placeholder="Search articles by title..." oninput="filterArticles(this.value)" />
+          <input type="text" id="searchInput" placeholder="Search articles by title..." oninput="applyArticleFilters()" />
         </div>
         <div id="articlesList"><div class="loading-row"><div class="spinner"></div> Loading articles...</div></div>
       </div>
 
-      <!-- GNEWS -->
+      <!-- ══ GNEWS ══ -->
       <div class="panel" id="panel-gnews">
         <div class="section-header">
           <h3>GNews Cache (AI-S)</h3>
@@ -618,7 +556,7 @@
         <div id="gnewsList"><div class="loading-row"><div class="spinner"></div> Loading GNews cache...</div></div>
       </div>
 
-      <!-- SCHEDULER -->
+      <!-- ══ SCHEDULER ══ -->
       <div class="panel" id="panel-scheduler">
         <div class="section-header"><h3>Auto-Delete Scheduler</h3></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -633,8 +571,9 @@
             <div style="color:var(--muted);font-size:14px;line-height:1.8;">
               <p>🕐 Runs daily at <strong style="color:var(--text);">11:57 PM IST</strong></p>
               <p style="margin-top:8px;">🗑️ Deletes <strong style="color:var(--text);">all manual articles</strong> + Cloudinary images</p>
-              <p style="margin-top:8px;">⚡ GNews (AI-S) cache is <strong style="color:var(--text);">not affected</strong></p>
-              <p style="margin-top:16px;padding:10px;background:rgba(255,71,87,0.1);border-radius:8px;border:1px solid rgba(255,71,87,0.2);color:var(--danger);">⚠️ "Run Delete Now" will immediately delete all manual articles!</p>
+              <p style="margin-top:8px;">🔖 Also clears <strong style="color:var(--text);">all bookmarks</strong></p>
+              <p style="margin-top:8px;">⚡ GNews cache is <strong style="color:var(--text);">not affected</strong></p>
+              <p style="margin-top:16px;padding:10px;background:rgba(255,71,87,0.1);border-radius:8px;border:1px solid rgba(255,71,87,0.2);color:var(--danger);">⚠️ "Run Delete Now" immediately deletes all manual articles!</p>
             </div>
           </div>
         </div>
@@ -648,7 +587,7 @@
 <div class="modal-overlay" id="deleteAllModal">
   <div class="modal">
     <h3>⚠️ Delete All Manual News?</h3>
-    <p>This will permanently delete <strong>all manual articles</strong> (AI-D + 60 Sec + Current Affairs) and their Cloudinary images.</p>
+    <p>This permanently deletes all AI-D + 60 Sec + Current Affairs articles and Cloudinary images.</p>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeDeleteAllModal()">Cancel</button>
       <button class="btn btn-danger" onclick="deleteAllNews()">Yes, Delete All</button>
@@ -676,41 +615,11 @@ let allArticlesData       = [];
 let currentCategoryFilter = 'all';
 let deleteTargetId        = null;
 
-window.onload = () => { if (authToken) { showMainLayout(); loadDashboard(); } };
-
-// ── 60 SEC COLOR MAP (matches app.js) ──
-const TOPIC_COLORS = {
-  'technology':    { bg: '#1a237e', label: 'Technology → Deep Blue' },
-  'politics':      { bg: '#1b5e20', label: 'Politics → Deep Green' },
-  'business':      { bg: '#4a148c', label: 'Business → Purple' },
-  'economy':       { bg: '#4a148c', label: 'Economy → Purple' },
-  'finance':       { bg: '#4a148c', label: 'Finance → Purple' },
-  'sports':        { bg: '#e65100', label: 'Sports → Deep Orange' },
-  'sport':         { bg: '#e65100', label: 'Sports → Deep Orange' },
-  'entertainment': { bg: '#880e4f', label: 'Entertainment → Pink' },
-  'movies':        { bg: '#880e4f', label: 'Movies → Pink' },
-  'health':        { bg: '#006064', label: 'Health → Teal' },
-  'medical':       { bg: '#006064', label: 'Medical → Teal' },
-  'science':       { bg: '#33691e', label: 'Science → Olive' },
-  'world':         { bg: '#b71c1c', label: 'World → Deep Red' },
-  'international': { bg: '#b71c1c', label: 'International → Deep Red' },
-  'india':         { bg: '#0d47a1', label: 'India → Royal Blue' },
-  'national':      { bg: '#0d47a1', label: 'National → Royal Blue' },
-  'general':       { bg: '#4e342e', label: 'General → Brown' },
-  'education':     { bg: '#1a237e', label: 'Education → Deep Blue' },
-  'environment':   { bg: '#37474f', label: 'Environment → Blue Grey' },
+window.onload = () => {
+  if (authToken) { showMainLayout(); loadDashboard(); }
 };
 
-function update60SecColorPreview(value) {
-  const key     = value.toLowerCase();
-  const palette = TOPIC_COLORS[key] || TOPIC_COLORS['general'];
-  const dot     = document.getElementById('60sec-colorDot');
-  const label   = document.getElementById('60sec-colorLabel');
-  if (dot)   dot.style.background = palette.bg;
-  if (label) label.textContent    = palette.label;
-}
-
-// AUTH
+// ── AUTH ──────────────────────────────────────
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   if (!email) return showToast('Enter email', 'error');
@@ -756,16 +665,16 @@ function doLogout() {
   location.reload();
 }
 
-// NAVIGATION
+// ── NAVIGATION ────────────────────────────────
 const panelTitles = {
   'dashboard': 'Dashboard', 'upload-aid': '🔵 Upload AI-D Article',
-  'upload-60sec': '⚡ Upload 60 Sec Article', 'upload-ca': '🔴 Upload Current Affairs',
+  'upload-60sec': '⚡ Upload 60 Sec Digest', 'upload-ca': '🔴 Upload Current Affairs',
   'articles': 'All Articles', 'gnews': 'GNews Cache (AI-S)', 'scheduler': 'Scheduler'
 };
 
 function showPanel(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active','active-orange','active-red','active-teal'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active','active-orange','active-red'));
   const panel = document.getElementById('panel-' + name);
   if (panel) panel.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -782,7 +691,7 @@ function showPanel(name) {
   if (name === 'dashboard') loadDashboard();
 }
 
-// DASHBOARD
+// ── DASHBOARD ─────────────────────────────────
 async function loadDashboard() {
   try {
     const [dbStatus, cacheStatus, autoStatus, articlesData] = await Promise.all([
@@ -799,7 +708,7 @@ async function loadDashboard() {
     document.getElementById('dbStatus').textContent      = dbStatus.mongoConnection === 'connected' ? 'Connected' : 'Disconnected';
     const ad = autoStatus.autoDelete;
     document.getElementById('schedulerStatusDash').innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;">
         <div>⏰ <strong>Scheduled:</strong> ${ad.scheduledTime}</div>
         <div>✅ <strong>Last Run:</strong> ${ad.lastRun ? new Date(ad.lastRun).toLocaleString() : 'Never'}</div>
         <div>🗑️ <strong>Last Deleted:</strong> ${ad.lastDeletedCount} articles</div>
@@ -808,13 +717,35 @@ async function loadDashboard() {
   } catch(e) { showToast('Failed to load dashboard', 'error'); }
 }
 
-// UPLOAD
-const CATEGORY_MAP = {
-  'aid':   null,            // uses aid-subcategory dropdown value
-  '60sec': null,            // uses 60sec-topic dropdown value
-  'ca':    'currentaffairs'
-};
+// ── LIVE PARSE PREVIEW FOR 60 SEC ─────────────
+function update60SecPreview() {
+  const content   = document.getElementById('60sec-content')?.value || '';
+  const preview   = document.getElementById('60sec-parsePreview');
+  const secCount  = document.getElementById('60sec-sectionCount');
+  const ptCount   = document.getElementById('60sec-pointCount');
+  if (!preview) return;
 
+  const lines     = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  let sections    = 0;
+  let points      = 0;
+
+  for (const line of lines) {
+    const isNumbered = /^\d+[\.\)]\s/.test(line);
+    const isBullet   = /^[-•*]\s/.test(line);
+    if (!isNumbered && !isBullet && line.length > 3) sections++;
+    else if (isNumbered || isBullet) points++;
+  }
+
+  if (content.trim().length > 10) {
+    preview.style.display = 'block';
+    if (secCount) secCount.textContent = sections;
+    if (ptCount)  ptCount.textContent  = points;
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+// ── UPLOAD ────────────────────────────────────
 function previewImage(input, prefix) {
   const file    = input.files[0];
   const preview = document.getElementById(`${prefix}-imagePreview`);
@@ -836,6 +767,9 @@ async function uploadArticle(prefix) {
   if (!title)   return showToast('Title is required', 'error');
   if (!content) return showToast('Content is required', 'error');
 
+  // 60sec: validate has some content
+  if (prefix === '60sec' && content.length < 20) return showToast('Please add bulletin content', 'error');
+
   const btn = document.getElementById(`${prefix}-uploadBtn`);
   btn.disabled  = true;
   btn.innerHTML = '<div class="spinner"></div> Uploading...';
@@ -846,17 +780,10 @@ async function uploadArticle(prefix) {
   formData.append('source',  document.getElementById(`${prefix}-source`)?.value.trim() || 'Centrinsic NPT');
   formData.append('status',  document.getElementById(`${prefix}-status`)?.value || 'published');
 
-  // ✅ Category logic
-  let category;
-  if (prefix === 'aid') {
-    // AI-D uses subcategory dropdown
-    category = document.getElementById('aid-subcategory')?.value || 'General';
-  } else if (prefix === '60sec') {
-    // 60 Sec uses topic dropdown — this controls the card color in app
-    category = document.getElementById('60sec-topic')?.value || 'General';
-  } else if (prefix === 'ca') {
-    category = 'currentaffairs';
-  }
+  // Category
+  const catMap = { 'aid': null, '60sec': '60sec', 'ca': 'currentaffairs' };
+  let category = catMap[prefix];
+  if (prefix === 'aid') category = document.getElementById('aid-subcategory')?.value || 'General';
   formData.append('category', category);
 
   const link = document.getElementById(`${prefix}-link`)?.value.trim();
@@ -876,8 +803,8 @@ async function uploadArticle(prefix) {
     });
     const data = await response.json();
     if (data.success || data.articleId) {
-      const labels = { aid: '🔵 AI-D', '60sec': '⚡ 60 Sec', ca: '🔴 Current Affairs' };
-      showToast(`✅ ${labels[prefix]} article published!`, 'success');
+      const labels = { aid: '🔵 AI-D', '60sec': '⚡ 60 Sec Digest', ca: '🔴 Current Affairs' };
+      showToast(`✅ ${labels[prefix]} published!`, 'success');
       resetForm(prefix);
       loadDashboard();
     } else {
@@ -887,7 +814,7 @@ async function uploadArticle(prefix) {
     showToast('Network error: ' + e.message, 'error');
   } finally {
     btn.disabled  = false;
-    const btnLabels = { aid: '🔵 Publish AI-D Article', '60sec': '⚡ Publish 60 Sec Article', ca: '🔴 Publish Current Affairs' };
+    const btnLabels = { aid: '🔵 Publish AI-D Article', '60sec': '⚡ Publish 60 Sec Digest', ca: '🔴 Publish Current Affairs' };
     btn.innerHTML = btnLabels[prefix];
   }
 }
@@ -899,19 +826,16 @@ function resetForm(prefix) {
   });
   const status = document.getElementById(`${prefix}-status`);
   if (status) status.value = 'published';
-  if (prefix === '60sec') {
-    const topic = document.getElementById('60sec-topic');
-    if (topic) { topic.value = 'General'; update60SecColorPreview('General'); }
-  }
   const img = document.getElementById(`${prefix}-image`);
   if (img) img.value = '';
   const preview = document.getElementById(`${prefix}-imagePreview`);
   if (preview) preview.style.display = 'none';
   const drop = document.getElementById(`${prefix}-imageDrop`);
   if (drop) { drop.querySelector('.drop-icon').textContent = '🖼️'; drop.querySelector('.drop-text').textContent = 'Click to upload image'; }
+  if (prefix === '60sec') { const p = document.getElementById('60sec-parsePreview'); if (p) p.style.display = 'none'; }
 }
 
-// ALL ARTICLES
+// ── ALL ARTICLES ──────────────────────────────
 async function loadArticles() {
   document.getElementById('articlesList').innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading...</div>';
   try {
@@ -926,7 +850,9 @@ async function loadArticles() {
 
 function filterByCategory(cat) {
   currentCategoryFilter = cat;
-  document.querySelectorAll('[id^="filter-"]').forEach(btn => { btn.style.background = 'transparent'; btn.style.color = 'var(--muted)'; btn.style.border = '1px solid var(--border)'; });
+  document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+    btn.style.background = 'transparent'; btn.style.color = 'var(--muted)'; btn.style.border = '1px solid var(--border)';
+  });
   const active = document.getElementById(`filter-${cat}`);
   if (active) {
     const colors = { all: 'var(--accent)', aid: 'var(--accent)', '60sec': 'var(--orange)', ca: 'var(--red)' };
@@ -947,8 +873,6 @@ function applyArticleFilters() {
   renderArticles(filtered);
 }
 
-function filterArticles() { applyArticleFilters(); }
-
 function renderArticles(articles) {
   const container = document.getElementById('articlesList');
   if (!articles || articles.length === 0) {
@@ -960,24 +884,12 @@ function renderArticles(articles) {
     const excerpt = (a.content||'').substring(0,90)+'...';
     const hasImg  = a.image && a.image.startsWith('http');
     const cat     = (a.category||'').toLowerCase();
-    // Show actual topic color dot for 60sec articles
-    const colorDot = cat !== '60sec' ? '' : (() => {
-      const p = TOPIC_COLORS[cat] || TOPIC_COLORS['general'];
-      return `<span style="width:8px;height:8px;border-radius:50%;background:${p.bg};display:inline-block;margin-left:4px;vertical-align:middle;"></span>`;
-    })();
-    let catBadge = `<span class="badge badge-teal">${escHtml(a.category||'General')}</span>`;
-    if (cat === '60sec')          catBadge = `<span class="badge badge-orange">⚡ 60 Sec ${colorDot}</span>`;
+    let catBadge  = `<span class="badge badge-teal">${escHtml(a.category||'General')}</span>`;
+    if (cat === '60sec')          catBadge = `<span class="badge badge-orange">⚡ 60 Sec Digest</span>`;
     if (cat === 'currentaffairs') catBadge = `<span class="badge badge-red">🔴 Current Affairs</span>`;
-    // For 60sec, show topic color
-    const topicInfo = cat === '60sec' ? (() => {
-      const topicCat = (a.category||'general').toLowerCase();
-      // The actual topic is stored as the category in the app for 60sec articles
-      // But since category IS '60sec' for all 60sec articles, we use source as hint
-      return '';
-    })() : '';
     return `
       <div class="article-card">
-        <div class="article-thumb">${hasImg ? `<img src="${a.image}" onerror="this.parentElement.innerHTML='📄'" />` : '📄'}</div>
+        <div class="article-thumb">${hasImg ? `<img src="${a.image}" onerror="this.parentElement.innerHTML='📄'" />` : (cat === '60sec' ? '⚡' : cat === 'currentaffairs' ? '🔴' : '📄')}</div>
         <div class="article-info">
           <div class="article-title">${escHtml(a.title)}</div>
           <div class="article-meta">
@@ -994,16 +906,16 @@ function renderArticles(articles) {
   }).join('') + `</div>`;
 }
 
-// GNEWS
+// ── GNEWS ─────────────────────────────────────
 async function loadGNewsPanel() {
   try {
     const data = await api('/api/admin/cache-status');
     const lastFetch = data.lastFetchTime ? new Date(data.lastFetchTime).toLocaleString() : 'Never';
     document.getElementById('gnewsStatus').innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
-        <div><div style="color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;margin-bottom:4px;">CACHED</div><div style="font-size:24px;font-family:'Syne',sans-serif;font-weight:800;">${data.articlesInCache}</div></div>
-        <div><div style="color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;margin-bottom:4px;">LAST FETCH</div><div style="font-size:13px;">${lastFetch}</div></div>
-        <div><div style="color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;margin-bottom:4px;">CACHE DURATION</div><div style="font-size:13px;">${data.cacheDurationMinutes} min</div></div>
+        <div><div style="color:var(--muted);font-size:12px;margin-bottom:4px;font-family:'DM Mono',monospace;">CACHED</div><div style="font-size:24px;font-family:'Syne',sans-serif;font-weight:800;">${data.articlesInCache}</div></div>
+        <div><div style="color:var(--muted);font-size:12px;margin-bottom:4px;font-family:'DM Mono',monospace;">LAST FETCH</div><div style="font-size:13px;">${lastFetch}</div></div>
+        <div><div style="color:var(--muted);font-size:12px;margin-bottom:4px;font-family:'DM Mono',monospace;">CACHE DURATION</div><div style="font-size:13px;">${data.cacheDurationMinutes} min</div></div>
       </div>
       <div style="display:flex;gap:12px;align-items:center;">
         <span class="badge ${data.cacheStatus?.isStale?'badge-red':'badge-green'}">${data.cacheStatus?.isStale?'⚠️ Stale':'✅ Fresh'}</span>
@@ -1036,7 +948,7 @@ async function refreshGNews() {
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
-// SCHEDULER
+// ── SCHEDULER ─────────────────────────────────
 async function loadSchedulerStatus() {
   try {
     const data = await api('/api/admin/auto-delete-status');
@@ -1063,7 +975,7 @@ async function triggerAutoDelete() {
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
-// DELETE
+// ── DELETE ────────────────────────────────────
 function openDeleteAllModal()  { document.getElementById('deleteAllModal').classList.add('open'); }
 function closeDeleteAllModal() { document.getElementById('deleteAllModal').classList.remove('open'); }
 
@@ -1077,7 +989,11 @@ async function deleteAllNews() {
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
-function openDeleteSingle(id, title) { deleteTargetId = id; document.getElementById('deleteSingleMsg').textContent = `Delete "${title}"?`; document.getElementById('deleteSingleModal').classList.add('open'); }
+function openDeleteSingle(id, title) {
+  deleteTargetId = id;
+  document.getElementById('deleteSingleMsg').textContent = `Delete "${title}"?`;
+  document.getElementById('deleteSingleModal').classList.add('open');
+}
 
 async function confirmDeleteSingle() {
   document.getElementById('deleteSingleModal').classList.remove('open');
@@ -1091,7 +1007,7 @@ async function confirmDeleteSingle() {
   deleteTargetId = null;
 }
 
-// API
+// ── API ───────────────────────────────────────
 async function api(path, method='GET', body=null) {
   const opts = { method, headers:{'Content-Type':'application/json'} };
   if (body) opts.body = JSON.stringify(body);
@@ -1104,7 +1020,7 @@ async function apiAuth(path, method='GET', body=null) {
   return (await fetch(API_BASE + path, opts)).json();
 }
 
-// TOAST
+// ── TOAST ─────────────────────────────────────
 let toastTimer;
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
@@ -1113,6 +1029,7 @@ function showToast(msg, type='') {
   toastTimer = setTimeout(() => t.className = '', 3500);
 }
 
+// ── UTILS ─────────────────────────────────────
 function escHtml(str) {
   if (!str) return '';
   const d = document.createElement('div');
@@ -1120,7 +1037,7 @@ function escHtml(str) {
   return d.innerHTML;
 }
 
-// Drag & drop
+// ── DRAG & DROP ───────────────────────────────
 ['aid','ca'].forEach(prefix => {
   window.addEventListener('load', () => {
     const drop = document.getElementById(`${prefix}-imageDrop`);
@@ -1139,8 +1056,11 @@ function escHtml(str) {
   });
 });
 
-// Init color preview on load
-window.addEventListener('load', () => update60SecColorPreview('General'));
+// ── LIVE PREVIEW LISTENER FOR 60 SEC ──────────
+window.addEventListener('load', () => {
+  const textarea = document.getElementById('60sec-content');
+  if (textarea) textarea.addEventListener('input', update60SecPreview);
+});
 </script>
 </body>
 </html>
