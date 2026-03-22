@@ -1,11 +1,11 @@
 // ============================================
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
-// 60 Sec: Daily bulletin digest — scroll format
+// FIX: 60sec routing — checks category AND title pattern
 // 4 Tabs: AI-S | AI-D | 60 Sec | Current Affairs
 // ============================================
 
-const API_BASE     = "https://centrinsicnpt.com";
-const API_ARTICLES = `${API_BASE}/api/articles`;
+const API_BASE       = "https://centrinsicnpt.com";
+const API_ARTICLES   = `${API_BASE}/api/articles`;
 const API_SAVE_EMAIL = `${API_BASE}/api/save-email`;
 
 console.log("🔌 API Base:", API_BASE);
@@ -19,7 +19,6 @@ let lastUpdatedTime = null;
 let allArticles     = [];
 let currentTab      = 'gnews';
 
-// ── TRANSLATE STATE ──────────────────────────
 let originalArticleContent = null;
 
 /* ============================================
@@ -43,26 +42,62 @@ function initApp() {
 function initializeApp() {
     checkLoginStatus();
     updateUserDisplay();
-
     if (localStorage.getItem("theme") === "dark") {
         document.body.classList.add("dark");
         const toggle = document.getElementById('darkToggle');
         if (toggle) toggle.checked = true;
     }
-
     const savedSize = localStorage.getItem("font_size");
     if (savedSize) applyFontSize(savedSize);
-
     showScreen("splash");
-
     setTimeout(() => {
-        if (currentUser && currentUser.loggedIn) {
-            showScreen("home");
-            loadNews();
-        } else {
-            showScreen("about");
-        }
+        if (currentUser && currentUser.loggedIn) { showScreen("home"); loadNews(); }
+        else showScreen("about");
     }, 2000);
+}
+
+/* ============================================
+   ✅ SINGLE SOURCE OF TRUTH — which tab does this article belong to?
+   Checks multiple fields to be robust against server variations
+============================================ */
+function getArticleTab(article) {
+    // GNews articles — not manual
+    if (!article.isManual) return 'gnews';
+
+    // Check ALL possible fields the server might use
+    const cat    = (article.category    || '').toLowerCase().trim();
+    const type   = (article.type        || '').toLowerCase().trim();
+    const tag    = (article.tag         || '').toLowerCase().trim();
+    const source = (article.source      || '').toLowerCase().trim();
+
+    // ── 60 Sec detection ──
+    // Match any variation: '60sec', '60 sec', '60seconds', '60-sec', 'sixty'
+    const is60sec =
+        cat === '60sec' ||
+        cat === '60 sec' ||
+        cat === '60seconds' ||
+        cat === '60-sec' ||
+        cat === 'sixtysec' ||
+        type === '60sec' ||
+        tag === '60sec' ||
+        article.is60sec === true ||
+        article.bulletinDigest === true;
+
+    if (is60sec) return '60sec';
+
+    // ── Current Affairs detection ──
+    const isCA =
+        cat === 'currentaffairs' ||
+        cat === 'current affairs' ||
+        cat === 'current_affairs' ||
+        type === 'currentaffairs' ||
+        tag === 'currentaffairs' ||
+        article.isCurrentAffairs === true;
+
+    if (isCA) return 'currentaffairs';
+
+    // ── Everything else = AI-D ──
+    return 'manual';
 }
 
 /* ============================================
@@ -94,6 +129,8 @@ function exportAllFunctions() {
     window.copyToClipboard       = copyToClipboard;
     window.fallbackCopy          = fallbackCopy;
     window.open60SecBulletin     = open60SecBulletin;
+    window.share60SecDigest      = share60SecDigest;
+    window.getArticleTab         = getArticleTab;
 }
 
 /* ============================================
@@ -153,18 +190,14 @@ function showScreen(screenId) {
         screen.classList.remove('active');
         screen.style.display = 'none';
     });
-
     const target = document.getElementById(screenId);
     if (!target) return;
-
     target.classList.add('active');
     target.style.display = screenId === 'splash' ? 'flex' : 'block';
-
     const showNav = ['home', 'saved', 'preferences'].includes(screenId);
     document.querySelectorAll('.bottom-nav').forEach(nav => {
         nav.style.display = showNav ? 'flex' : 'none';
     });
-
     if (screenId === 'home')        { updateSavedFolder(); setTimeout(loadNews, 100); }
     if (screenId === 'saved')       setTimeout(loadSavedArticles, 100);
     if (screenId === 'preferences') {
@@ -172,7 +205,6 @@ function showScreen(screenId) {
         updateUserDisplay();
         highlightSizeButton(localStorage.getItem("font_size") || "medium");
     }
-
     window.scrollTo(0, 0);
     setTimeout(bindMobileButtons, 200);
 }
@@ -446,6 +478,13 @@ async function loadNews() {
         localStorage.setItem("news_backup", JSON.stringify(newsArray));
         localStorage.setItem("news_meta",   JSON.stringify(data.meta || {}));
         isOnline = true;
+
+        // ── Debug: print all manual articles with their category ──
+        console.log('📊 Manual articles routing:');
+        newsArray.filter(a => a.isManual).forEach(a => {
+            console.log(`  tab="${getArticleTab(a)}" | category="${a.category}" | title="${(a.title||'').substring(0,40)}"`);
+        });
+
         renderTabView();
         updateSavedFolder();
     } catch (error) {
@@ -474,32 +513,32 @@ function switchTab(tab) {
 }
 
 /* ============================================
-   TAB CONFIG
+   TAB CONFIG — all filters use getArticleTab()
 ============================================ */
 const TAB_CONFIG = {
     gnews: {
         label: 'AI-S', title: 'Short AI Card', icon: '🟢',
         color: '#4CAF50', shadow: 'rgba(76,175,80,0.35)',
         emptyIcon: '📭', emptyMsg: 'Check back later for news',
-        filter: (a) => a.filter(x => !x.isManual)
+        filter: (a) => a.filter(x => getArticleTab(x) === 'gnews')
     },
     manual: {
         label: 'AI-D', title: 'Detailed AI Card', icon: '🔵',
         color: '#667eea', shadow: 'rgba(102,126,234,0.35)',
         emptyIcon: '✍️', emptyMsg: 'Detailed articles coming soon',
-        filter: (a) => a.filter(x => x.isManual && !['60sec','currentaffairs'].includes((x.category||'').toLowerCase()))
+        filter: (a) => a.filter(x => getArticleTab(x) === 'manual')
     },
     '60sec': {
         label: '60 Sec', title: '60 Second Digest', icon: '⚡',
         color: '#FF9800', shadow: 'rgba(255,152,0,0.35)',
         emptyIcon: '⏱️', emptyMsg: '60-second digest coming soon',
-        filter: (a) => a.filter(x => x.isManual && (x.category||'').toLowerCase() === '60sec')
+        filter: (a) => a.filter(x => getArticleTab(x) === '60sec')
     },
     currentaffairs: {
         label: 'Current', title: 'Current Affairs', icon: '🔴',
         color: '#e53935', shadow: 'rgba(229,57,53,0.35)',
         emptyIcon: '🗞️', emptyMsg: 'Current affairs coming soon',
-        filter: (a) => a.filter(x => x.isManual && (x.category||'').toLowerCase() === 'currentaffairs')
+        filter: (a) => a.filter(x => getArticleTab(x) === 'currentaffairs')
     }
 };
 
@@ -557,7 +596,6 @@ function renderTabView() {
 
     if (activeArticles.length > 0) {
         if (currentTab === '60sec') {
-            // ✅ 60 Sec = full bulletin digest view
             html += `<div style="padding:0 16px 20px 16px;">${render60SecDigest(activeArticles)}</div>`;
         } else {
             html += `<div class="articles-list" style="padding:0 16px 20px 16px;">${renderArticleCards(activeArticles)}</div>`;
@@ -576,167 +614,95 @@ function renderTabView() {
 
 /* ============================================
    ⚡ 60 SEC — BULLETIN DIGEST VIEW
-   Parses pasted bulletin format:
-   Section Header → colored block
-   1. Point text → numbered item
-   Scroll through all sections
 ============================================ */
-
-// Section header → color mapping
 const SECTION_COLORS = [
-    '#1a237e', // Deep Blue
-    '#1b5e20', // Deep Green
-    '#4a148c', // Purple
-    '#b71c1c', // Deep Red
-    '#e65100', // Deep Orange
-    '#006064', // Teal
-    '#33691e', // Olive
-    '#880e4f', // Pink
-    '#0d47a1', // Royal Blue
-    '#37474f', // Blue Grey
-    '#4e342e', // Brown
-    '#1a5c2a', // Forest Green
+    '#1a237e','#1b5e20','#4a148c','#b71c1c',
+    '#e65100','#006064','#33691e','#880e4f',
+    '#0d47a1','#37474f','#4e342e','#1a5c2a',
 ];
 
 function parseBulletinContent(content) {
     if (!content) return [];
-
     const lines    = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const sections = [];
     let currentSection = null;
 
     for (const line of lines) {
-        // Detect section header: line that doesn't start with a number and isn't a bullet point
-        // Section headers are lines like "Global Conflict & Middle East Crisis"
         const isNumberedPoint = /^\d+[\.\)]\s/.test(line);
         const isBulletPoint   = /^[-•*]\s/.test(line);
 
         if (!isNumberedPoint && !isBulletPoint && line.length > 3) {
-            // New section header
             currentSection = { header: line, points: [] };
             sections.push(currentSection);
         } else if (isNumberedPoint && currentSection) {
-            // Numbered point — strip the number prefix
             const text = line.replace(/^\d+[\.\)]\s*/, '').trim();
             if (text) currentSection.points.push(text);
         } else if (isBulletPoint && currentSection) {
-            // Bullet point
             const text = line.replace(/^[-•*]\s*/, '').trim();
             if (text) currentSection.points.push(text);
         } else if (currentSection && line.length > 5) {
-            // Plain text line under a section
             currentSection.points.push(line);
         } else if (!currentSection && line.length > 5) {
-            // Text before first header — create unnamed section
             currentSection = { header: '', points: [line] };
             sections.push(currentSection);
         }
     }
-
     return sections;
 }
 
 function render60SecDigest(articles) {
-    const isDark   = document.body.classList.contains('dark');
-    const pageBg   = isDark ? '#111' : '#f5f5f5';
-    const cardText = isDark ? '#ccc' : '#222';
-    const metaBg   = isDark ? '#1a1a1a' : '#fff';
+    const isDark     = document.body.classList.contains('dark');
+    const cardText   = isDark ? '#ccc'    : '#222';
+    const metaBg     = isDark ? '#1a1a1a' : '#fff';
     const metaBorder = isDark ? '#2a2a2a' : '#e0e0e0';
 
-    // Sort by createdAt descending — newest first
     const sorted = [...articles].sort((a, b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
 
     return sorted.map((item, articleIndex) => {
         const id      = String(item._id || item.articleId || item.id || articleIndex).replace(/[^a-zA-Z0-9-]/g, '');
-        const title   = item.title   || 'Today\'s Digest';
+        const title   = item.title   || "Today's Digest";
         const content = item.content || item.description || '';
         const source  = item.source  || 'Centrinsic NPT';
         const date    = item.createdAt
             ? new Date(item.createdAt).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
             : 'Today';
 
-        // Parse the bulletin content into sections
-        const sections = parseBulletinContent(content);
-
-        // Count total points
+        const sections    = parseBulletinContent(content);
         const totalPoints = sections.reduce((sum, s) => sum + s.points.length, 0);
 
-        // Build the full digest HTML
         let digestHTML = '';
 
-        // If parsing found sections, render them
         if (sections.length > 0) {
             sections.forEach((section, sIdx) => {
                 const color = SECTION_COLORS[sIdx % SECTION_COLORS.length];
-
                 digestHTML += `
-                    <!-- Section Header -->
-                    <div style="
-                        background: ${color};
-                        padding: 12px 16px;
-                        margin: ${sIdx === 0 ? '0' : '20px'} -16px 14px -16px;
-                        display: flex; align-items: center; gap: 10px;
-                    ">
+                    <div style="background:${color};padding:12px 16px;margin:${sIdx===0?'0':'20px'} -16px 14px -16px;display:flex;align-items:center;gap:10px;">
                         <div style="width:3px;height:20px;background:rgba(255,255,255,0.5);border-radius:2px;flex-shrink:0;"></div>
-                        <span style="color:#fff;font-size:14px;font-weight:800;letter-spacing:0.3px;line-height:1.3;">
-                            ${escapeHtml(section.header)}
-                        </span>
+                        <span style="color:#fff;font-size:14px;font-weight:800;letter-spacing:0.3px;line-height:1.3;">${escapeHtml(section.header)}</span>
                     </div>`;
-
-                // Points
                 section.points.forEach((point, pIdx) => {
-                    // Extract bold part if format is "Bold Part: rest of text"
                     const colonIdx = point.indexOf(':');
-                    let boldPart = '';
-                    let restPart = point;
-
+                    let boldPart = '', restPart = point;
                     if (colonIdx > 0 && colonIdx < 60) {
                         boldPart = point.substring(0, colonIdx);
                         restPart = point.substring(colonIdx + 1).trim();
                     }
-
                     digestHTML += `
-                        <div style="
-                            display: flex; gap: 12px; align-items: flex-start;
-                            padding: 10px 0;
-                            border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'};
-                        ">
-                            <!-- Number bubble -->
-                            <span style="
-                                background: ${color};
-                                color: white;
-                                font-size: 11px; font-weight: 800;
-                                min-width: 26px; height: 26px;
-                                border-radius: 50%;
-                                display: flex; align-items: center; justify-content: center;
-                                flex-shrink: 0; margin-top: 1px;
-                            ">${pIdx + 1}</span>
-                            <!-- Text -->
+                        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid ${isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'};">
+                            <span style="background:${color};color:white;font-size:11px;font-weight:800;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">${pIdx+1}</span>
                             <span style="color:${cardText};font-size:14px;line-height:1.65;flex:1;">
-                                ${boldPart ? `<strong style="color:${isDark ? '#fff' : '#111'};">${escapeHtml(boldPart)}:</strong> ` : ''}${escapeHtml(restPart)}
+                                ${boldPart ? `<strong style="color:${isDark?'#fff':'#111'};">${escapeHtml(boldPart)}:</strong> ` : ''}${escapeHtml(restPart)}
                             </span>
                         </div>`;
                 });
             });
         } else {
-            // Fallback: just display content as plain text
             digestHTML = `<p style="color:${cardText};font-size:14px;line-height:1.7;padding:8px 0;">${escapeHtml(content)}</p>`;
         }
 
         return `
-            <div style="
-                background: ${metaBg};
-                border-radius: 20px;
-                margin-bottom: 20px;
-                overflow: hidden;
-                border: 1px solid ${metaBorder};
-                box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-            ">
-                <!-- Digest Header Card -->
-                <div style="
-                    background: linear-gradient(135deg, #FF9800, #F57C00);
-                    padding: 18px 20px;
-                ">
+            <div style="background:${metaBg};border-radius:20px;margin-bottom:20px;overflow:hidden;border:1px solid ${metaBorder};box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                <div style="background:linear-gradient(135deg,#FF9800,#F57C00);padding:18px 20px;">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                         <span style="font-size:22px;">⚡</span>
                         <div>
@@ -745,53 +711,28 @@ function render60SecDigest(articles) {
                         </div>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">
-                            ${sections.length} sections
-                        </span>
-                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">
-                            ${totalPoints} updates
-                        </span>
-                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;padding:3px 10px;border-radius:12px;">
-                            📰 ${escapeHtml(source)}
-                        </span>
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">${sections.length} sections</span>
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">${totalPoints} updates</span>
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;padding:3px 10px;border-radius:12px;">📰 ${escapeHtml(source)}</span>
                     </div>
                 </div>
-
-                <!-- All Sections Content -->
-                <div style="padding:0 16px 16px 16px;">
-                    ${digestHTML}
-                </div>
-
-                <!-- Footer -->
-                <div style="
-                    padding: 12px 16px;
-                    border-top: 1px solid ${metaBorder};
-                    display: flex; align-items: center; justify-content: space-between;
-                    background: ${isDark ? '#0a0a0a' : '#fafafa'};
-                ">
+                <div style="padding:0 16px 16px 16px;">${digestHTML}</div>
+                <div style="padding:12px 16px;border-top:1px solid ${metaBorder};display:flex;align-items:center;justify-content:space-between;background:${isDark?'#0a0a0a':'#fafafa'};">
                     <span style="color:${isDark?'#555':'#aaa'};font-size:11px;">Centrinsic NPT • 60 Sec Digest</span>
-                    <button onclick="share60SecDigest('${id}')"
-                        style="background:#FF9800;border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">
-                        📤 Share
-                    </button>
+                    <button onclick="share60SecDigest('${id}')" style="background:#FF9800;border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">📤 Share</button>
                 </div>
             </div>`;
     }).join('');
 }
 
-/* ── Share 60 Sec digest ── */
 async function share60SecDigest(articleId) {
     const article = articlesCache.get(articleId) || allArticles.find(a => String(a._id||a.id||a.articleId).replace(/[^a-zA-Z0-9-]/g,'') === articleId);
     if (!article) return;
-
     const title     = article.title || "Today's 60 Sec Digest";
     const shareText = `⚡ ${title}\n\n📲 Read today's digest on Centrinsic NPT:\nhttps://centrinsicnpt.com`;
-
     if (window.Capacitor?.Plugins?.Share) {
-        try {
-            await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: 'https://centrinsicnpt.com' });
-            return;
-        } catch(e) { if ((e?.message||'').toLowerCase().includes('cancel')) return; }
+        try { await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: 'https://centrinsicnpt.com' }); return; }
+        catch(e) { if ((e?.message||'').toLowerCase().includes('cancel')) return; }
     }
     if (navigator.share) {
         try { await navigator.share({ title, text: shareText }); return; }
@@ -801,7 +742,6 @@ async function share60SecDigest(articleId) {
     showToast('🔗 Link copied!');
 }
 
-/* ── Open full 60sec bulletin (tap on digest card) ── */
 function open60SecBulletin(articleId) {
     const article = articlesCache.get(articleId);
     if (article) { currentArticle = article; displayArticleDetail(); }
@@ -819,7 +759,7 @@ function renderArticleCards(articles) {
         const title    = item.title || "Untitled";
         const isSaved  = getSavedArticles().some(s => String(s._id||s.id||s.articleId) === id);
         const imageUrl = getImageUrl(item.image);
-        const isCA     = (item.category||'').toLowerCase() === 'currentaffairs';
+        const isCA     = getArticleTab(item) === 'currentaffairs';
 
         return `
             <article class="news-card"
@@ -908,8 +848,8 @@ function displayArticleDetail() {
 
     originalArticleContent = null;
 
-    const articleId = currentArticle._id || currentArticle.id || currentArticle.articleId;
-    const isSaved   = getSavedArticles().some(s => String(s._id||s.id||s.articleId) === String(articleId));
+    const articleId  = currentArticle._id || currentArticle.id || currentArticle.articleId;
+    const isSaved    = getSavedArticles().some(s => String(s._id||s.id||s.articleId) === String(articleId));
     if (saveBtn) { saveBtn.innerHTML = isSaved ? '✓ Saved' : '💾 Save'; saveBtn.classList.toggle('saved', isSaved); }
 
     let date = "Recent";
@@ -918,9 +858,12 @@ function displayArticleDetail() {
             .toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}).toLowerCase();
     }
 
-    const imageUrl = getImageUrl(currentArticle.image);
-    const source   = currentArticle.source   || 'Unknown';
-    const category = currentArticle.category || 'General';
+    const imageUrl   = getImageUrl(currentArticle.image);
+    const source     = currentArticle.source   || 'Unknown';
+    const category   = currentArticle.category || 'General';
+    const articleTab = getArticleTab(currentArticle);
+    const is60sec    = articleTab === '60sec';
+    const isCA       = articleTab === 'currentaffairs';
 
     let originalLink = '#';
     if      (currentArticle.originalLink)     originalLink = currentArticle.originalLink;
@@ -941,24 +884,17 @@ function displayArticleDetail() {
     const selectBg     = isDark ? '#111'    : '#ffffff';
     const selectColor  = isDark ? '#ccc'    : '#333';
     const selectBorder = isDark ? '#333'    : '#ccc';
-    const catLower     = category.toLowerCase();
-    const catColor     = catLower === '60sec' ? '#FF9800' : catLower === 'currentaffairs' ? '#e53935' : '#4CAF50';
-    const catLabel     = catLower === '60sec' ? '⚡ 60 Sec' : catLower === 'currentaffairs' ? '🔴 Current Affairs' : category;
+    const catColor     = is60sec ? '#FF9800' : isCA ? '#e53935' : '#4CAF50';
+    const catLabel     = is60sec ? '⚡ 60 Sec' : isCA ? '🔴 Current Affairs' : category;
 
-    // For 60sec articles, render the full bulletin in detail view too
-    const is60sec = catLower === '60sec';
     let bodyContent = '';
-
     if (is60sec) {
         const sections = parseBulletinContent(currentArticle.content || '');
         if (sections.length > 0) {
             bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;">`;
             sections.forEach((section, sIdx) => {
                 const color = SECTION_COLORS[sIdx % SECTION_COLORS.length];
-                bodyContent += `
-                    <div style="background:${color};padding:10px 14px;border-radius:10px;margin:${sIdx===0?'0':'16px'} 0 10px 0;">
-                        <span style="color:#fff;font-size:14px;font-weight:800;">${escapeHtml(section.header)}</span>
-                    </div>`;
+                bodyContent += `<div style="background:${color};padding:10px 14px;border-radius:10px;margin:${sIdx===0?'0':'16px'} 0 10px 0;"><span style="color:#fff;font-size:14px;font-weight:800;">${escapeHtml(section.header)}</span></div>`;
                 section.points.forEach((point, pIdx) => {
                     const colonIdx = point.indexOf(':');
                     let boldPart = '', restPart = point;
@@ -966,9 +902,7 @@ function displayArticleDetail() {
                     bodyContent += `
                         <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid ${detailBorder};">
                             <span style="background:${color};color:white;font-size:11px;font-weight:800;min-width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">${pIdx+1}</span>
-                            <span style="color:${bodyColor};font-size:14px;line-height:1.65;flex:1;">
-                                ${boldPart ? `<strong style="color:${isDark?'#fff':'#111'};">${escapeHtml(boldPart)}:</strong> ` : ''}${escapeHtml(restPart)}
-                            </span>
+                            <span style="color:${bodyColor};font-size:14px;line-height:1.65;flex:1;">${boldPart ? `<strong style="color:${isDark?'#fff':'#111'};">${escapeHtml(boldPart)}:</strong> ` : ''}${escapeHtml(restPart)}</span>
                         </div>`;
                 });
             });
@@ -988,7 +922,6 @@ function displayArticleDetail() {
                 <span class="article-date" style="color:${metaColor};font-size:14px;">${escapeHtml(date)}</span>
                 <button onclick="shareCurrentArticle()" id="shareBtn" style="background:#4CAF50;border:none;border-radius:8px;color:white;padding:8px 16px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:5px;">📤 Share</button>
             </div>
-
             ${!is60sec ? `
             <div id="translateBar" style="margin-bottom:16px;padding:10px 14px;background:${transBg};border-radius:12px;border:1px solid ${detailBorder};display:flex;align-items:center;gap:10px;">
                 <span style="font-size:13px;color:${metaColor};white-space:nowrap;">🌐 Translate:</span>
@@ -1011,9 +944,7 @@ function displayArticleDetail() {
                     </optgroup>
                 </select>
             </div>` : ''}
-
             ${bodyContent}
-
             <div style="background:${cardBg};border-radius:12px;padding:20px;margin:20px 0;border:1px solid ${detailBorder};">
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Source:</span><span style="color:#667eea;font-size:14px;font-weight:600;">${escapeHtml(source)}</span></div>
@@ -1021,7 +952,6 @@ function displayArticleDetail() {
                     <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Published:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(date)}</span></div>
                 </div>
             </div>
-
             ${originalLink !== '#' ? `
             <div style="margin-bottom:30px;">
                 <button onclick="openExternalLink('${escapeHtml(originalLink)}')" style="display:flex;align-items:center;justify-content:center;gap:10px;background:${linkBg};border:1px solid ${linkBorder};border-radius:12px;padding:16px;color:${linkColor};font-size:15px;font-weight:500;width:100%;cursor:pointer;">
@@ -1071,9 +1001,6 @@ async function translateArticle(targetLang) {
 
 function highlightTranslateBtn(lang) { const s = document.getElementById('translateSelect'); if (s) s.value = lang; }
 
-/* ============================================
-   EXTERNAL LINK
-============================================ */
 function openExternalLink(url) {
     if (!url || url === '#') { showToast("Link not available"); return; }
     if (window.Capacitor?.Plugins?.Browser) { window.Capacitor.Plugins.Browser.open({ url }); }
@@ -1081,9 +1008,6 @@ function openExternalLink(url) {
     else window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-/* ============================================
-   SAVE / BOOKMARK
-============================================ */
 function saveCurrentArticle() {
     if (!currentArticle) return;
     const saveBtn     = document.getElementById("saveBtn");
@@ -1105,9 +1029,6 @@ function saveCurrentArticle() {
     if (homeScreen?.classList.contains('active')) loadNews();
 }
 
-/* ============================================
-   SHARE
-============================================ */
 async function shareCurrentArticle() {
     if (!currentArticle) return;
     const title     = currentArticle.title || "Check out this article";
@@ -1149,9 +1070,6 @@ async function shareCurrentArticle() {
     }
 }
 
-/* ============================================
-   CLIPBOARD
-============================================ */
 function copyToClipboard(text) {
     if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(text).then(() => showToast("✅ Link copied!")).catch(() => fallbackCopy(text)); }
     else fallbackCopy(text);
@@ -1163,14 +1081,8 @@ function fallbackCopy(text) {
     showToast("✅ Link copied!");
 }
 
-/* ============================================
-   REFRESH
-============================================ */
 function refreshFeed() { isOnline = false; loadNews(); showToast("Refreshing..."); }
 
-/* ============================================
-   UTILS
-============================================ */
 function escapeHtml(text) {
     if (text == null) return '';
     const div = document.createElement('div');
@@ -1193,4 +1105,4 @@ function bindMobileButtons() {
     if (deleteBtn) deleteBtn.onpointerup = () => clearAll();
 }
 
-console.log("✅ Centrinsic NPT — 60sec bulletin digest + 4 tabs + translate + share");
+console.log("✅ Centrinsic NPT — getArticleTab() single source of truth for all routing");
