@@ -780,13 +780,22 @@ async function uploadArticle(prefix) {
   formData.append('source',  document.getElementById(`${prefix}-source`)?.value.trim() || 'Centrinsic NPT');
   formData.append('status',  document.getElementById(`${prefix}-status`)?.value || 'published');
 
-  // Category
-  const catMap = { 'aid': null, '60sec': '60sec', 'ca': 'currentaffairs' };
-  let category = catMap[prefix];
-  if (prefix === 'aid') category = document.getElementById('aid-subcategory')?.value || 'General';
+  // Category — explicit per type, never falls through
+  let category;
+  if (prefix === 'aid') {
+    category = document.getElementById('aid-subcategory')?.value || 'General';
+  } else if (prefix === '60sec') {
+    category = '60sec'; // hardcoded — always goes to 60sec tab
+  } else if (prefix === 'ca') {
+    category = 'currentaffairs';
+  } else {
+    category = 'General';
+  }
+  console.log('[Admin Upload] prefix:', prefix, '→ category:', category);
   formData.append('category', category);
 
-  const link = document.getElementById(`${prefix}-link`)?.value.trim();
+  const linkEl = document.getElementById(`${prefix}-link`);
+  const link   = linkEl ? linkEl.value.trim() : '';
   if (link) formData.append('originalLink', link);
 
   const expiry = document.getElementById(`${prefix}-expiry`)?.value;
