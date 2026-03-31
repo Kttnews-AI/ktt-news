@@ -20,6 +20,7 @@ let allArticles     = [];
 let currentTab      = 'gnews';
 
 let originalArticleContent = null;
+let original60SecContent   = {}; // Store original 60sec content for translation
 
 /* ============================================
    INITIALIZATION
@@ -130,6 +131,7 @@ function exportAllFunctions() {
     window.fallbackCopy          = fallbackCopy;
     window.open60SecBulletin     = open60SecBulletin;
     window.share60SecDigest      = share60SecDigest;
+    window.translate60SecDigest  = translate60SecDigest;
     window.getArticleTab         = getArticleTab;
 }
 
@@ -716,19 +718,79 @@ function render60SecDigest(articles) {
                         <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;padding:3px 10px;border-radius:12px;">📰 ${escapeHtml(source)}</span>
                     </div>
                 </div>
-                <div style="padding:0 16px 16px 16px;">${digestHTML}</div>
-                <div style="padding:12px 16px;border-top:1px solid ${metaBorder};display:flex;align-items:center;justify-content:space-between;background:${isDark?'#0a0a0a':'#fafafa'};">
+                <div style="padding:0 16px 16px 16px;" id="digestContent_${id}">${digestHTML}</div>
+                <div style="padding:12px 16px;border-top:1px solid ${metaBorder};display:flex;align-items:center;justify-content:space-between;background:${isDark?'#0a0a0a':'#fafafa'};flex-wrap:wrap;gap:8px;">
                     <span style="color:${isDark?'#555':'#aaa'};font-size:11px;">Centrinsic NPT • 60 Sec Digest</span>
-                    <button onclick="share60SecDigest('${id}')" style="background:#FF9800;border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">📤 Share</button>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <select id="digestTranslateSelect_${id}" onchange="translate60SecDigest('${id}', this.value)" style="background:#FF9800;color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;">
+                            <option value="en" style="background:#333;color:#fff;">🌐 English</option>
+                            <option value="hi" style="background:#333;color:#fff;">हिंदी</option>
+                            <option value="te" style="background:#333;color:#fff;">తెలుగు</option>
+                            <option value="ta" style="background:#333;color:#fff;">தமிழ்</option>
+                            <option value="kn" style="background:#333;color:#fff;">ಕನ್ನಡ</option>
+                            <option value="ml" style="background:#333;color:#fff;">മലയാളം</option>
+                        </select>
+                        <button onclick="share60SecDigest('${id}')" style="background:#FF9800;border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">📤 Share</button>
+                    </div>
                 </div>
             </div>`;
     }).join('');
 }
 
+async function translate60SecDigest(articleId, targetLang) {
+    const digestEl = document.getElementById(`digestContent_${articleId}`);
+    const selectEl = document.getElementById(`digestTranslateSelect_${articleId}`);
+    
+    if (!digestEl || !targetLang) return;
+    
+    // Store original if not already stored
+    if (!original60SecContent[articleId]) {
+        original60SecContent[articleId] = digestEl.innerHTML;
+    }
+    
+    // Reset to original if English selected
+    if (targetLang === 'en') {
+        digestEl.innerHTML = original60SecContent[articleId];
+        if (selectEl) selectEl.value = 'en';
+        return;
+    }
+    
+    // Get text content to translate
+    const textContent = digestEl.innerText;
+    
+    digestEl.innerHTML = '<div style="text-align:center;color:#FF9800;padding:20px;"><span>🌐 Translating to ' + targetLang.toUpperCase() + '...</span></div>';
+    
+    try {
+        const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(textContent)}`);
+        const data = await response.json();
+        
+        let translated = '';
+        if (data && data[0]) {
+            data[0].forEach(seg => {
+                if (seg[0]) translated += seg[0];
+            });
+        }
+        
+        if (translated) {
+            digestEl.innerHTML = `<p style="color:#222;font-size:14px;line-height:1.7;padding:8px 0;white-space:pre-wrap;">${escapeHtml(translated)}</p>`;
+            showToast(`✅ Translated to ${targetLang.toUpperCase()}`);
+        } else {
+            digestEl.innerHTML = original60SecContent[articleId];
+            if (selectEl) selectEl.value = 'en';
+            showToast('⚠️ Translation not available');
+        }
+    } catch (err) {
+        console.error('Translation error:', err);
+        digestEl.innerHTML = original60SecContent[articleId];
+        if (selectEl) selectEl.value = 'en';
+        showToast('⚠️ Translation failed');
+    }
+}
+
 async function share60SecDigest(articleId) {
     const article = articlesCache.get(articleId) || allArticles.find(a => String(a._id||a.id||a.articleId).replace(/[^a-zA-Z0-9-]/g,'') === articleId);
     if (!article) return;
-    const title     = article.title || "Today's 60 Sec Digest";
+    const title     = article.title || "Today's Digest";
     const shareText = `⚡ ${title}\n\n📲 Read today's digest on Centrinsic NPT:\nhttps://centrinsicnpt.com`;
     if (window.Capacitor?.Plugins?.Share) {
         try { await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: 'https://centrinsicnpt.com' }); return; }
