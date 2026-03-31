@@ -55,6 +55,9 @@ function initializeApp() {
         if (currentUser && currentUser.loggedIn) { showScreen("home"); loadNews(); }
         else showScreen("about");
     }, 2000);
+    
+    // ── Mobile Back Button Handler ──
+    setupMobileBackButton();
 }
 
 /* ============================================
@@ -133,6 +136,8 @@ function exportAllFunctions() {
     window.share60SecDigest      = share60SecDigest;
     window.translate60SecDigest  = translate60SecDigest;
     window.getArticleTab         = getArticleTab;
+    window.handleMobileBack      = handleMobileBack;
+    window.setupMobileBackButton = setupMobileBackButton;
 }
 
 /* ============================================
@@ -209,6 +214,9 @@ function showScreen(screenId) {
     }
     window.scrollTo(0, 0);
     setTimeout(bindMobileButtons, 200);
+    
+    // Update navigation stack for back button handling
+    updateNavigationStack(screenId);
 }
 
 function goToLogin()          { resetLoginForm(); showScreen("login"); }
@@ -1165,6 +1173,76 @@ function bindMobileButtons() {
     if (logoutBtn) logoutBtn.onpointerup = () => logout();
     const deleteBtn = document.getElementById("deleteDataButton");
     if (deleteBtn) deleteBtn.onpointerup = () => clearAll();
+}
+
+/* ============================================
+   MOBILE BACK BUTTON HANDLER
+============================================ */
+let navigationStack = ['splash'];
+
+function setupMobileBackButton() {
+    // Handle Capacitor back button (Ionic/Cordova apps)
+    if (window.Capacitor?.Plugins?.App) {
+        window.Capacitor.Plugins.App.addListener('backButton', handleMobileBack);
+    }
+    
+    // Handle browser back button (PWA)
+    window.addEventListener('popstate', handleMobileBack);
+    
+    // Handle physical back button for Android browsers
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.key === 'ArrowLeft') {
+            if (e.target === document.body) {
+                handleMobileBack();
+                e.preventDefault();
+            }
+        }
+    });
+}
+
+function handleMobileBack() {
+    const currentScreen = document.querySelector('.screen.active')?.id || 'splash';
+    
+    // Navigation logic based on current screen
+    switch(currentScreen) {
+        case 'detail':
+            // Back from detail view goes to home
+            showScreen('home');
+            break;
+        case 'home':
+        case 'saved':
+        case 'preferences':
+            // Already on main tabs, stay there
+            break;
+        case 'login':
+            // Back from login goes to about
+            showScreen('about');
+            break;
+        case 'about':
+            // Back from about stays on about (don't close app)
+            if (window.Capacitor?.Plugins?.App) {
+                // Show exit confirmation
+                if (navigationStack.filter(s => s === 'about').length > 1) {
+                    showToast("Press back again to exit");
+                    navigationStack.pop();
+                } else {
+                    // Prevent app close - reset to about
+                }
+            }
+            break;
+        default:
+            // For any other screen, go back to home
+            if (currentScreen !== 'home') {
+                showScreen('home');
+            }
+            break;
+    }
+}
+
+function updateNavigationStack(screenId) {
+    if (navigationStack[navigationStack.length - 1] !== screenId) {
+        navigationStack.push(screenId);
+    }
 }
 
 console.log("✅ Centrinsic NPT — getArticleTab() single source of truth for all routing");
