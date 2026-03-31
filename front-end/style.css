@@ -12,7 +12,7 @@
     height: 100%;
     overflow-y: auto;
     background: #f2f2f7;
-    z-index: 1;
+    z-index: -1;
     pointer-events: none;
 }
 
@@ -20,7 +20,7 @@
     display: block !important;
     visibility: visible;
     opacity: 1;
-    z-index: 100;
+    z-index: 50;
     pointer-events: auto;
 }
 
@@ -327,6 +327,8 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: transform 0.2s, opacity 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-main:active {
@@ -342,6 +344,8 @@ body {
     cursor: pointer;
     padding: 8px;
     transition: color 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-text:active {
@@ -385,6 +389,8 @@ body {
     justify-content: center;
     border-radius: 50%;
     transition: background 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-back:active {
@@ -471,6 +477,8 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-secondary:active {
@@ -545,6 +553,8 @@ body {
     justify-content: center;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
     transition: all 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .icon-btn:active {
@@ -576,6 +586,8 @@ body {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     transition: transform 0.2s, box-shadow 0.2s;
     color: white;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .saved-folder:active {
@@ -632,6 +644,8 @@ body {
     width: 100%;
     box-sizing: border-box;
     margin: 0;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .news-card:active {
@@ -705,7 +719,8 @@ body {
     justify-content: space-around;
     align-items: center;
     padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
-    z-index: 1000;
+    z-index: 50;
+    pointer-events: auto;
 }
 
 .dark .bottom-nav {
@@ -728,6 +743,8 @@ body {
     transition: color 0.2s;
     max-width: 80px;
     position: relative;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .nav-btn.active {
@@ -806,6 +823,8 @@ body {
     align-items: center;
     gap: 4px;
     font-weight: 400;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .page-header h1 {
@@ -829,6 +848,8 @@ body {
 .page-header .btn-save {
     min-width: 80px;
     text-align: right;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 /* ============================================
@@ -842,6 +863,8 @@ body {
 .pref-section {
     margin-bottom: 24px;
     padding: 0 16px;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .pref-section h3 {
@@ -866,6 +889,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .border-top {
@@ -953,6 +978,8 @@ input:checked + .switch-slider:before {
     align-items: center;
     justify-content: center;
     font-weight: 500;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .size-btn[data-size="small"] {
@@ -990,6 +1017,8 @@ input:checked + .switch-slider:before {
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: opacity 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-logout:active {
@@ -1011,6 +1040,8 @@ input:checked + .switch-slider:before {
     align-items: center;
     gap: 8px;
     transition: background 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-danger:active {
@@ -1037,6 +1068,8 @@ input:checked + .switch-slider:before {
     display: flex;
     align-items: center;
     gap: 4px;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-save.saved {
@@ -1135,7 +1168,7 @@ input:checked + .switch-slider:before {
     opacity: 0;
     transition: all 0.3s ease;
     z-index: 10000;
-    pointer-events: none;
+    pointer-events: auto;
     max-width: 90%;
     text-align: center;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -1294,6 +1327,8 @@ input:focus-visible {
     background: var(--card);
     transition: all 0.2s;
     caret-color: var(--accent);
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .otp-input:focus {
@@ -1380,6 +1415,7 @@ input:focus-visible {
     cursor: pointer;
     z-index: 100;
     margin: 0;
+    pointer-events: auto;
 }
 
 .btn-logout, .btn-danger {
@@ -1389,6 +1425,8 @@ input:focus-visible {
     -webkit-user-select: none;
     user-select: none;
     outline: none;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-logout:active, .btn-danger:active {
@@ -1399,6 +1437,8 @@ input:focus-visible {
 button {
     -webkit-user-select: none;
     user-select: none;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 /* Dark mode for saved screen */
@@ -1424,49 +1464,6 @@ body.dark #saved .page-header {
     color: #ffffff !important;
 }
 
-button {
-    position: relative;
-    z-index: 9999;
-    pointer-events: auto;
-}
-
-.pref-section {
-    position: relative;
-    z-index: 9999;
-}
-
-.screen {
-    pointer-events: auto;
-}
-
-.bottom-nav {
-    z-index: 1;
-}
-
-button,
-.btn-logout,
-.btn-danger {
-    pointer-events: auto !important;
-    touch-action: manipulation !important;
-    z-index: 9999;
-    position: relative;
-}
-
-.pref-section {
-    position: relative;
-    z-index: 9999;
-}
-
-.screen {
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-}
-
-body, html {
-    height: auto !important;
-    overflow-x: hidden !important;
-}
-
 .settings-actions {
     padding: 16px;
 }
@@ -1483,6 +1480,9 @@ body, html {
     font-size: 18px !important;
     font-weight: 600 !important;
     text-align: center !important;
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+    cursor: pointer !important;
 }
 
 #deleteDataButton {
@@ -1497,6 +1497,9 @@ body, html {
     font-size: 18px !important;
     font-weight: 600 !important;
     text-align: center !important;
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+    cursor: pointer !important;
 }
 
 .date {
@@ -1530,6 +1533,8 @@ body, html {
     display: flex;
     align-items: center;
     gap: 4px;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-share-inline:hover {
