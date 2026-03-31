@@ -211,7 +211,6 @@ function showScreen(screenId) {
     
     target.classList.add('active');
     target.style.display = screenId === 'splash' ? 'flex' : 'block';
-    target.setAttribute('data-active-screen', screenId); // Extra safeguard
     
     // Show/hide navigation based on screen
     const showNav = ['home', 'saved', 'preferences'].includes(screenId);
@@ -234,9 +233,6 @@ function showScreen(screenId) {
     
     window.scrollTo(0, 0);
     setTimeout(bindMobileButtons, 200);
-    
-    // Update navigation stack for back button handling
-    updateNavigationStack(screenId);
 }
 
 function goToLogin()          { resetLoginForm(); showScreen("login"); }
@@ -1197,125 +1193,134 @@ function bindMobileButtons() {
 }
 
 /* ============================================
-   MOBILE BACK BUTTON HANDLER
+   MOBILE BACK BUTTON HANDLER - PREVENTS APP CLOSE
 ============================================ */
-let navigationStack = ['splash'];
 let backButtonProcessing = false;
+let lastBackPressTime = 0;
+let backPressCount = 0;
 
 function setupMobileBackButton() {
-    // Handle Capacitor back button (Ionic/Cordova apps) - MUST BE FIRST
+    console.log("🚀 Setting up mobile back button handler...");
+    
+    // ═══ CAPACITOR (for native iOS/Android apps) ═══
     if (window.Capacitor?.Plugins?.App) {
-        console.log("📱 Setting up Capacitor back button handler");
+        console.log("✅ Capacitor detected - registering back button");
         try {
-            window.Capacitor.Plugins.App.addListener('backButton', ({ canGoBack }) => {
-                console.log("🔙 Capacitor back button pressed - canGoBack:", canGoBack);
+            window.Capacitor.Plugins.App.addListener('backButton', (e) => {
+                console.log("🔙 CAPACITOR BACK BUTTON PRESSED");
                 handleMobileBack();
-                // IMPORTANT: Don't call exit() or allow app to close
+                // DO NOT call exit() - let our handler manage navigation
             });
-        } catch (e) {
-            console.warn("⚠️ Capacitor back button setup failed:", e);
+        } catch (err) {
+            console.warn("⚠️ Capacitor setup error:", err);
         }
     }
     
-    // Override Cordova/Ionic back button
+    // ═══ CORDOVA (for older hybrid apps) ═══
     if (window.cordova) {
+        console.log("✅ Cordova detected - registering back button");
         document.addEventListener('backbutton', (e) => {
-            e.preventDefault();
-            console.log("🔙 Cordova back button pressed");
+            e.preventDefault();  // CRITICAL: Prevents app close
+            console.log("🔙 CORDOVA BACK BUTTON PRESSED");
             handleMobileBack();
         }, false);
     }
     
-    // Handle browser back button (PWA)
+    // ═══ Browser/PWA back button ═══
     window.addEventListener('popstate', (e) => {
-        console.log("🔙 Browser popstate event triggered");
         e.preventDefault();
+        console.log("🔙 BROWSER POPSTATE EVENT");
         handleMobileBack();
     });
     
-    console.log("✅ Mobile back button handler initialized");
+    // ═══ Alternative: Direct key handler ═══
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.keyCode === 27) {
+            e.preventDefault();
+            console.log("🔙 ESCAPE KEY PRESSED");
+            handleMobileBack();
+        }
+    });
+    
+    console.log("✅ Mobile back button fully initialized");
 }
 
 function handleMobileBack() {
-    // Prevent multiple simultaneous back actions
-    if (backButtonProcessing) return;
+    // Prevent rapid consecutive back presses
+    if (backButtonProcessing) {
+        console.log("⚠️ Back button already processing - ignoring");
+        return;
+    }
+    
     backButtonProcessing = true;
-    setTimeout(() => { backButtonProcessing = false; }, 300);
     
-    // Get currently active screen
-    const activeScreen = document.querySelector('.screen.active');
-    const currentScreen = activeScreen?.id || 'home';
+    // Get the currently active screen
+    const activeScreenEl = document.querySelector('.screen.active');
+    const currentScreen = activeScreenEl?.id || 'home';
     
-    console.log("🔙 Mobile back pressed on screen:", currentScreen);
-    console.log("📱 Available screens:", Array.from(document.querySelectorAll('.screen')).map(s => s.id));
+    console.log("═══════════════════════════════════════");
+    console.log("🔙 BACK BUTTON HANDLER TRIGGERED");
+    console.log("📍 Current screen:", currentScreen);
+    console.log("═══════════════════════════════════════");
     
-    // Prevent app exit - handle each screen appropriately
-    let handled = false;
-    
-    if (currentScreen === 'detail') {
-        // Back from article detail → go to home (read more articles)
-        console.log("📄 Back from detail → showing home");
-        showScreen('home');
-        handled = true;
-    } 
-    else if (currentScreen === 'login') {
-        // Back from login → go to about
-        console.log("🔐 Back from login → showing about");
-        showScreen('about');
-        handled = true;
-    } 
-    else if (currentScreen === 'about') {
-        // Back from about → stay on about (don't close app)
-        console.log("❌ Back on about screen - PREVENTING APP EXIT");
-        showToast("App will remain open");
-        handled = true;
-    } 
-    else if (currentScreen === 'home') {
-        // On home screen - keep app open
-        console.log("🏠 Back on home - keeping app open");
-        showToast("Tap home icon to go back");
-        handled = true;
-    }
-    else if (currentScreen === 'saved') {
-        // On saved screen - go to home
-        console.log("💾 Back from saved → showing home");
-        showScreen('home');
-        handled = true;
-    }
-    else if (currentScreen === 'preferences') {
-        // On preferences screen - go to home
-        console.log("⚙️ Back from preferences → showing home");
-        showScreen('home');
-        handled = true;
-    }
-    else {
-        // Any other screen - go to home
-        console.log("❓ Unknown screen:", currentScreen, "→ going to home");
-        showScreen('home');
-        handled = true;
-    }
-    
-    // CRITICAL: Make sure we handled it and app doesn't close
-    if (handled) {
-        console.log("✅ Back button handled - app stays open");
-    } else {
-        console.error("❌ Back button NOT handled properly!");
-        // Fallback: show home
-        showScreen('home');
-    }
-}
-
-function updateNavigationStack(screenId) {
-    // Keep stack size reasonable
-    if (navigationStack.length > 20) {
-        navigationStack = navigationStack.slice(-10);
+    // Route navigation based on current screen
+    switch(currentScreen) {
+        case 'detail':
+            // FROM ARTICLE DETAIL → GO TO HOME
+            console.log("📖 Navigating: DETAIL → HOME");
+            showScreen('home');
+            break;
+            
+        case 'login':
+            // FROM LOGIN → GO TO ABOUT
+            console.log("🔐 Navigating: LOGIN → ABOUT");
+            showScreen('about');
+            break;
+            
+        case 'aboutpage':
+            // FROM ABOUT PAGE → GO TO PREFERENCES
+            console.log("ℹ️ Navigating: ABOUTPAGE → PREFERENCES");
+            showScreen('preferences');
+            break;
+            
+        case 'contact':
+            // FROM CONTACT → GO TO PREFERENCES
+            console.log("📧 Navigating: CONTACT → PREFERENCES");
+            showScreen('preferences');
+            break;
+            
+        case 'saved':
+            // FROM SAVED → GO TO HOME
+            console.log("💾 Navigating: SAVED → HOME");
+            showScreen('home');
+            break;
+            
+        case 'preferences':
+            // FROM PREFERENCES → GO TO HOME
+            console.log("⚙️ Navigating: PREFERENCES → HOME");
+            showScreen('home');
+            break;
+            
+        case 'about':
+        case 'home':
+        case 'splash':
+            // MAIN SCREENS - PREVENT EXIT
+            console.log("🛑 BLOCKING EXIT - Staying on", currentScreen);
+            showToast("App navigation active");
+            break;
+            
+        default:
+            // UNKNOWN SCREEN - GO TO HOME
+            console.log("❓ Unknown screen:", currentScreen, "→ defaulting to HOME");
+            showScreen('home');
     }
     
-    // Don't duplicate consecutive screens
-    if (navigationStack[navigationStack.length - 1] !== screenId) {
-        navigationStack.push(screenId);
-        console.log("📍 Navigation stack:", navigationStack);
-    }
+    console.log("✅ Back button action completed\n");
+    
+    // Re-enable back button after delay
+    setTimeout(() => {
+        backButtonProcessing = false;
+    }, 300);
 }
 
 console.log("✅ Centrinsic NPT — getArticleTab() single source of truth for all routing");
