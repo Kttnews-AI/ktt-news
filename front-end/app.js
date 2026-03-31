@@ -193,18 +193,33 @@ function setupOtherListeners() {
    NAVIGATION
 ============================================ */
 function showScreen(screenId) {
+    // Debug: Log screen changes
+    console.log("🖥️ Showing screen:", screenId);
+    
+    // Hide all screens first
     document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.remove('active');
         screen.style.display = 'none';
     });
+    
+    // Find and show target screen
     const target = document.getElementById(screenId);
-    if (!target) return;
+    if (!target) {
+        console.error("❌ Screen not found:", screenId);
+        return;
+    }
+    
     target.classList.add('active');
     target.style.display = screenId === 'splash' ? 'flex' : 'block';
+    target.setAttribute('data-active-screen', screenId); // Extra safeguard
+    
+    // Show/hide navigation based on screen
     const showNav = ['home', 'saved', 'preferences'].includes(screenId);
     document.querySelectorAll('.bottom-nav').forEach(nav => {
         nav.style.display = showNav ? 'flex' : 'none';
     });
+    
+    // Load content for specific screens
     if (screenId === 'home')        { updateSavedFolder(); setTimeout(loadNews, 100); }
     if (screenId === 'saved')       setTimeout(loadSavedArticles, 100);
     if (screenId === 'preferences') {
@@ -212,6 +227,11 @@ function showScreen(screenId) {
         updateUserDisplay();
         highlightSizeButton(localStorage.getItem("font_size") || "medium");
     }
+    if (screenId === 'detail') {
+        const detailContent = document.getElementById("detailContent");
+        if (detailContent) detailContent.scrollTop = 0;
+    }
+    
     window.scrollTo(0, 0);
     setTimeout(bindMobileButtons, 200);
     
@@ -1034,6 +1054,7 @@ function displayArticleDetail() {
     showScreen("detail");
     const detailContent = document.getElementById("detailContent");
     if (detailContent) detailContent.scrollTop = 0;
+    console.log("📄 Article detail screen displayed - ready for back button");
 }
 
 /* ============================================
@@ -1179,69 +1200,80 @@ function bindMobileButtons() {
    MOBILE BACK BUTTON HANDLER
 ============================================ */
 let navigationStack = ['splash'];
+let backButtonProcessing = false;
 
 function setupMobileBackButton() {
-    // Handle Capacitor back button (Ionic/Cordova apps)
+    // Handle Capacitor back button (Ionic/Cordova apps) - MUST BE FIRST
     if (window.Capacitor?.Plugins?.App) {
-        window.Capacitor.Plugins.App.addListener('backButton', handleMobileBack);
+        console.log("📱 Setting up Capacitor back button handler");
+        window.Capacitor.Plugins.App.addListener('backButton', () => {
+            handleMobileBack();
+        });
     }
     
     // Handle browser back button (PWA)
-    window.addEventListener('popstate', handleMobileBack);
-    
-    // Handle physical back button for Android browsers
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' || e.key === 'ArrowLeft') {
-            if (e.target === document.body) {
-                handleMobileBack();
-                e.preventDefault();
-            }
-        }
+    window.addEventListener('popstate', (e) => {
+        e.preventDefault();
+        handleMobileBack();
     });
+    
+    // Override default Android back behavior
+    if (window.onbackbutton !== undefined) {
+        window.onbackbutton = handleMobileBack;
+    }
+    
+    console.log("✅ Mobile back button handler initialized");
 }
 
 function handleMobileBack() {
-    const currentScreen = document.querySelector('.screen.active')?.id || 'splash';
+    // Prevent multiple simultaneous back actions
+    if (backButtonProcessing) return;
+    backButtonProcessing = true;
+    setTimeout(() => { backButtonProcessing = false; }, 300);
+    
+    const activeScreen = document.querySelector('.screen.active');
+    const currentScreen = activeScreen?.id || 'home';
+    
+    console.log("🔙 Mobile back pressed on screen:", currentScreen);
     
     // Navigation logic based on current screen
-    switch(currentScreen) {
-        case 'detail':
-            // Back from detail view goes to home
-            showScreen('home');
-            break;
-        case 'home':
-        case 'saved':
-        case 'preferences':
-            // Already on main tabs, stay there
-            break;
-        case 'login':
-            // Back from login goes to about
-            showScreen('about');
-            break;
-        case 'about':
-            // Back from about stays on about (don't close app)
-            if (window.Capacitor?.Plugins?.App) {
-                // Show exit confirmation
-                if (navigationStack.filter(s => s === 'about').length > 1) {
-                    showToast("Press back again to exit");
-                    navigationStack.pop();
-                } else {
-                    // Prevent app close - reset to about
-                }
-            }
-            break;
-        default:
-            // For any other screen, go back to home
-            if (currentScreen !== 'home') {
-                showScreen('home');
-            }
-            break;
+    if (currentScreen === 'detail') {
+        // Back from article detail → go to home (read more articles)
+        console.log("📄 Back from detail → showing home");
+        showScreen('home');
+    } 
+    else if (currentScreen === 'login') {
+        // Back from login → go to about
+        console.log("🔐 Back from login → showing about");
+        showScreen('about');
+    } 
+    else if (currentScreen === 'about') {
+        // Back from about → stay on about (prevent app close)
+        console.log("❌ Back button pressed on about - preventing exit");
+        showToast("App navigation active");
+    } 
+    else if (currentScreen === 'home' || currentScreen === 'saved' || currentScreen === 'preferences') {
+        // Already on main tabs - just prevent closing
+        console.log("📱 Already on main screen - preventing exit");
+        showToast("App navigation active");
+    } 
+    else {
+        // Default: go to home
+        console.log("🏠 Default back action → showing home");
+        showScreen('home');
     }
 }
 
 function updateNavigationStack(screenId) {
+    // Keep stack size reasonable
+    if (navigationStack.length > 20) {
+        navigationStack = navigationStack.slice(-10);
+    }
+    
+    // Don't duplicate consecutive screens
     if (navigationStack[navigationStack.length - 1] !== screenId) {
         navigationStack.push(screenId);
+        console.log("📍 Navigation stack:", navigationStack);
     }
 }
 
