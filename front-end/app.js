@@ -1206,21 +1206,32 @@ function setupMobileBackButton() {
     // Handle Capacitor back button (Ionic/Cordova apps) - MUST BE FIRST
     if (window.Capacitor?.Plugins?.App) {
         console.log("📱 Setting up Capacitor back button handler");
-        window.Capacitor.Plugins.App.addListener('backButton', () => {
+        try {
+            window.Capacitor.Plugins.App.addListener('backButton', ({ canGoBack }) => {
+                console.log("🔙 Capacitor back button pressed - canGoBack:", canGoBack);
+                handleMobileBack();
+                // IMPORTANT: Don't call exit() or allow app to close
+            });
+        } catch (e) {
+            console.warn("⚠️ Capacitor back button setup failed:", e);
+        }
+    }
+    
+    // Override Cordova/Ionic back button
+    if (window.cordova) {
+        document.addEventListener('backbutton', (e) => {
+            e.preventDefault();
+            console.log("🔙 Cordova back button pressed");
             handleMobileBack();
-        });
+        }, false);
     }
     
     // Handle browser back button (PWA)
     window.addEventListener('popstate', (e) => {
+        console.log("🔙 Browser popstate event triggered");
         e.preventDefault();
         handleMobileBack();
     });
-    
-    // Override default Android back behavior
-    if (window.onbackbutton !== undefined) {
-        window.onbackbutton = handleMobileBack;
-    }
     
     console.log("✅ Mobile back button handler initialized");
 }
@@ -1231,35 +1242,65 @@ function handleMobileBack() {
     backButtonProcessing = true;
     setTimeout(() => { backButtonProcessing = false; }, 300);
     
+    // Get currently active screen
     const activeScreen = document.querySelector('.screen.active');
     const currentScreen = activeScreen?.id || 'home';
     
     console.log("🔙 Mobile back pressed on screen:", currentScreen);
+    console.log("📱 Available screens:", Array.from(document.querySelectorAll('.screen')).map(s => s.id));
     
-    // Navigation logic based on current screen
+    // Prevent app exit - handle each screen appropriately
+    let handled = false;
+    
     if (currentScreen === 'detail') {
         // Back from article detail → go to home (read more articles)
         console.log("📄 Back from detail → showing home");
         showScreen('home');
+        handled = true;
     } 
     else if (currentScreen === 'login') {
         // Back from login → go to about
         console.log("🔐 Back from login → showing about");
         showScreen('about');
+        handled = true;
     } 
     else if (currentScreen === 'about') {
-        // Back from about → stay on about (prevent app close)
-        console.log("❌ Back button pressed on about - preventing exit");
-        showToast("App navigation active");
+        // Back from about → stay on about (don't close app)
+        console.log("❌ Back on about screen - PREVENTING APP EXIT");
+        showToast("App will remain open");
+        handled = true;
     } 
-    else if (currentScreen === 'home' || currentScreen === 'saved' || currentScreen === 'preferences') {
-        // Already on main tabs - just prevent closing
-        console.log("📱 Already on main screen - preventing exit");
-        showToast("App navigation active");
-    } 
+    else if (currentScreen === 'home') {
+        // On home screen - keep app open
+        console.log("🏠 Back on home - keeping app open");
+        showToast("Tap home icon to go back");
+        handled = true;
+    }
+    else if (currentScreen === 'saved') {
+        // On saved screen - go to home
+        console.log("💾 Back from saved → showing home");
+        showScreen('home');
+        handled = true;
+    }
+    else if (currentScreen === 'preferences') {
+        // On preferences screen - go to home
+        console.log("⚙️ Back from preferences → showing home");
+        showScreen('home');
+        handled = true;
+    }
     else {
-        // Default: go to home
-        console.log("🏠 Default back action → showing home");
+        // Any other screen - go to home
+        console.log("❓ Unknown screen:", currentScreen, "→ going to home");
+        showScreen('home');
+        handled = true;
+    }
+    
+    // CRITICAL: Make sure we handled it and app doesn't close
+    if (handled) {
+        console.log("✅ Back button handled - app stays open");
+    } else {
+        console.error("❌ Back button NOT handled properly!");
+        // Fallback: show home
         showScreen('home');
     }
 }
