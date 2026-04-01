@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
     <title>Centrinsic NPT</title>
     
     <!-- CRITICAL: Inline styles to hide screens immediately -->
@@ -15,8 +19,11 @@
             left: 0;
             width: 100%;
             height: 100%;
+            height: 100vh;
+            height: -webkit-fill-available;
             overflow-y: auto;
             background: #f2f2f7;
+            -webkit-overflow-scrolling: touch;
         }
         
         /* Only show active screen */
@@ -33,6 +40,32 @@
         #splash {
             display: flex !important;
             z-index: 9999;
+        }
+        
+        /* Prevent pull-to-refresh on mobile */
+        body {
+            overscroll-behavior-y: none;
+            touch-action: pan-y;
+        }
+        
+        /* Safe area support for notched phones */
+        @supports (padding: max(0px)) {
+            .main-header, .page-header {
+                padding-top: max(12px, env(safe-area-inset-top));
+                padding-left: max(16px, env(safe-area-inset-left));
+                padding-right: max(16px, env(safe-area-inset-right));
+            }
+            
+            .bottom-nav {
+                padding-bottom: max(6px, env(safe-area-inset-bottom));
+                padding-left: max(0px, env(safe-area-inset-left));
+                padding-right: max(0px, env(safe-area-inset-right));
+            }
+            
+            .screen {
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
         }
     </style>
     
@@ -61,28 +94,28 @@
             </div>
 
             <div class="features-list">
-                <div class="feature-item">
+                <div class="feature-item" ontouchstart="" style="touch-action: manipulation;">
                     <span class="feature-emoji">✨</span>
                     <div class="feature-text">
                         <h3>Clean Reading</h3>
                         <p>No clutter, no noise</p>
                     </div>
                 </div>
-                <div class="feature-item">
+                <div class="feature-item" ontouchstart="" style="touch-action: manipulation;">
                     <span class="feature-emoji">🔖</span>
                     <div class="feature-text">
                         <h3>Save Articles</h3>
                         <p>Read later offline</p>
                     </div>
                 </div>
-                <div class="feature-item">
+                <div class="feature-item" ontouchstart="" style="touch-action: manipulation;">
                     <span class="feature-emoji">🌙</span>
                     <div class="feature-text">
                         <h3>Dark Mode</h3>
                         <p>Easy on your eyes</p>
                     </div>
                 </div>
-                <div class="feature-item">
+                <div class="feature-item" ontouchstart="" style="touch-action: manipulation;">
                     <span class="feature-emoji">⚡</span>
                     <div class="feature-text">
                         <h3>Lightning Fast</h3>
@@ -92,8 +125,8 @@
             </div>
 
             <div class="about-actions">
-                <button class="btn-main" onclick="goToLogin()">Get Started</button>
-                <button class="btn-text" onclick="skipLoginFromAbout()">Continue without account</button>
+                <button class="btn-main" onclick="goToLogin()" ontouchstart="" style="touch-action: manipulation;">Get Started</button>
+                <button class="btn-text" onclick="skipLoginFromAbout()" ontouchstart="" style="touch-action: manipulation;">Continue without account</button>
             </div>
             
             <p class="version">v1.0.0</p>
@@ -101,57 +134,57 @@
     </div>
 
     <!-- LOGIN SCREEN - STEP 1: EMAIL -->
-<div id="login" class="screen">
-    <div class="login-wrapper">
-        <button class="btn-back" onclick="goBackToAbout()">←</button>
-        
-        <div class="login-header">
-            <h1>Sign In</h1>
-            <p>Enter your email to receive OTP</p>
-        </div>
-
-        <div class="login-form" id="emailStep">
-            <div class="input-wrapper">
-                <label>Email Address</label>
-                <input type="email" id="loginEmail" placeholder="name@example.com" autocomplete="email">
-            </div>
-
-            <button class="btn-main" onclick="sendOTP()" id="sendOtpBtn">
-                <span>Send OTP</span>
-            </button>
-        </div>
-
-        <!-- OTP Step (Hidden initially) -->
-        <div class="login-form hidden" id="otpStep">
-            <div class="otp-info">
-                <p>We've sent a 6-digit code to</p>
-                <p class="otp-email" id="otpEmailDisplay"></p>
-            </div>
+    <div id="login" class="screen">
+        <div class="login-wrapper">
+            <button class="btn-back" onclick="goBackToAbout()" ontouchstart="" style="touch-action: manipulation;">←</button>
             
-            <div class="otp-input-container">
-                <input type="text" maxlength="1" class="otp-input" data-index="0">
-                <input type="text" maxlength="1" class="otp-input" data-index="1">
-                <input type="text" maxlength="1" class="otp-input" data-index="2">
-                <input type="text" maxlength="1" class="otp-input" data-index="3">
-                <input type="text" maxlength="1" class="otp-input" data-index="4">
-                <input type="text" maxlength="1" class="otp-input" data-index="5">
+            <div class="login-header">
+                <h1>Sign In</h1>
+                <p>Enter your email to receive OTP</p>
             </div>
 
-            <div class="otp-timer">
-                <span id="otpTimer">Resend OTP in 60s</span>
-                <button class="btn-text hidden" id="resendBtn" onclick="sendOTP()">Resend OTP</button>
+            <div class="login-form" id="emailStep">
+                <div class="input-wrapper">
+                    <label>Email Address</label>
+                    <input type="email" id="loginEmail" placeholder="name@example.com" autocomplete="email" inputmode="email" style="touch-action: manipulation;">
+                </div>
+
+                <button class="btn-main" onclick="sendOTP()" id="sendOtpBtn" ontouchstart="" style="touch-action: manipulation;">
+                    <span>Send OTP</span>
+                </button>
             </div>
 
-            <button class="btn-main" onclick="verifyOTP()" id="verifyOtpBtn">
-                <span>Verify & Continue</span>
-            </button>
+            <!-- OTP Step (Hidden initially) -->
+            <div class="login-form hidden" id="otpStep">
+                <div class="otp-info">
+                    <p>We've sent a 6-digit code to</p>
+                    <p class="otp-email" id="otpEmailDisplay"></p>
+                </div>
+                
+                <div class="otp-input-container">
+                    <input type="text" maxlength="1" class="otp-input" data-index="0" inputmode="numeric" pattern="[0-9]*" style="touch-action: manipulation;">
+                    <input type="text" maxlength="1" class="otp-input" data-index="1" inputmode="numeric" pattern="[0-9]*" style="touch-action: manipulation;">
+                    <input type="text" maxlength="1" class="otp-input" data-index="2" inputmode="numeric" pattern="[0-9]*" style="touch-action: manipulation;">
+                    <input type="text" maxlength="1" class="otp-input" data-index="3" inputmode="numeric" pattern="[0-9]*" style="touch-action: manipulation;">
+                    <input type="text" maxlength="1" class="otp-input" data-index="4" inputmode="numeric" pattern="[0-9]*" style="touch-action: manipulation;">
+                    <input type="text" maxlength="1" class="otp-input" data-index="5" inputmode="numeric" pattern="[0-9]*" style="touch-action: manipulation;">
+                </div>
+
+                <div class="otp-timer">
+                    <span id="otpTimer">Resend OTP in 60s</span>
+                    <button class="btn-text hidden" id="resendBtn" onclick="sendOTP()" ontouchstart="" style="touch-action: manipulation;">Resend OTP</button>
+                </div>
+
+                <button class="btn-main" onclick="verifyOTP()" id="verifyOtpBtn" ontouchstart="" style="touch-action: manipulation;">
+                    <span>Verify & Continue</span>
+                </button>
+            </div>
+
+            <p class="login-footer" id="loginFooter">
+                Don't have an account? <a href="#" onclick="showToast('Enter any email to get started')">Create one</a>
+            </p>
         </div>
-
-        <p class="login-footer" id="loginFooter">
-            Don't have an account? <a href="#" onclick="showToast('Enter any email to get started')">Create one</a>
-        </p>
     </div>
-</div>
 
     <!-- HOME SCREEN -->
     <div id="home" class="screen">
@@ -160,12 +193,12 @@
                 <h1>Centrinsic NPT</h1>
             </div>
             <div class="header-actions">
-                <button class="icon-btn" onclick="refreshFeed()">↻</button>
+                <button class="icon-btn" onclick="refreshFeed()" ontouchstart="" style="touch-action: manipulation;">↻</button>
             </div>
         </header>
 
         <main class="main-body">
-            <div id="savedFolder" class="saved-folder" onclick="showScreen('saved')" style="display: none;">
+            <div id="savedFolder" class="saved-folder" onclick="showScreen('saved')" style="display: none; touch-action: manipulation;" ontouchstart="">
                 <div class="folder-icon">📁</div>
                 <div class="folder-info">
                     <h3>Saved Articles</h3>
@@ -184,7 +217,7 @@
         </main>
 
         <nav class="bottom-nav">
-            <button class="nav-btn active" onclick="showScreen('home')">
+            <button class="nav-btn active" onclick="showScreen('home')" ontouchstart="" style="touch-action: manipulation;">
                 <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                     <polyline points="9 22 9 12 15 12 15 22"></polyline>
@@ -192,14 +225,14 @@
                 <span class="nav-label">Home</span>
             </button>
             
-            <button class="nav-btn" onclick="showScreen('saved')">
+            <button class="nav-btn" onclick="showScreen('saved')" ontouchstart="" style="touch-action: manipulation;">
                 <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                 </svg>
                 <span class="nav-label">Saved</span>
             </button>
             
-            <button class="nav-btn" onclick="showScreen('preferences')">
+            <button class="nav-btn" onclick="showScreen('preferences')" ontouchstart="" style="touch-action: manipulation;">
                 <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -212,9 +245,9 @@
     <!-- SAVED ARTICLES SCREEN -->
     <div id="saved" class="screen">
         <header class="page-header">
-            <button class="btn-back" onclick="showScreen('home')">← Back</button>
+            <button class="btn-back" onclick="showScreen('home')" ontouchstart="" style="touch-action: manipulation;">← Back</button>
             <h1>Saved Articles</h1>
-            <div style="width: 60px;"></div>
+            <div style="width: 60px; flex-shrink: 0;"></div>
         </header>
         
         <main class="page-content">
@@ -222,7 +255,7 @@
         </main>
         
         <nav class="bottom-nav">
-            <button class="nav-btn" onclick="showScreen('home')">
+            <button class="nav-btn" onclick="showScreen('home')" ontouchstart="" style="touch-action: manipulation;">
                 <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                     <polyline points="9 22 9 12 15 12 15 22"></polyline>
@@ -230,14 +263,14 @@
                 <span class="nav-label">Home</span>
             </button>
             
-            <button class="nav-btn active" onclick="showScreen('saved')">
+            <button class="nav-btn active" onclick="showScreen('saved')" ontouchstart="" style="touch-action: manipulation;">
                 <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                 </svg>
                 <span class="nav-label">Saved</span>
             </button>
             
-            <button class="nav-btn" onclick="showScreen('preferences')">
+            <button class="nav-btn" onclick="showScreen('preferences')" ontouchstart="" style="touch-action: manipulation;">
                 <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -247,327 +280,292 @@
         </nav>
     </div>
 
-<!-- PREFERENCES SCREEN -->
-<div id="preferences" class="screen">
-    <header class="page-header">
-        <button class="btn-back" onclick="showScreen('home')">← Settings</button>
-        <h1>Preferences</h1>
-        <div style="width: 60px;"></div>
-    </header>
+    <!-- PREFERENCES SCREEN -->
+    <div id="preferences" class="screen">
+        <header class="page-header">
+            <button class="btn-back" onclick="showScreen('home')" ontouchstart="" style="touch-action: manipulation;">← Settings</button>
+            <h1>Preferences</h1>
+            <div style="width: 60px; flex-shrink: 0;"></div>
+        </header>
 
-    <main class="page-content">
-        <section class="pref-section">
-            <h3>Appearance</h3>
-            
-            <div class="pref-card">
-                <div class="pref-row" style="cursor: pointer; position: relative; z-index: 1;">
-                    <div class="pref-label" onclick="toggleDark();" style="flex: 1; pointer-events: auto;">
-                        <span class="pref-title">Dark Mode</span>
-                        <span class="pref-desc">Easier on the eyes at night</span>
+        <main class="page-content">
+            <section class="pref-section">
+                <h3>Appearance</h3>
+                
+                <div class="pref-card">
+                    <div class="pref-row" style="cursor: pointer; position: relative; z-index: 1; touch-action: manipulation;" ontouchstart="">
+                        <div class="pref-label" onclick="toggleDark();" style="flex: 1; pointer-events: auto;">
+                            <span class="pref-title">Dark Mode</span>
+                            <span class="pref-desc">Easier on the eyes at night</span>
+                        </div>
+                        <div class="switch-container" style="position: relative; width: 50px; height: 30px;">
+                            <input type="checkbox" id="darkToggle" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; margin: 0;" onchange="toggleDark()">
+                            <span class="switch-slider" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 30px; transition: 0.3s; pointer-events: none;"></span>
+                        </div>
                     </div>
-                    <div class="switch-container" style="position: relative; width: 50px; height: 30px;">
-                        <input type="checkbox" id="darkToggle" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; margin: 0;" onchange="toggleDark()">
-                        <span class="switch-slider" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 30px; transition: 0.3s; pointer-events: none;"></span>
+
+                    <div class="pref-row border-top">
+                        <div class="pref-label">
+                            <span class="pref-title">Text Size</span>
+                            <span class="pref-desc">Adjust reading comfort</span>
+                        </div>
+                        <div class="size-picker">
+                            <button onclick="changeTextSize('small')" class="size-btn" data-size="small" ontouchstart="" style="touch-action: manipulation;">A</button>
+                            <button onclick="changeTextSize('medium')" class="size-btn active" data-size="medium" ontouchstart="" style="touch-action: manipulation;">A</button>
+                            <button onclick="changeTextSize('large')" class="size-btn" data-size="large" ontouchstart="" style="touch-action: manipulation;">A</button>
+                        </div>
                     </div>
                 </div>
+            </section>
 
-                <div class="pref-row border-top">
-                    <div class="pref-label">
-                        <span class="pref-title">Text Size</span>
-                        <span class="pref-desc">Adjust reading comfort</span>
-                    </div>
-                    <div class="size-picker">
-                        <button onclick="changeTextSize('small')" class="size-btn" data-size="small">A</button>
-                        <button onclick="changeTextSize('medium')" class="size-btn active" data-size="medium">A</button>
-                        <button onclick="changeTextSize('large')" class="size-btn" data-size="large">A</button>
+            <section class="pref-section">
+                <h3>Account</h3>
+                <div class="pref-card">
+                    <div class="pref-row">
+                        <div class="pref-label">
+                            <span class="pref-title" id="userDisplayName">Guest User</span>
+                            <span class="pref-desc" id="userDisplayEmail">Not signed in</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
+                <button id="logoutButton" onclick="logout()" style="width:100%;padding:16px;background:#2a2a2a;color:#ff3b30;border:none;border-radius:12px;font-size:16px;font-weight:600;margin-top:10px;cursor:pointer;touch-action: manipulation;" ontouchstart="">Logout 👋</button>
+            </section>
 
-        <section class="pref-section">
-            <h3>Account</h3>
-            <div class="pref-card">
-                <div class="pref-row">
-                    <div class="pref-label">
-                        <span class="pref-title" id="userDisplayName">Guest User</span>
-                        <span class="pref-desc" id="userDisplayEmail">Not signed in</span>
+            <!-- INFORMATION Section -->
+            <section class="pref-section">
+                <h3>Information</h3>
+                <div class="pref-card">
+                    <!-- About Us Row -->
+                    <div class="pref-row" onclick="showScreen('aboutpage')" style="cursor: pointer; touch-action: manipulation;" ontouchstart="">
+                        <div class="pref-label">
+                            <span class="pref-title">About Us</span>
+                            <span class="pref-desc">Learn more about our mission & team</span>
+                        </div>
+                        <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; opacity: 0.5; flex-shrink: 0;">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </div>
+
+                    <!-- Contact Us Row -->
+                    <div class="pref-row border-top" onclick="showScreen('contact')" style="cursor: pointer; touch-action: manipulation;" ontouchstart="">
+                        <div class="pref-label">
+                            <span class="pref-title">Contact Us</span>
+                            <span class="pref-desc">Get in touch with support</span>
+                        </div>
+                        <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; opacity: 0.5; flex-shrink: 0;">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
                     </div>
                 </div>
-            </div>
-            <button id="logoutButton" onclick="logout()" style="width:100%;padding:16px;background:#2a2a2a;color:#ff3b30;border:none;border-radius:12px;font-size:16px;font-weight:600;margin-top:10px;cursor:pointer;">Logout 👋</button>
-        </section>
-
-        <!-- INFORMATION Section -->
-        <section class="pref-section">
-            <h3>Information</h3>
-            <div class="pref-card">
-                <!-- About Us Row -->
-                <div class="pref-row" onclick="showScreen('aboutpage')" style="cursor: pointer;">
-                    <div class="pref-label">
-                        <span class="pref-title">About Us</span>
-                        <span class="pref-desc">Learn more about our mission & team</span>
-                    </div>
-                    <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; opacity: 0.5;">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                </div>
-
-                <!-- Contact Us Row -->
-                <div class="pref-row border-top" onclick="showScreen('contact')" style="cursor: pointer;">
-                    <div class="pref-label">
-                        <span class="pref-title">Contact Us</span>
-                        <span class="pref-desc">Get in touch with support</span>
-                    </div>
-                    <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; opacity: 0.5;">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                </div>
-            </div>
-        </section>
-    </main>
-    
-    <nav class="bottom-nav">
-        <button class="nav-btn" onclick="showScreen('home')">
-            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-            </svg>
-            <span class="nav-label">Home</span>
-        </button>
+            </section>
+        </main>
         
-        <button class="nav-btn" onclick="showScreen('saved')">
-            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-            </svg>
-            <span class="nav-label">Saved</span>
-        </button>
-        
-        <button class="nav-btn active" onclick="showScreen('preferences')">
-            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            <span class="nav-label">Settings</span>
-        </button>
-    </nav>
-</div>
-
-<!-- ABOUT US PAGE - FIXED DARK MODE -->
-<div id="aboutpage" class="screen" style="display: none; background-color: #0a0a0a; min-height: 100vh;">
-    <header class="page-header" style="background-color: #0a0a0a; border-bottom: 1px solid #222;">
-        <button class="btn-back" onclick="showScreen('preferences')" style="color: #667eea; background: none; border: none; font-size: 16px; cursor: pointer;">← Back</button>
-        <h1 style="color: #fff; font-size: 18px; margin: 0;">About Us</h1>
-        <div style="width: 60px;"></div>
-    </header>
-
-    <main class="page-content" style="background-color: #0a0a0a; padding: 20px;">
-        <div class="aboutpage-container">
-            
-            <!-- App Header -->
-            <div style="text-align: center; margin-bottom: 30px; padding-top: 20px;">
-                <div style="width: 90px; height: 90px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 22px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);">
-                    <svg viewBox="0 0 24 24" fill="white" style="width: 45px; height: 45px;">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                    </svg>
-                </div>
-                <h2 style="margin-bottom: 8px; font-size: 26px; color: #ffffff; font-weight: 700;">Centrinsic NPT</h2>
-                <p style="color: #888; font-size: 15px; margin: 0;">Version 2.0.0</p>
-            </div>
-
-            <!-- App Features Section -->
-            <div style="background: #1a1a1a; border-radius: 20px; padding: 25px; margin-bottom: 20px; border: 1px solid #2a2a2a;">
-                <h3 style="margin-bottom: 25px; font-size: 20px; color: #ffffff; font-weight: 600; display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 24px;">✨</span>
-                    App Features
-                </h3>
-                
-                <div style="margin-bottom: 20px;">
-                    <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
-                        <span style="font-size: 22px; margin-right: 12px; margin-top: 2px;">✨</span>
-                        <div>
-                            <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 16px; font-weight: 600;">Clean Reading</h4>
-                            <p style="margin: 0; color: #aaa; font-size: 14px; line-height: 1.5;">No clutter, no noise. Just pure news reading experience.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
-                        <span style="font-size: 22px; margin-right: 12px; margin-top: 2px;">🔖</span>
-                        <div>
-                            <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 16px; font-weight: 600;">Save Articles</h4>
-                            <p style="margin: 0; color: #aaa; font-size: 14px; line-height: 1.5;">Read later offline. Your saved articles sync across devices.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
-                        <span style="font-size: 22px; margin-right: 12px; margin-top: 2px;">🌙</span>
-                        <div>
-                            <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 16px; font-weight: 600;">Dark Mode</h4>
-                            <p style="margin: 0; color: #aaa; font-size: 14px; line-height: 1.5;">Easy on your eyes. Perfect for night reading.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
-                        <span style="font-size: 22px; margin-right: 12px; margin-top: 2px;">⚡</span>
-                        <div>
-                            <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 16px; font-weight: 600;">Lightning Fast</h4>
-                            <p style="margin: 0; color: #aaa; font-size: 14px; line-height: 1.5;">Loads in milliseconds. Optimized for speed.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Founder Section -->
-            <div style="background: #1a1a1a; border-radius: 20px; padding: 25px; margin-bottom: 20px; border: 1px solid #2a2a2a;">
-                <h3 style="margin-bottom: 25px; font-size: 20px; color: #ffffff; font-weight: 600; display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 24px;">👨‍💻</span>
-                    Meet the Founder
-                </h3>
-                
-                <div style="display: flex; align-items: center; margin-bottom: 20px;">
-                    <div style="width: 75px; height: 75px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 18px; font-size: 36px; box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);">
-                        👨‍💻
-                    </div>
-                    <div>
-                        <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 20px; font-weight: 700;">Dheeraj Pawar</h4>
-                        <p style="margin: 0; color: #667eea; font-size: 15px; font-weight: 500;">Founder & Developer</p>
-                    </div>
-                </div>
-                
-                <p style="line-height: 1.7; color: #bbb; font-size: 15px; margin-bottom: 20px;">
-                    Passionate about building products that make a difference. Started Centrinsic NPT with a vision to deliver truth simplified - giving users a clean, fast, and reliable news reading experience without the noise.
-                </p>
-                </div>
-            </div>
-
-            <!-- Mission Section -->
-            <div style="background: #1a1a1a; border-radius: 20px; padding: 25px; margin-bottom: 20px; border: 1px solid #2a2a2a;">
-                <h3 style="margin-bottom: 15px; font-size: 20px; color: #ffffff; font-weight: 600; display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 24px;">🎯</span>
-                    Our Mission
-                </h3>
-                <p style="line-height: 1.7; color: #bbb; font-size: 15px; margin: 0;">
-                    Centrinsic NPT is an AI-powered news aggregation platform that provides simplified summaries of news articles from publicly available and trusted sources.
-
-The app displays AI-powered news cards that present short, easy-to-read summaries to help users quickly understand the key points of a story without scrolling through long articles.
-
-We do not produce original journalism. All news content, headlines, images, and articles belong to their respective publishers. Our platform uses AI technology only to generate brief summaries of publicly available news content.
-
-Each news card includes the original source name and a link to the full article so users can access complete details directly from the publisher.
-
-For inquiries, contact us at:
-centrinsicnpt@gmail.com
-                </p>
-            </div>
-
-            <!-- Footer -->
-            <div style="text-align: center; margin-top: 40px; padding-bottom: 30px;">
-                <p style="color: #666; font-size: 15px; margin-bottom: 8px;">.</p>
-                <p style="color: #444; font-size: 13px; margin: 0;">..</p>
-            </div>
-        </div>
-    </main>
-</div>
-
-
-<!-- CONTACT US PAGE -->
-<div id="contact" class="screen" style="display: none; background-color: #0a0a0a; min-height: 100vh;">
-    <header class="page-header" style="background-color: #0a0a0a; border-bottom: 1px solid #222; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between;">
-        <button class="btn-back" onclick="showScreen('preferences')" style="color: #667eea; background: none; border: none; font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 5px;">← Back</button>
-        <h1 style="color: #fff; font-size: 18px; margin: 0; font-weight: 600;">Contact Us</h1>
-        <div style="width: 60px;"></div>
-    </header>
-
-    <main class="page-content" style="background-color: #0a0a0a; padding: 20px;">
-        <div class="contact-container">
-            
-            <!-- Email Card -->
-            <div onclick="window.location.href='mailto:centrinsicnpt@gmail.com'" style="background: #1a1a1a; border-radius: 16px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; cursor: pointer; border: 1px solid #2a2a2a; transition: all 0.2s;" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='#1a1a1a'">
-                <div style="width: 50px; height: 50px; background: #4CAF50; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
-                    <svg viewBox="0 0 24 24" fill="white" style="width: 24px; height: 24px;">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                        <polyline points="22,6 12,13 2,6"></polyline>
-                    </svg>
-                </div>
-                <div>
-                    <h4 style="margin: 0 0 5px 0; color: #ffffff; font-size: 16px; font-weight: 600;">Email Us</h4>
-                    <p style="margin: 0; color: #888; font-size: 14px;">centrinsicnpt@gmail.com</p>
-                </div>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; opacity: 0.5; margin-left: auto; color: #888;">
-                    <polyline points="9 18 15 12 9 6"></polyline>
+        <nav class="bottom-nav">
+            <button class="nav-btn" onclick="showScreen('home')" ontouchstart="" style="touch-action: manipulation;">
+                <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
                 </svg>
-            </div>
+                <span class="nav-label">Home</span>
+            </button>
+            
+            <button class="nav-btn" onclick="showScreen('saved')" ontouchstart="" style="touch-action: manipulation;">
+                <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span class="nav-label">Saved</span>
+            </button>
+            
+            <button class="nav-btn active" onclick="showScreen('preferences')" ontouchstart="" style="touch-action: manipulation;">
+                <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span class="nav-label">Settings</span>
+            </button>
+        </nav>
+    </div>
 
-            <!-- Contact Form -->
-            <div style="background: #1a1a1a; border-radius: 20px; padding: 25px; border: 1px solid #2a2a2a;">
-                <h3 style="margin-bottom: 25px; color: #ffffff; font-size: 20px; font-weight: 600;">Send a Message</h3>
+    <!-- ABOUT US PAGE - FIXED DARK MODE -->
+    <div id="aboutpage" class="screen" style="background-color: #0a0a0a; min-height: 100%;">
+        <header class="page-header" style="background-color: #0a0a0a; border-bottom: 1px solid #222;">
+            <button class="btn-back" onclick="showScreen('preferences')" style="color: #667eea; background: none; border: none; font-size: 16px; cursor: pointer; touch-action: manipulation;" ontouchstart="">← Back</button>
+            <h1 style="color: #fff; font-size: 18px; margin: 0;">About Us</h1>
+            <div style="width: 60px; flex-shrink: 0;"></div>
+        </header>
+
+        <main class="page-content" style="background-color: #0a0a0a; padding: 20px 16px 100px 16px;">
+            <div class="aboutpage-container">
                 
-                <form onsubmit="handleContactSubmit(event)">
+                <!-- App Header -->
+                <div style="text-align: center; margin-bottom: 30px; padding-top: 20px;">
+                    <div style="width: clamp(70px, 20vw, 90px); height: clamp(70px, 20vw, 90px); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 22px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);">
+                        <svg viewBox="0 0 24 24" fill="white" style="width: clamp(35px, 10vw, 45px); height: clamp(35px, 10vw, 45px);">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <h2 style="margin-bottom: 8px; font-size: clamp(22px, 6vw, 26px); color: #ffffff; font-weight: 700;">Centrinsic NPT</h2>
+                    <p style="color: #888; font-size: 15px; margin: 0;">Version 2.0.0</p>
+                </div>
+
+                <!-- App Features Section -->
+                <div style="background: #1a1a1a; border-radius: 20px; padding: 25px 20px; margin-bottom: 20px; border: 1px solid #2a2a2a;">
+                    <h3 style="margin-bottom: 25px; font-size: 20px; color: #ffffff; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 24px;">✨</span>
+                        App Features
+                    </h3>
+                    
                     <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 10px; color: #aaa; font-size: 15px; font-weight: 500;">Name</label>
-                        <input type="text" id="contactName" placeholder="Your name" style="width: 100%; padding: 14px; border: 1px solid #333; border-radius: 12px; background: #0f0f0f; color: #ffffff; font-size: 16px; box-sizing: border-box; outline: none;" onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#333'">
+                        <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
+                            <span style="font-size: 22px; margin-right: 12px; margin-top: 2px; flex-shrink: 0;">✨</span>
+                            <div style="min-width: 0;">
+                                <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 16px; font-weight: 600;">Clean Reading</h4>
+                                <p style="margin: 0; color: #aaa; font-size: 14px; line-height: 1.5;">No clutter, no noise. Just pure news reading experience.</p>
+                            </div>
+                        </div>
                     </div>
 
                     <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 10px; color: #aaa; font-size: 15px; font-weight: 500;">Email</label>
-                        <input type="email" id="contactEmail" placeholder="your@email.com" style="width: 100%; padding: 14px; border: 1px solid #333; border-radius: 12px; background: #0f0f0f; color: #ffffff; font-size: 16px; box-sizing: border-box; outline: none;" onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#333'">
+                        <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
+                            <span style="font-size: 22px; margin-right: 12px; margin-top: 2px; flex-shrink: 0;">🔖</span>
+                            <div style="min-width: 0;">
+                                <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 16px; font-weight: 600;">Save Articles</h4>
+                                <p style="margin: 0; color: #aaa; font-size: 14px; line-height: 1.5;">Read later offline. Your saved articles sync across devices.</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div style="margin-bottom: 25px;">
-                        <label style="display: block; margin-bottom: 10px; color: #aaa; font-size: 15px; font-weight: 500;">Message</label>
-                        <textarea id="contactMessage" rows="4" placeholder="How can we help you?" style="width: 100%; padding: 14px; border: 1px solid #333; border-radius: 12px; background: #0f0f0f; color: #ffffff; font-size: 16px; box-sizing: border-box; resize: vertical; font-family: inherit; outline: none;" onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#333'"></textarea>
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
+                            <span style="font-size: 22px; margin-right: 12px; margin-top: 2px; flex-shrink: 0;">🌙</span>
+                            <div style="min-width: 0;">
+                                <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 16px; font-weight: 600;">Dark Mode</h4>
+                                <p style="margin: 0; color: #aaa; font-size: 14px; line-height: 1.5;">Easy on your eyes. Perfect for night reading.</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <button type="submit" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; cursor: pointer;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-                        Send Message
-                    </button>
-                </form>
+                    <div>
+                        <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
+                            <span style="font-size: 22px; margin-right: 12px; margin-top: 2px; flex-shrink: 0;">⚡</span>
+                            <div style="min-width: 0;">
+                                <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 16px; font-weight: 600;">Lightning Fast</h4>
+                                <p style="margin: 0; color: #aaa; font-size: 14px; line-height: 1.5;">Loads in milliseconds. Optimized for speed.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Founder Section -->
+                <div style="background: #1a1a1a; border-radius: 20px; padding: 25px 20px; margin-bottom: 20px; border: 1px solid #2a2a2a;">
+                    <h3 style="margin-bottom: 25px; font-size: 20px; color: #ffffff; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 24px;">👨‍💻</span>
+                        Meet the Founder
+                    </h3>
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                        <div style="width: 75px; height: 75px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 36px; box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3); flex-shrink: 0;">
+                            👨‍💻
+                        </div>
+                        <div style="min-width: 0;">
+                            <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 20px; font-weight: 700;">Dheeraj Pawar</h4>
+                            <p style="margin: 0; color: #667eea; font-size: 15px; font-weight: 500;">Founder & Developer</p>
+                        </div>
+                    </div>
+                    
+                    <p style="line-height: 1.7; color: #bbb; font-size: 15px; margin-bottom: 20px;">
+                        Passionate about building products that make a difference. Started Centrinsic NPT with a vision to deliver truth simplified - giving users a clean, fast, and reliable news reading experience without the noise.
+                    </p>
+                </div>
+
+                <!-- Mission Section -->
+                <div style="background: #1a1a1a; border-radius: 20px; padding: 25px 20px; margin-bottom: 20px; border: 1px solid #2a2a2a;">
+                    <h3 style="margin-bottom: 15px; font-size: 20px; color: #ffffff; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 24px;">🎯</span>
+                        Our Mission
+                    </h3>
+                    <p style="line-height: 1.7; color: #bbb; font-size: 15px; margin: 0; word-wrap: break-word;">
+                        Centrinsic NPT is an AI-powered news aggregation platform that provides simplified summaries of news articles from publicly available and trusted sources. The app displays AI-powered news cards that present short, easy-to-read summaries to help users quickly understand the key points of a story without scrolling through long articles. We do not produce original journalism. All news content, headlines, images, and articles belong to their respective publishers. Our platform uses AI technology only to generate brief summaries of publicly available news content. Each news card includes the original source name and a link to the full article so users can access complete details directly from the publisher. For inquiries, contact us at: centrinsicnpt@gmail.com
+                    </p>
+                </div>
+
+                <!-- Footer -->
+                <div style="text-align: center; margin-top: 40px; padding-bottom: 30px;">
+                    <p style="color: #666; font-size: 15px; margin-bottom: 8px;">.</p>
+                    <p style="color: #444; font-size: 13px; margin: 0;">..</p>
+                </div>
             </div>
+        </main>
+    </div>
 
-        </div>
-    </main>
-</div>
+    <!-- CONTACT US PAGE -->
+    <div id="contact" class="screen" style="background-color: #0a0a0a; min-height: 100%;">
+        <header class="page-header" style="background-color: #0a0a0a; border-bottom: 1px solid #222;">
+            <button class="btn-back" onclick="showScreen('preferences')" style="color: #667eea; background: none; border: none; font-size: 16px; cursor: pointer; touch-action: manipulation;" ontouchstart="">← Back</button>
+            <h1 style="color: #fff; font-size: 18px; margin: 0;">Contact Us</h1>
+            <div style="width: 60px; flex-shrink: 0;"></div>
+        </header>
 
-<script>
-function handleContactSubmit(e) {
-    e.preventDefault();
-    const name = document.getElementById('contactName').value;
-    const email = document.getElementById('contactEmail').value;
-    const message = document.getElementById('contactMessage').value;
-    
-    if (!name || !email || !message) {
-        alert('Please fill in all fields');
-        return;
-    }
-    
-    alert('Thank you for your message! We\'ll get back to you soon.');
-    
-    document.getElementById('contactName').value = '';
-    document.getElementById('contactEmail').value = '';
-    document.getElementById('contactMessage').value = '';
-}
-</script>
+        <main class="page-content" style="background-color: #0a0a0a; padding: 20px 16px 100px 16px;">
+            <div class="contact-container">
+                
+                <!-- Email Card -->
+                <div onclick="window.location.href='mailto:centrinsicnpt@gmail.com'" style="background: #1a1a1a; border-radius: 16px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; cursor: pointer; border: 1px solid #2a2a2a; touch-action: manipulation;" ontouchstart="">
+                    <div style="width: 50px; height: 50px; background: #4CAF50; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0;">
+                        <svg viewBox="0 0 24 24" fill="white" style="width: 24px; height: 24px;">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                    </div>
+                    <div style="min-width: 0; flex: 1;">
+                        <h4 style="margin: 0 0 5px 0; color: #ffffff; font-size: 16px; font-weight: 600;">Email Us</h4>
+                        <p style="margin: 0; color: #888; font-size: 14px; word-break: break-all;">centrinsicnpt@gmail.com</p>
+                    </div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; opacity: 0.5; margin-left: 10px; color: #888; flex-shrink: 0;">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
 
-<!-- ARTICLE DETAIL SCREEN -->
-<div id="detail" class="screen">
-    <header class="page-header">
-        <button class="btn-back" onclick="showScreen('home')">← Back</button>
-        <h1>Article</h1>
-        <button class="btn-save" onclick="saveCurrentArticle()" id="saveBtn">💾 Save</button>
-    </header>
-    
-    <main class="detail-content" id="detailContent">
-        <!-- ONLY this div - everything goes inside here dynamically -->
-        <div id="articleBody"></div>
-    </main>
-</div>        
+                <!-- Contact Form -->
+                <div style="background: #1a1a1a; border-radius: 20px; padding: 25px 20px; border: 1px solid #2a2a2a;">
+                    <h3 style="margin-bottom: 25px; color: #ffffff; font-size: 20px; font-weight: 600;">Send a Message</h3>
+                    
+                    <form onsubmit="handleContactSubmit(event)">
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 10px; color: #aaa; font-size: 15px; font-weight: 500;">Name</label>
+                            <input type="text" id="contactName" placeholder="Your name" style="width: 100%; padding: 14px; border: 1px solid #333; border-radius: 12px; background: #0f0f0f; color: #ffffff; font-size: 16px; box-sizing: border-box; outline: none; touch-action: manipulation;" onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#333'">
+                        </div>
 
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 10px; color: #aaa; font-size: 15px; font-weight: 500;">Email</label>
+                            <input type="email" id="contactEmail" placeholder="your@email.com" inputmode="email" style="width: 100%; padding: 14px; border: 1px solid #333; border-radius: 12px; background: #0f0f0f; color: #ffffff; font-size: 16px; box-sizing: border-box; outline: none; touch-action: manipulation;" onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#333'">
+                        </div>
+
+                        <div style="margin-bottom: 25px;">
+                            <label style="display: block; margin-bottom: 10px; color: #aaa; font-size: 15px; font-weight: 500;">Message</label>
+                            <textarea id="contactMessage" rows="4" placeholder="How can we help you?" style="width: 100%; padding: 14px; border: 1px solid #333; border-radius: 12px; background: #0f0f0f; color: #ffffff; font-size: 16px; box-sizing: border-box; resize: vertical; font-family: inherit; outline: none; touch-action: manipulation;" onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#333'"></textarea>
+                        </div>
+
+                        <button type="submit" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; cursor: pointer; touch-action: manipulation; min-height: 50px;" ontouchstart="">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ARTICLE DETAIL SCREEN -->
+    <div id="detail" class="screen">
+        <header class="page-header">
+            <button class="btn-back" onclick="showScreen('home')" ontouchstart="" style="touch-action: manipulation;">← Back</button>
+            <h1 style="max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Article</h1>
+            <button class="btn-save" onclick="saveCurrentArticle()" id="saveBtn" ontouchstart="" style="touch-action: manipulation;">💾 Save</button>
+        </header>
+        
+        <main class="detail-content" id="detailContent">
+            <!-- ONLY this div - everything goes inside here dynamically -->
+            <div id="articleBody"></div>
+        </main>
+    </div>        
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
