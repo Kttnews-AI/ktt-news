@@ -1,6 +1,6 @@
 // ============================================
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
-// WITH: Back Button Handler + 60sec Translator + Bottom Padding Fix
+// WITH: FIXED MOBILE BACK BUTTON + HISTORY API
 // ============================================
 
 const API_BASE       = "https://centrinsicnpt.com";
@@ -20,6 +20,7 @@ let currentTab      = 'gnews';
 
 let originalArticleContent = null;
 let original60SecContent   = {};
+let navigationHistory      = []; // Track navigation stack
 
 /* ============================================
    INITIALIZATION
@@ -34,6 +35,11 @@ function initApp() {
     if (window.appInitialized) return;
     window.appInitialized = true;
     console.log("🚀 Centrinsic NPT News App Starting...");
+    
+    // Setup back button first thing
+    setupMobileBackButton();
+    setupHistoryHandling();
+    
     initializeApp();
     exportAllFunctions();
     setTimeout(setupAllEventListeners, 100);
@@ -49,13 +55,22 @@ function initializeApp() {
     }
     const savedSize = localStorage.getItem("font_size");
     if (savedSize) applyFontSize(savedSize);
-    showScreen("splash");
+    
+    // Set initial history state
+    history.replaceState({ screen: 'splash' }, '', '#splash');
+    showScreen("splash", false); // Don't push state on init
+    
     setTimeout(() => {
-        if (currentUser && currentUser.loggedIn) { showScreen("home"); loadNews(); }
-        else showScreen("about");
+        if (currentUser && currentUser.loggedIn) { 
+            navigateTo('home'); 
+            loadNews(); 
+        }
+        else {
+            navigateTo('about');
+        }
     }, 2000);
     
-    // ── Logout Button Handler ──
+    // Logout Button Handler
     setTimeout(() => {
         const logoutBtn = document.getElementById("logoutButton");
         if (logoutBtn) {
@@ -74,9 +89,176 @@ function initializeApp() {
             }, { capture: true });
         }
     }, 500);
+}
+
+/* ============================================
+   HISTORY API & BACK BUTTON MANAGEMENT
+============================================ */
+
+function setupHistoryHandling() {
+    // Handle browser back button (for web/PWA)
+    window.addEventListener('popstate', (e) => {
+        console.log("🔙 POPSTATE EVENT:", e.state);
+        if (e.state && e.state.screen) {
+            handleBackNavigation(e.state.screen);
+        } else {
+            // No state, try to determine current screen
+            const hash = window.location.hash.replace('#', '');
+            if (hash && hash !== getCurrentScreenId()) {
+                handleBackNavigation(hash);
+            } else {
+                handleBackNavigation('home');
+            }
+        }
+    });
+}
+
+function setupMobileBackButton() {
+    console.log("🚀 Setting up mobile back button handler...");
     
-    // ── Mobile Back Button Handler ──
-    setupMobileBackButton();
+    // Capacitor/Cordova back button
+    if (window.Capacitor?.Plugins?.App) {
+        try {
+            window.Capacitor.Plugins.App.addListener('backButton', (e) => {
+                console.log("🔙 CAPACITOR BACK BUTTON", e);
+                // Prevent default exit
+                e?.preventDefault?.();
+                handleMobileBack();
+            });
+        } catch (err) {
+            console.warn("⚠️ Capacitor setup error:", err);
+        }
+    }
+    
+    // Cordova specific
+    if (window.cordova) {
+        document.addEventListener('backbutton', (e) => {
+            console.log("🔙 CORDOVA BACK BUTTON");
+            e.preventDefault();
+            handleMobileBack();
+        }, false);
+    }
+    
+    // Android WebView back button (using history API)
+    window.addEventListener('hashchange', (e) => {
+        console.log("🔙 HASH CHANGE:", e.oldURL, "->", e.newURL);
+        const newHash = window.location.hash.replace('#', '');
+        if (newHash && newHash !== getCurrentScreenId()) {
+            // Don't push state, just show screen
+            showScreen(newHash, false);
+        }
+    });
+}
+
+function handleMobileBack() {
+    const currentScreen = getCurrentScreenId();
+    console.log("🔙 BACK BUTTON - Current:", currentScreen);
+    
+    // Determine where to go back to
+    let targetScreen = 'home';
+    
+    switch(currentScreen) {
+        case 'detail':
+            targetScreen = 'home';
+            break;
+        case 'login':
+            targetScreen = 'about';
+            break;
+        case 'aboutpage':
+        case 'contact':
+            targetScreen = 'preferences';
+            break;
+        case 'saved':
+        case 'preferences':
+            targetScreen = 'home';
+            break;
+        case 'about':
+            // On about screen, stay there (don't exit app)
+            showToast("Press back again to exit");
+            return;
+        case 'home':
+            // On home screen, stay there (don't exit app)
+            showToast("App is running");
+            return;
+        default:
+            targetScreen = 'home';
+    }
+    
+    console.log("🔙 NAVIGATING:", currentScreen, "->", targetScreen);
+    navigateTo(targetScreen);
+}
+
+function handleBackNavigation(screenId) {
+    // Show screen without pushing new state (we're going back)
+    if (document.getElementById(screenId)) {
+        showScreen(screenId, false);
+    } else {
+        showScreen('home', false);
+    }
+}
+
+function getCurrentScreenId() {
+    const activeScreen = document.querySelector('.screen.active');
+    return activeScreen?.id || 'home';
+}
+
+// Main navigation function - use this instead of showScreen directly
+function navigateTo(screenId) {
+    // Push state for history tracking
+    history.pushState({ screen: screenId }, '', `#${screenId}`);
+    showScreen(screenId, false); // State already pushed
+}
+
+/* ============================================
+   SCREEN NAVIGATION
+============================================ */
+function showScreen(screenId, pushState = true) {
+    // Hide all screens
+    document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+        screen.style.display = 'none';
+    });
+    
+    // Show target screen
+    const target = document.getElementById(screenId);
+    if (!target) {
+        console.error("Screen not found:", screenId);
+        return;
+    }
+    
+    target.classList.add('active');
+    target.style.display = screenId === 'splash' ? 'flex' : 'block';
+    
+    // Update URL if needed (but don't create duplicate history)
+    if (pushState && window.location.hash !== `#${screenId}`) {
+        history.pushState({ screen: screenId }, '', `#${screenId}`);
+    }
+    
+    // Show/hide bottom nav
+    const showNav = ['home', 'saved', 'preferences'].includes(screenId);
+    document.querySelectorAll('.bottom-nav').forEach(nav => {
+        nav.style.display = showNav ? 'flex' : 'none';
+    });
+    
+    // Screen-specific logic
+    if (screenId === 'home') { 
+        updateSavedFolder(); 
+        setTimeout(loadNews, 100); 
+    }
+    if (screenId === 'saved') setTimeout(loadSavedArticles, 100);
+    if (screenId === 'preferences') {
+        setTimeout(() => { 
+            attachLogoutListener(); 
+            attachClearAllListener(); 
+            attachDarkModeListener(); 
+        }, 300);
+        updateUserDisplay();
+        highlightSizeButton(localStorage.getItem("font_size") || "medium");
+    }
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+    setTimeout(bindMobileButtons, 200);
 }
 
 /* ============================================
@@ -103,12 +285,13 @@ function getArticleTab(article) {
 ============================================ */
 function exportAllFunctions() {
     window.showScreen            = showScreen;
-    window.goToLogin             = goToLogin;
-    window.skipLoginFromAbout    = skipLoginFromAbout;
-    window.skipToHome            = skipToHome;
-    window.goBackToAbout         = goBackToAbout;
-    window.goBack                = goBack;
-    window.goHome                = goHome;
+    window.navigateTo            = navigateTo;
+    window.goToLogin             = () => navigateTo('login');
+    window.skipLoginFromAbout    = () => { navigateTo('home'); loadNews(); };
+    window.skipToHome            = () => { navigateTo('home'); loadNews(); };
+    window.goBackToAbout         = () => navigateTo('about');
+    window.goBack                = () => navigateTo('home');
+    window.goHome                = () => navigateTo('home');
     window.logout                = logout;
     window.clearAll              = clearAll;
     window.loadNews              = loadNews;
@@ -163,9 +346,8 @@ function attachLogoutListener() {
     logoutBtn.parentNode.replaceChild(newBtn, logoutBtn);
     
     // Multiple event handlers to ensure it works on all devices
-    newBtn.addEventListener('click', (e) => { logout(); });
-    newBtn.addEventListener('touchstart', (e) => { logout(); });
-    newBtn.addEventListener('tap', (e) => { logout(); });
+    newBtn.addEventListener('click', (e) => { e.preventDefault(); logout(); });
+    newBtn.addEventListener('touchstart', (e) => { e.preventDefault(); logout(); });
 }
 
 function attachClearAllListener() {
@@ -177,9 +359,8 @@ function attachClearAllListener() {
     clearBtn.parentNode.replaceChild(newBtn, clearBtn);
     
     // Multiple event handlers to ensure it works on all devices
-    newBtn.addEventListener('click', (e) => { clearAll(); });
-    newBtn.addEventListener('touchstart', (e) => { clearAll(); });
-    newBtn.addEventListener('tap', (e) => { clearAll(); });
+    newBtn.addEventListener('click', (e) => { e.preventDefault(); clearAll(); });
+    newBtn.addEventListener('touchstart', (e) => { e.preventDefault(); clearAll(); });
 }
 
 function setupOtherListeners() {
@@ -191,40 +372,6 @@ function setupOtherListeners() {
     if (sendOtpBtn)   sendOtpBtn.addEventListener('click', sendOTP);
     if (verifyOtpBtn) verifyOtpBtn.addEventListener('click', verifyOTP);
 }
-
-/* ============================================
-   NAVIGATION
-============================================ */
-function showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(screen => {
-        screen.classList.remove('active');
-        screen.style.display = 'none';
-    });
-    const target = document.getElementById(screenId);
-    if (!target) return;
-    target.classList.add('active');
-    target.style.display = screenId === 'splash' ? 'flex' : 'block';
-    const showNav = ['home', 'saved', 'preferences'].includes(screenId);
-    document.querySelectorAll('.bottom-nav').forEach(nav => {
-        nav.style.display = showNav ? 'flex' : 'none';
-    });
-    if (screenId === 'home')        { updateSavedFolder(); setTimeout(loadNews, 100); }
-    if (screenId === 'saved')       setTimeout(loadSavedArticles, 100);
-    if (screenId === 'preferences') {
-        setTimeout(() => { attachLogoutListener(); attachClearAllListener(); attachDarkModeListener(); }, 300);
-        updateUserDisplay();
-        highlightSizeButton(localStorage.getItem("font_size") || "medium");
-    }
-    window.scrollTo(0, 0);
-    setTimeout(bindMobileButtons, 200);
-}
-
-function goToLogin()          { resetLoginForm(); showScreen("login"); }
-function skipLoginFromAbout() { showScreen("home"); loadNews(); }
-function skipToHome()         { showScreen("home"); loadNews(); }
-function goBackToAbout()      { showScreen("about"); }
-function goBack()             { showScreen("home"); }
-function goHome()             { showScreen("home"); }
 
 /* ============================================
    USER MANAGEMENT
@@ -265,7 +412,7 @@ function logout() {
     localStorage.removeItem("temp_email");
     currentUser = null;
     showToast("Logged out successfully");
-    setTimeout(() => showScreen("about"), 500);
+    setTimeout(() => navigateTo('about'), 500);
 }
 
 function clearAll() {
@@ -436,7 +583,7 @@ function verifyOTP() {
             updateUserDisplay();
             showToast("✅ Welcome!");
             localStorage.removeItem("temp_email");
-            showScreen("home");
+            navigateTo('home');
             loadNews();
         } else {
             showToast(data.message || "Invalid OTP");
@@ -854,12 +1001,25 @@ function handleArticleClick(element) {
     const articleId     = element.getAttribute('data-article-id');
     const articleTitle  = element.getAttribute('data-article-title');
     const articleSource = element.getAttribute('data-article-source');
-    if (articlesCache.has(articleId)) { currentArticle = articlesCache.get(articleId); displayArticleDetail(); return; }
+    if (articlesCache.has(articleId)) { 
+        currentArticle = articlesCache.get(articleId); 
+        displayArticleDetail(); 
+        return; 
+    }
     const found = allArticles.find(a => a.title === articleTitle && a.source === articleSource);
-    if (found) { currentArticle = found; displayArticleDetail(); return; }
+    if (found) { 
+        currentArticle = found; 
+        displayArticleDetail(); 
+        return; 
+    }
     if (!articleId.startsWith('gnews_')) {
-        fetch(`${API_ARTICLES}/${articleId}`).then(r => r.json()).then(a => { currentArticle = a; displayArticleDetail(); }).catch(() => showToast("Failed to load article"));
-    } else { showToast("Article expired. Please refresh."); }
+        fetch(`${API_ARTICLES}/${articleId}`).then(r => r.json()).then(a => { 
+            currentArticle = a; 
+            displayArticleDetail(); 
+        }).catch(() => showToast("Failed to load article"));
+    } else { 
+        showToast("Article expired. Please refresh."); 
+    }
 }
 
 function getSavedArticles() {
@@ -870,14 +1030,20 @@ function updateSavedFolder() {
     const folder  = document.getElementById("savedFolder");
     const countEl = document.getElementById("savedCount");
     const saved   = getSavedArticles();
-    if (folder) { folder.style.display = saved.length > 0 ? 'flex' : 'none'; if (countEl) countEl.textContent = `${saved.length} saved`; }
+    if (folder) { 
+        folder.style.display = saved.length > 0 ? 'flex' : 'none'; 
+        if (countEl) countEl.textContent = `${saved.length} saved`; 
+    }
 }
 
 function loadSavedArticles() {
     const container = document.getElementById("savedList");
     if (!container) return;
     const saved = getSavedArticles();
-    if (saved.length === 0) { container.innerHTML = `<div class="empty"><div>📁</div><h3>No saved</h3></div>`; return; }
+    if (saved.length === 0) { 
+        container.innerHTML = `<div class="empty"><div>📁</div><h3>No saved</h3></div>`; 
+        return; 
+    }
     container.innerHTML = saved.map(item => {
         const id    = String(item._id || item.articleId || item.id).replace(/[^a-zA-Z0-9-]/g, '');
         const date  = item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved";
@@ -893,22 +1059,37 @@ function loadSavedArticles() {
 ============================================ */
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
-    if (articlesCache.has(cleanId)) { currentArticle = articlesCache.get(cleanId); displayArticleDetail(); return; }
+    if (articlesCache.has(cleanId)) { 
+        currentArticle = articlesCache.get(cleanId); 
+        displayArticleDetail(); 
+        return; 
+    }
     if (!cleanId.startsWith('gnews_')) {
-        fetch(`${API_ARTICLES}/${cleanId}`).then(r => r.json()).then(a => { currentArticle = a; displayArticleDetail(); }).catch(() => showToast("Failed to load article"));
-    } else { showToast("Article expired. Please refresh."); }
+        fetch(`${API_ARTICLES}/${cleanId}`).then(r => r.json()).then(a => { 
+            currentArticle = a; 
+            displayArticleDetail(); 
+        }).catch(() => showToast("Failed to load article"));
+    } else { 
+        showToast("Article expired. Please refresh."); 
+    }
 }
 
 function displayArticleDetail() {
     const articleBody = document.getElementById("articleBody");
     const saveBtn     = document.getElementById("saveBtn");
-    if (!articleBody || !currentArticle) { showToast("Article not found"); return; }
+    if (!articleBody || !currentArticle) { 
+        showToast("Article not found"); 
+        return; 
+    }
 
     originalArticleContent = null;
 
     const articleId  = currentArticle._id || currentArticle.id || currentArticle.articleId;
     const isSaved    = getSavedArticles().some(s => String(s._id||s.id||s.articleId) === String(articleId));
-    if (saveBtn) { saveBtn.innerHTML = isSaved ? '✓ Saved' : '💾 Save'; saveBtn.classList.toggle('saved', isSaved); }
+    if (saveBtn) { 
+        saveBtn.innerHTML = isSaved ? '✓ Saved' : '💾 Save'; 
+        saveBtn.classList.toggle('saved', isSaved); 
+    }
 
     let date = "Recent";
     if (currentArticle.createdAt || currentArticle.publishedAt) {
@@ -956,7 +1137,10 @@ function displayArticleDetail() {
                 section.points.forEach((point, pIdx) => {
                     const colonIdx = point.indexOf(':');
                     let boldPart = '', restPart = point;
-                    if (colonIdx > 0 && colonIdx < 60) { boldPart = point.substring(0, colonIdx); restPart = point.substring(colonIdx+1).trim(); }
+                    if (colonIdx > 0 && colonIdx < 60) { 
+                        boldPart = point.substring(0, colonIdx); 
+                        restPart = point.substring(colonIdx+1).trim(); 
+                    }
                     bodyContent += `
                         <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid ${detailBorder};">
                             <span style="background:${color};color:white;font-size:11px;font-weight:800;min-width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">${pIdx+1}</span>
@@ -1019,7 +1203,8 @@ function displayArticleDetail() {
             </div>` : ''}
         </div>`;
 
-    showScreen("detail");
+    // Use navigateTo for detail screen so back button works
+    navigateTo('detail');
     const detailContent = document.getElementById("detailContent");
     if (detailContent) detailContent.scrollTop = 0;
 }
@@ -1032,37 +1217,60 @@ async function translateArticle(targetLang) {
     const headlineEl = document.querySelector('.article-headline');
     if (!bodyEl || !currentArticle) return;
     if (targetLang === 'en') {
-        if (originalArticleContent) { bodyEl.textContent = originalArticleContent.body; if (headlineEl) headlineEl.textContent = originalArticleContent.title; originalArticleContent = null; }
-        highlightTranslateBtn('en'); return;
+        if (originalArticleContent) { 
+            bodyEl.textContent = originalArticleContent.body; 
+            if (headlineEl) headlineEl.textContent = originalArticleContent.title; 
+            originalArticleContent = null; 
+        }
+        highlightTranslateBtn('en'); 
+        return;
     }
-    if (!originalArticleContent) { originalArticleContent = { body: bodyEl.textContent, title: headlineEl ? headlineEl.textContent : '' }; }
+    if (!originalArticleContent) { 
+        originalArticleContent = { body: bodyEl.textContent, title: headlineEl ? headlineEl.textContent : '' }; 
+    }
     bodyEl.innerHTML = '<span style="color:#888;font-size:14px;">🌐 Translating...</span>';
     if (headlineEl) headlineEl.style.opacity = '0.5';
     try {
         const bodyData = await (await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.body)}`)).json();
-        let translated = ''; if (bodyData && bodyData[0]) bodyData[0].forEach(seg => { if (seg[0]) translated += seg[0]; });
+        let translated = ''; 
+        if (bodyData && bodyData[0]) bodyData[0].forEach(seg => { if (seg[0]) translated += seg[0]; });
         bodyEl.textContent = translated || 'Translation not available.';
         if (headlineEl && originalArticleContent.title) {
             const titleData = await (await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.title)}`)).json();
-            let translatedTitle = ''; if (titleData && titleData[0]) titleData[0].forEach(seg => { if (seg[0]) translatedTitle += seg[0]; });
+            let translatedTitle = ''; 
+            if (titleData && titleData[0]) titleData[0].forEach(seg => { if (seg[0]) translatedTitle += seg[0]; });
             if (translatedTitle) headlineEl.textContent = translatedTitle;
         }
         if (headlineEl) headlineEl.style.opacity = '1';
     } catch (err) {
         bodyEl.textContent = originalArticleContent.body;
-        if (headlineEl) { headlineEl.textContent = originalArticleContent.title; headlineEl.style.opacity = '1'; }
+        if (headlineEl) { 
+            headlineEl.textContent = originalArticleContent.title; 
+            headlineEl.style.opacity = '1'; 
+        }
         originalArticleContent = null;
-        const select = document.getElementById('translateSelect'); if (select) select.value = 'en';
+        const select = document.getElementById('translateSelect'); 
+        if (select) select.value = 'en';
         showToast('⚠️ Translation failed.');
     }
 }
 
-function highlightTranslateBtn(lang) { const s = document.getElementById('translateSelect'); if (s) s.value = lang; }
+function highlightTranslateBtn(lang) { 
+    const s = document.getElementById('translateSelect'); 
+    if (s) s.value = lang; 
+}
 
 function openExternalLink(url) {
-    if (!url || url === '#') { showToast("Link not available"); return; }
-    if (window.Capacitor?.Plugins?.Browser) { window.Capacitor.Plugins.Browser.open({ url }); }
-    else if (window.cordova?.InAppBrowser)  { window.cordova.InAppBrowser.open(url, '_system'); }
+    if (!url || url === '#') { 
+        showToast("Link not available"); 
+        return; 
+    }
+    if (window.Capacitor?.Plugins?.Browser) { 
+        window.Capacitor.Plugins.Browser.open({ url }); 
+    }
+    else if (window.cordova?.InAppBrowser)  { 
+        window.cordova.InAppBrowser.open(url, '_system'); 
+    }
     else window.open(url, '_blank', 'noopener,noreferrer');
 }
 
@@ -1074,11 +1282,17 @@ function saveCurrentArticle() {
     const index       = savedArticles.findIndex(s => String(s._id||s.id||s.articleId) === String(articleId));
     if (index !== -1) {
         savedArticles.splice(index, 1);
-        if (saveBtn) { saveBtn.innerHTML = '💾 Save'; saveBtn.classList.remove('saved'); }
+        if (saveBtn) { 
+            saveBtn.innerHTML = '💾 Save'; 
+            saveBtn.classList.remove('saved'); 
+        }
         showToast("Removed from saved");
     } else {
         savedArticles.unshift({ ...currentArticle, savedAt: new Date().toISOString() });
-        if (saveBtn) { saveBtn.innerHTML = '✓ Saved'; saveBtn.classList.add('saved'); }
+        if (saveBtn) { 
+            saveBtn.innerHTML = '✓ Saved'; 
+            saveBtn.classList.add('saved'); 
+        }
         showToast("Saved!");
     }
     localStorage.setItem("saved_articles", JSON.stringify(savedArticles));
@@ -1095,7 +1309,10 @@ async function shareCurrentArticle() {
     const shareText = `📰 ${title}\n\n${content}\n\n📲 Read more on Centrinsic NPT:\n${appLink}`;
     const imageUrl  = getImageUrl(currentArticle.image);
     const shareBtn  = document.getElementById('shareBtn');
-    if (shareBtn) { shareBtn.innerHTML = '⏳ Sharing...'; shareBtn.disabled = true; }
+    if (shareBtn) { 
+        shareBtn.innerHTML = '⏳ Sharing...'; 
+        shareBtn.disabled = true; 
+    }
     try {
         if (window.Capacitor?.Plugins?.Share) {
             const { Share, Filesystem } = window.Capacitor.Plugins;
@@ -1103,43 +1320,77 @@ async function shareCurrentArticle() {
             if (imageUrl && Filesystem) {
                 try {
                     const imgBlob = await (await fetch(imageUrl)).blob();
-                    const base64  = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(imgBlob); });
+                    const base64  = await new Promise((res, rej) => { 
+                        const r = new FileReader(); 
+                        r.onload = () => res(r.result.split(',')[1]); 
+                        r.onerror = rej; 
+                        r.readAsDataURL(imgBlob); 
+                    });
                     const fileName = `centrinsic_${Date.now()}.jpg`;
                     await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
                     const uriResult = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
                     fileUri = uriResult.uri;
                 } catch(e) {}
             }
-            if (fileUri) { await Share.share({ title, text: shareText, url: appLink, files: [fileUri] }); }
-            else          { await Share.share({ title, text: shareText, url: appLink }); }
+            if (fileUri) { 
+                await Share.share({ title, text: shareText, url: appLink, files: [fileUri] }); 
+            }
+            else { 
+                await Share.share({ title, text: shareText, url: appLink }); 
+            }
             return;
         }
-        if (navigator.share) { try { await navigator.share({ title, text: shareText, url: appLink }); return; } catch(e) { if (e.name === 'AbortError') return; } }
+        if (navigator.share) { 
+            try { 
+                await navigator.share({ title, text: shareText, url: appLink }); 
+                return; 
+            } catch(e) { 
+                if (e.name === 'AbortError') return; 
+            } 
+        }
         copyToClipboard(shareText);
         showToast('🔗 Link copied!');
     } catch (err) {
         const msg = (err?.message || err?.errorMessage || '').toLowerCase();
         if (msg.includes('cancel') || err?.name === 'AbortError') return;
-        if (window.Capacitor?.Plugins?.Share) { try { await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: appLink }); return; } catch(e) {} }
+        if (window.Capacitor?.Plugins?.Share) { 
+            try { 
+                await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: appLink }); 
+                return; 
+            } catch(e) {} 
+        }
         copyToClipboard(shareText);
         showToast('🔗 Link copied!');
     } finally {
-        if (shareBtn) { shareBtn.innerHTML = '📤 Share'; shareBtn.disabled = false; }
+        if (shareBtn) { 
+            shareBtn.innerHTML = '📤 Share'; 
+            shareBtn.disabled = false; 
+        }
     }
 }
 
 function copyToClipboard(text) {
-    if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(text).then(() => showToast("✅ Link copied!")).catch(() => fallbackCopy(text)); }
+    if (navigator.clipboard?.writeText) { 
+        navigator.clipboard.writeText(text).then(() => showToast("✅ Link copied!")).catch(() => fallbackCopy(text)); 
+    }
     else fallbackCopy(text);
 }
 
 function fallbackCopy(text) {
     const el = document.createElement('textarea');
-    el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+    el.value = text; 
+    document.body.appendChild(el); 
+    el.select(); 
+    document.execCommand('copy'); 
+    document.body.removeChild(el);
     showToast("✅ Link copied!");
 }
 
-function refreshFeed() { isOnline = false; loadNews(); showToast("Refreshing..."); }
+function refreshFeed() { 
+    isOnline = false; 
+    loadNews(); 
+    showToast("Refreshing..."); 
+}
 
 function escapeHtml(text) {
     if (text == null) return '';
@@ -1150,9 +1401,15 @@ function escapeHtml(text) {
 
 function showToast(msg) {
     let toast = document.getElementById('toast');
-    if (!toast) { toast = document.createElement('div'); toast.id = 'toast'; toast.className = 'toast'; document.body.appendChild(toast); }
+    if (!toast) { 
+        toast = document.createElement('div'); 
+        toast.id = 'toast'; 
+        toast.className = 'toast'; 
+        document.body.appendChild(toast); 
+    }
     if (toastTimeout) clearTimeout(toastTimeout);
-    toast.textContent = msg; toast.classList.add('show');
+    toast.textContent = msg; 
+    toast.classList.add('show');
     toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
@@ -1172,84 +1429,4 @@ function bindMobileButtons() {
     }
 }
 
-/* ============================================
-   MOBILE BACK BUTTON HANDLER
-============================================ */
-let backButtonProcessing = false;
-
-function setupMobileBackButton() {
-    console.log("🚀 Setting up mobile back button handler...");
-    if (window.Capacitor?.Plugins?.App) {
-        try {
-            window.Capacitor.Plugins.App.addListener('backButton', (e) => {
-                console.log("🔙 CAPACITOR BACK BUTTON PRESSED");
-                handleMobileBack();
-            });
-        } catch (err) {
-            console.warn("⚠️ Capacitor setup error:", err);
-        }
-    }
-    if (window.cordova) {
-        document.addEventListener('backbutton', (e) => {
-            e.preventDefault();
-            console.log("🔙 CORDOVA BACK BUTTON PRESSED");
-            handleMobileBack();
-        }, false);
-    }
-    window.addEventListener('popstate', (e) => {
-        e.preventDefault();
-        console.log("🔙 BROWSER POPSTATE EVENT");
-        handleMobileBack();
-    });
-}
-
-function handleMobileBack() {
-    if (backButtonProcessing) {
-        console.log("⚠️ Back button already processing - ignoring");
-        return;
-    }
-    backButtonProcessing = true;
-    const activeScreenEl = document.querySelector('.screen.active');
-    const currentScreen = activeScreenEl?.id || 'home';
-    console.log("🔙 BACK BUTTON - Current screen:", currentScreen);
-    switch(currentScreen) {
-        case 'detail':
-            console.log("📖 Navigating: DETAIL → HOME");
-            showScreen('home');
-            break;
-        case 'login':
-            console.log("🔐 Navigating: LOGIN → ABOUT");
-            showScreen('about');
-            break;
-        case 'aboutpage':
-            console.log("ℹ️ Navigating: ABOUTPAGE → PREFERENCES");
-            showScreen('preferences');
-            break;
-        case 'contact':
-            console.log("📧 Navigating: CONTACT → PREFERENCES");
-            showScreen('preferences');
-            break;
-        case 'saved':
-            console.log("💾 Navigating: SAVED → HOME");
-            showScreen('home');
-            break;
-        case 'preferences':
-            console.log("⚙️ Navigating: PREFERENCES → HOME");
-            showScreen('home');
-            break;
-        case 'about':
-        case 'home':
-        case 'splash':
-            console.log("🛑 BLOCKING EXIT - Staying on", currentScreen);
-            showToast("App navigation active");
-            break;
-        default:
-            console.log("❓ Unknown screen:", currentScreen, "→ defaulting to HOME");
-            showScreen('home');
-    }
-    setTimeout(() => {
-        backButtonProcessing = false;
-    }, 300);
-}
-
-console.log("✅ Centrinsic NPT — getArticleTab() single source of truth for all routing");
+console.log("✅ Centrinsic NPT — Mobile Back Button Fixed with History API");
