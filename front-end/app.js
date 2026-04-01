@@ -622,13 +622,13 @@ function renderTabView() {
 
     if (activeArticles.length > 0) {
         if (currentTab === '60sec') {
-            html += `<div style="padding:0 16px 20px 16px;">${render60SecDigest(activeArticles)}</div>`;
+            html += `<div style="padding:0 16px calc(100px + env(safe-area-inset-bottom)) 16px;">${render60SecDigest(activeArticles)}</div>`;
         } else {
-            html += `<div class="articles-list" style="padding:0 16px 20px 16px;">${renderArticleCards(activeArticles)}</div>`;
+            html += `<div class="articles-list" style="padding:0 16px calc(100px + env(safe-area-inset-bottom)) 16px;">${renderArticleCards(activeArticles)}</div>`;
         }
     } else {
         html += `
-            <div style="text-align:center;padding:60px 20px;">
+            <div style="text-align:center;padding:60px 20px calc(100px + env(safe-area-inset-bottom)) 20px;">
                 <div style="font-size:48px;margin-bottom:16px;">${cfg.emptyIcon}</div>
                 <h3 style="color:${theme.emptyTitleColor};margin-bottom:8px;">Nothing here yet</h3>
                 <p style="color:${theme.emptyTextColor};">${cfg.emptyMsg}</p>
