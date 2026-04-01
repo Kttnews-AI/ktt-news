@@ -1,3 +1,8 @@
+/* 
+IMPORTANT: Add this meta tag to your HTML <head>:
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+*/
+
 /* ============================================
    CRITICAL FIX: SCREEN VISIBILITY (MUST BE FIRST)
 =========================================== */
@@ -839,14 +844,13 @@ body {
 }
 
 /* ============================================
-   PAGE HEADER - FIXED FOR SAFE AREA & ARTICLE SCREEN
+   PAGE HEADER
 =========================================== */
 .page-header {
     background: rgba(242, 242, 247, 0.98);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     padding: 12px 16px;
-    padding-top: max(12px, env(safe-area-inset-top));
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -854,16 +858,13 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
-    min-height: 56px;
-    height: auto;
-    box-sizing: border-box;
+    height: 56px;
 }
 
 .dark .page-header {
     background: rgba(0, 0, 0, 0.98);
 }
 
-/* Fix for header buttons alignment */
 .page-header .btn-back {
     background: none;
     border: none;
@@ -877,11 +878,7 @@ body {
     align-items: center;
     gap: 4px;
     font-weight: 400;
-    min-height: 44px;
-    touch-action: manipulation;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 101;
+    height: 44px;
 }
 
 .page-header h1 {
@@ -889,52 +886,25 @@ body {
     font-weight: 600;
     text-align: center;
     flex: 1;
-    margin: 0 10px;
-    position: static;
-    transform: none;
+    margin: 0;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     white-space: nowrap;
+    max-width: 50%;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: var(--text);
 }
 
 .page-header .spacer,
 .page-header > div:last-child {
     min-width: 60px;
-    width: auto;
-    flex-shrink: 0;
+    width: 60px;
 }
 
 .page-header .btn-save {
     min-width: 60px;
     text-align: right;
-    background: var(--accent);
-    color: white;
-    border: none;
-    padding: 8px 14px;
-    border-radius: 16px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    min-height: 32px;
-    touch-action: manipulation;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 101;
-}
-
-.page-header .btn-save.saved {
-    background: var(--success);
-}
-
-.page-header .btn-save:active {
-    transform: scale(0.95);
-    opacity: 0.9;
 }
 
 /* ============================================
@@ -1134,35 +1104,53 @@ input:checked + .switch-slider:before {
 }
 
 /* ============================================
-   ARTICLE DETAIL SCREEN - FIXED HEADER & BUTTONS
+   ARTICLE DETAIL SCREEN
 =========================================== */
 #detail {
     background: var(--bg);
-    padding-top: 0;
 }
 
-/* Ensure content starts below header */
-#detail .detail-content {
+.btn-save {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 32px;
+    touch-action: manipulation;
+}
+
+.btn-save.saved {
+    background: var(--success);
+}
+
+.btn-save:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+}
+
+.detail-content {
     background: var(--bg);
-    min-height: calc(100vh - 56px);
-    min-height: calc(100vh - 56px - env(safe-area-inset-top));
+    min-height: calc(100vh - 60px);
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-top: 0;
-    margin-top: 0;
 }
 
-/* Article image container - ensure proper spacing */
-#detail .article-image-container {
+.article-image-container {
     width: 100%;
     height: clamp(180px, 40vw, 220px);
     overflow: hidden;
     background: var(--border);
     position: relative;
-    margin-top: 0;
 }
 
-#detail .article-image-container::after {
+.article-image-container::after {
     content: '';
     position: absolute;
     bottom: 0;
@@ -1173,7 +1161,7 @@ input:checked + .switch-slider:before {
     pointer-events: none;
 }
 
-#detail .article-image {
+.article-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -1181,17 +1169,17 @@ input:checked + .switch-slider:before {
     transition: transform 0.3s ease;
 }
 
-#detail .article-image-container:active .article-image {
+.article-image-container:active .article-image {
     transform: scale(1.02);
 }
 
-#detail .article-text-content {
+.article-text-content {
     padding: 20px 16px;
     max-width: 600px;
     margin: 0 auto;
 }
 
-#detail .article-headline {
+.article-headline {
     font-size: clamp(20px, 6vw, 24px);
     font-weight: 700;
     line-height: 1.2;
@@ -1200,7 +1188,7 @@ input:checked + .switch-slider:before {
     word-wrap: break-word;
 }
 
-#detail .article-meta {
+.article-meta {
     color: var(--text-secondary);
     font-size: 13px;
     margin-bottom: 20px;
@@ -1212,7 +1200,7 @@ input:checked + .switch-slider:before {
     flex-wrap: wrap;
 }
 
-#detail .article-body-text {
+.article-body-text {
     font-size: 17px;
     line-height: 1.6;
     color: var(--text);
@@ -1348,21 +1336,6 @@ body[data-font-size="large"] .article-body-text {
     .pref-row {
         padding: 12px;
     }
-    
-    .page-header {
-        padding: 10px 12px;
-        padding-top: max(10px, env(safe-area-inset-top));
-    }
-    
-    .page-header .btn-back {
-        min-width: 50px;
-        font-size: 15px;
-    }
-    
-    .page-header h1 {
-        font-size: 15px;
-        margin: 0 5px;
-    }
 }
 
 /* Small devices (landscape phones, 576px and up) */
@@ -1486,22 +1459,11 @@ body[data-font-size="large"] .article-body-text {
     .nav-btn {
         min-height: 40px;
     }
-    
-    .page-header {
-        min-height: 48px;
-        padding-top: 8px;
-    }
 }
 
 /* Notch/Safe Area Support */
 @supports (padding: max(0px)) {
     .main-header {
-        padding-top: max(12px, env(safe-area-inset-top));
-        padding-left: max(16px, env(safe-area-inset-left));
-        padding-right: max(16px, env(safe-area-inset-right));
-    }
-    
-    .page-header {
         padding-top: max(12px, env(safe-area-inset-top));
         padding-left: max(16px, env(safe-area-inset-left));
         padding-right: max(16px, env(safe-area-inset-right));
@@ -1516,33 +1478,6 @@ body[data-font-size="large"] .article-body-text {
     .screen {
         padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);
-    }
-    
-    /* iOS specific - push content below notch */
-    #detail.screen {
-        padding-top: env(safe-area-inset-top);
-    }
-    
-    #detail .page-header {
-        margin-top: calc(-1 * env(safe-area-inset-top));
-        padding-top: max(12px, env(safe-area-inset-top));
-    }
-}
-
-/* iOS specific fixes */
-@supports (-webkit-touch-callout: none) {
-    .page-header {
-        /* Extra padding for iOS status bar */
-        padding-top: max(12px, env(safe-area-inset-top));
-    }
-    
-    /* Ensure header doesn't overlap with status bar icons */
-    #detail .page-header,
-    #saved .page-header,
-    #preferences .page-header,
-    #aboutpage .page-header,
-    #contact .page-header {
-        padding-top: max(12px, env(safe-area-inset-top));
     }
 }
 
