@@ -55,6 +55,26 @@ function initializeApp() {
         else showScreen("about");
     }, 2000);
     
+    // ── Logout Button Handler ──
+    setTimeout(() => {
+        const logoutBtn = document.getElementById("logoutButton");
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                logout();
+            }, { capture: true });
+        }
+        const deleteBtn = document.getElementById("deleteDataButton");
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                clearAll();
+            }, { capture: true });
+        }
+    }, 500);
+    
     // ── Mobile Back Button Handler ──
     setupMobileBackButton();
 }
@@ -137,27 +157,29 @@ function attachDarkModeListener() {
 function attachLogoutListener() {
     const logoutBtn = document.getElementById('logoutButton');
     if (!logoutBtn) return;
+    
+    // Remove all existing listeners
     const newBtn = logoutBtn.cloneNode(true);
     logoutBtn.parentNode.replaceChild(newBtn, logoutBtn);
-    newBtn.onclick = function(e) { 
-        e.preventDefault(); 
-        e.stopPropagation(); 
-        logout(); 
-        return false;
-    };
+    
+    // Multiple event handlers to ensure it works on all devices
+    newBtn.addEventListener('click', (e) => { logout(); });
+    newBtn.addEventListener('touchstart', (e) => { logout(); });
+    newBtn.addEventListener('tap', (e) => { logout(); });
 }
 
 function attachClearAllListener() {
     const clearBtn = document.querySelector('.btn-danger');
     if (!clearBtn) return;
+    
+    // Remove all existing listeners
     const newBtn = clearBtn.cloneNode(true);
     clearBtn.parentNode.replaceChild(newBtn, clearBtn);
-    newBtn.onclick = function(e) { 
-        e.preventDefault(); 
-        e.stopPropagation(); 
-        clearAll(); 
-        return false;
-    };
+    
+    // Multiple event handlers to ensure it works on all devices
+    newBtn.addEventListener('click', (e) => { clearAll(); });
+    newBtn.addEventListener('touchstart', (e) => { clearAll(); });
+    newBtn.addEventListener('tap', (e) => { clearAll(); });
 }
 
 function setupOtherListeners() {
@@ -1136,9 +1158,18 @@ function showToast(msg) {
 
 function bindMobileButtons() {
     const logoutBtn = document.getElementById("logoutButton");
-    if (logoutBtn) logoutBtn.onclick = () => logout();
+    if (logoutBtn) {
+        logoutBtn.onclick = () => logout();
+        logoutBtn.addEventListener('click', () => logout());
+        logoutBtn.addEventListener('touchstart', () => logout());
+    }
+    
     const deleteBtn = document.getElementById("deleteDataButton");
-    if (deleteBtn) deleteBtn.onclick = () => clearAll();
+    if (deleteBtn) {
+        deleteBtn.onclick = () => clearAll();
+        deleteBtn.addEventListener('click', () => clearAll());
+        deleteBtn.addEventListener('touchstart', () => clearAll());
+    }
 }
 
 /* ============================================
