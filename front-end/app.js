@@ -598,26 +598,26 @@ function renderTabView() {
         const count    = t.filter(allArticles).length;
         return `
             <button onclick="switchTab('${tabKey}')" style="
-                flex:1;padding:10px 4px;border-radius:22px;border:none;
-                font-weight:600;font-size:12px;cursor:pointer;transition:all 0.3s;
+                flex:1;padding:8px 2px;border-radius:20px;border:none;
+                font-weight:600;font-size:10px;cursor:pointer;transition:all 0.3s;
                 background:${isActive ? t.color : theme.inactiveTabBg};
                 color:${isActive ? '#fff' : theme.inactiveTabText};
                 box-shadow:${isActive ? `0 2px 8px ${t.shadow}` : 'none'};
-                position:relative;">
+                position:relative;min-width:45px;max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 ${t.label}
-                ${count > 0 ? `<span style="position:absolute;top:-4px;right:-2px;background:${isActive ? 'rgba(255,255,255,0.3)' : t.color};color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;min-width:14px;line-height:16px;">${count}</span>` : ''}
+                ${count > 0 ? `<span style="position:absolute;top:-6px;right:-4px;background:${isActive ? 'rgba(255,255,255,0.3)' : t.color};color:white;font-size:8px;font-weight:700;padding:1px 3px;border-radius:6px;min-width:12px;line-height:13px;text-align:center;">${count}</span>` : ''}
             </button>`;
     }).join('');
 
     let html = `
-        <div style="position:sticky;top:0;z-index:100;background:${theme.headerBg};padding:10px 16px;border-bottom:1px solid ${theme.headerBorder};">
-            <div style="display:flex;gap:8px;margin-bottom:10px;">${tabButtons}</div>
-            ${lastUpdatedTime ? `<div style="text-align:center;color:${theme.updatedColor};font-size:11px;">🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})}</div>` : ''}
+        <div style="position:sticky;top:0;z-index:100;background:${theme.headerBg};padding:8px 8px;border-bottom:1px solid ${theme.headerBorder};overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;">
+            <div style="display:flex;gap:6px;margin-bottom:8px;width:100%;box-sizing:border-box;padding:0 4px;">${tabButtons}</div>
+            ${lastUpdatedTime ? `<div style="text-align:center;color:${theme.updatedColor};font-size:11px;padding:0 4px;">🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})}</div>` : ''}
         </div>
-        <div style="margin:20px 16px 12px 16px;display:flex;align-items:center;gap:10px;">
-            <div style="width:4px;height:24px;background:${cfg.color};border-radius:2px;"></div>
-            <h2 style="color:${theme.sectionTitleColor};font-size:20px;font-weight:700;margin:0;">${cfg.icon} ${cfg.title}</h2>
-            <span style="background:${cfg.color};color:white;font-size:12px;padding:4px 12px;border-radius:12px;margin-left:auto;">${activeArticles.length}</span>
+        <div style="margin:16px 12px 12px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div style="width:4px;height:20px;background:${cfg.color};border-radius:2px;"></div>
+            <h2 style="color:${theme.sectionTitleColor};font-size:18px;font-weight:700;margin:0;flex:1;">${cfg.icon} ${cfg.title}</h2>
+            <span style="background:${cfg.color};color:white;font-size:11px;padding:3px 10px;border-radius:10px;">${activeArticles.length}</span>
         </div>`;
 
     if (activeArticles.length > 0) {

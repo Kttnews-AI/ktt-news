@@ -12,7 +12,7 @@
     height: 100%;
     overflow-y: auto;
     background: #f2f2f7;
-    z-index: 1;
+    z-index: -1;
     pointer-events: none;
 }
 
@@ -20,7 +20,7 @@
     display: block !important;
     visibility: visible;
     opacity: 1;
-    z-index: 100;
+    z-index: 10;
     pointer-events: auto;
 }
 
@@ -327,6 +327,8 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: transform 0.2s, opacity 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-main:active {
@@ -342,6 +344,8 @@ body {
     cursor: pointer;
     padding: 8px;
     transition: color 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-text:active {
@@ -385,6 +389,8 @@ body {
     justify-content: center;
     border-radius: 50%;
     transition: background 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-back:active {
@@ -471,6 +477,8 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-secondary:active {
@@ -545,6 +553,8 @@ body {
     justify-content: center;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
     transition: all 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .icon-btn:active {
@@ -576,6 +586,8 @@ body {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     transition: transform 0.2s, box-shadow 0.2s;
     color: white;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .saved-folder:active {
@@ -632,6 +644,8 @@ body {
     width: 100%;
     box-sizing: border-box;
     margin: 0;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .news-card:active {
@@ -705,11 +719,13 @@ body {
     justify-content: space-around;
     align-items: center;
     padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
-    z-index: 1000;
+    z-index: 9998 !important;
+    pointer-events: auto !important;
 }
 
 .dark .bottom-nav {
     background: rgba(28, 28, 30, 0.98);
+    z-index: 9998 !important;
 }
 
 .nav-btn {
@@ -728,6 +744,8 @@ body {
     transition: color 0.2s;
     max-width: 80px;
     position: relative;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .nav-btn.active {
@@ -806,6 +824,8 @@ body {
     align-items: center;
     gap: 4px;
     font-weight: 400;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .page-header h1 {
@@ -829,6 +849,8 @@ body {
 .page-header .btn-save {
     min-width: 80px;
     text-align: right;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 /* ============================================
@@ -842,6 +864,8 @@ body {
 .pref-section {
     margin-bottom: 24px;
     padding: 0 16px;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .pref-section h3 {
@@ -866,6 +890,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .border-top {
@@ -953,6 +979,8 @@ input:checked + .switch-slider:before {
     align-items: center;
     justify-content: center;
     font-weight: 500;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .size-btn[data-size="small"] {
@@ -990,6 +1018,8 @@ input:checked + .switch-slider:before {
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: opacity 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-logout:active {
@@ -1011,6 +1041,8 @@ input:checked + .switch-slider:before {
     align-items: center;
     gap: 8px;
     transition: background 0.2s;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-danger:active {
@@ -1037,6 +1069,8 @@ input:checked + .switch-slider:before {
     display: flex;
     align-items: center;
     gap: 4px;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-save.saved {
@@ -1135,7 +1169,7 @@ input:checked + .switch-slider:before {
     opacity: 0;
     transition: all 0.3s ease;
     z-index: 10000;
-    pointer-events: none;
+    pointer-events: auto;
     max-width: 90%;
     text-align: center;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -1202,6 +1236,7 @@ body[data-font-size="large"] .article-body-text {
     }
     
     .bottom-nav {
+    z-index: 1001 !important;
         max-width: 414px;
         left: 50%;
         transform: translateX(-50%);
@@ -1294,6 +1329,8 @@ input:focus-visible {
     background: var(--card);
     transition: all 0.2s;
     caret-color: var(--accent);
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .otp-input:focus {
@@ -1380,6 +1417,7 @@ input:focus-visible {
     cursor: pointer;
     z-index: 100;
     margin: 0;
+    pointer-events: auto;
 }
 
 .btn-logout, .btn-danger {
@@ -1389,6 +1427,8 @@ input:focus-visible {
     -webkit-user-select: none;
     user-select: none;
     outline: none;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-logout:active, .btn-danger:active {
@@ -1399,6 +1439,8 @@ input:focus-visible {
 button {
     -webkit-user-select: none;
     user-select: none;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 /* Dark mode for saved screen */
@@ -1424,49 +1466,6 @@ body.dark #saved .page-header {
     color: #ffffff !important;
 }
 
-button {
-    position: relative;
-    z-index: 9999;
-    pointer-events: auto;
-}
-
-.pref-section {
-    position: relative;
-    z-index: 9999;
-}
-
-.screen {
-    pointer-events: auto;
-}
-
-.bottom-nav {
-    z-index: 1;
-}
-
-button,
-.btn-logout,
-.btn-danger {
-    pointer-events: auto !important;
-    touch-action: manipulation !important;
-    z-index: 9999;
-    position: relative;
-}
-
-.pref-section {
-    position: relative;
-    z-index: 9999;
-}
-
-.screen {
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-}
-
-body, html {
-    height: auto !important;
-    overflow-x: hidden !important;
-}
-
 .settings-actions {
     padding: 16px;
 }
@@ -1483,6 +1482,9 @@ body, html {
     font-size: 18px !important;
     font-weight: 600 !important;
     text-align: center !important;
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+    cursor: pointer !important;
 }
 
 #deleteDataButton {
@@ -1497,6 +1499,9 @@ body, html {
     font-size: 18px !important;
     font-weight: 600 !important;
     text-align: center !important;
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+    cursor: pointer !important;
 }
 
 .date {
@@ -1530,8 +1535,332 @@ body, html {
     display: flex;
     align-items: center;
     gap: 4px;
+    pointer-events: auto;
+    z-index: 9999;
 }
 
 .btn-share-inline:hover {
     background: #218838;
+}
+
+/* ============================================
+   MOBILE DEVICE FIXES - Critical for all phones
+=========================================== */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+    }
+}
+
+/* Fix for notch/safe area */
+@media (viewport-fit: cover) {
+    body, html {
+        padding: 0;
+        margin: 0;
+    }
+}
+
+/* ============================================
+   MOBILE SPECIFIC - iPhone, Android, etc
+=========================================== */
+@media (max-width: 480px) {
+    html, body {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+    }
+
+    .screen {
+        width: 100vw;
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        margin: 0;
+        padding: 0;
+    }
+
+    .screen.active {
+        width: 100vw;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .main-header, .page-header {
+        width: 100vw;
+        left: 0;
+        position: sticky;
+        top: 0;
+    }
+
+    .bottom-nav {
+        width: 100vw;
+        left: 0;
+        bottom: 0;
+        position: fixed;
+    }
+
+    .main-body {
+        padding-bottom: calc(80px + env(safe-area-inset-bottom));
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .page-content {
+        padding-bottom: calc(100px + env(safe-area-inset-bottom));
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .detail-content {
+        padding-bottom: calc(20px + env(safe-area-inset-bottom));
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Fix text size for mobile */
+    body {
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    /* Larger touch targets */
+    button, .nav-btn, .btn-back {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Better article cards */
+    .news-card {
+        padding: 12px;
+        margin: 0 8px 10px 8px;
+    }
+
+    /* Fix login form */
+    .login-wrapper {
+        padding-top: 16px;
+        padding-bottom: calc(30px + env(safe-area-inset-bottom));
+    }
+
+    /* Fix about screen */
+    .about-wrapper {
+        padding-bottom: calc(30px + env(safe-area-inset-bottom));
+    }
+
+    /* Fix preferences */
+    #preferences {
+        padding-bottom: calc(100px + env(safe-area-inset-bottom));
+    }
+
+    .pref-section {
+        margin: 0 16px 24px 16px;
+        width: calc(100% - 32px);
+    }
+
+    /* Toast notification position */
+    .toast {
+        bottom: calc(90px + env(safe-area-inset-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: calc(100% - 40px);
+    }
+
+    /* Article detail text */
+    .article-text-content {
+        padding: 20px 16px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .article-headline {
+        font-size: 22px;
+    }
+
+    .article-body-text {
+        font-size: 16px;
+    }
+}
+
+/* ============================================
+   TABLET FIXES (768px and up)
+=========================================== */
+@media (min-width: 481px) and (max-width: 1024px) {
+    .screen {
+        max-width: 100%;
+    }
+
+    .screen.active {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    body {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    .main-body,
+    .page-content,
+    .detail-content {
+        max-width: 100%;
+        width: 100%;
+        padding-bottom: calc(100px + env(safe-area-inset-bottom));
+    }
+}
+
+/* ============================================
+   FIX OVERFLOW AND SCROLLING
+=========================================== */
+html {
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+}
+
+body {
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.screen {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    height: 100%;
+    width: 100%;
+}
+
+.screen.active {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================
+   FIX BUTTON RESPONSIVENESS
+=========================================== */
+button, input, select, textarea {
+    font-size: 16px;
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 0;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+    font-size: 16px;
+    padding: 12px;
+}
+
+/* ============================================
+   FIX SAFE AREA FOR NOTCHED DEVICES
+=========================================== */
+@supports (bottom: max(0px)) {
+    .bottom-nav {
+        padding-bottom: max(6px, env(safe-area-inset-bottom));
+    }
+
+    .main-body {
+        padding-bottom: max(80px, calc(80px + env(safe-area-inset-bottom)));
+    }
+
+    .page-content {
+        padding-bottom: max(100px, calc(100px + env(safe-area-inset-bottom)));
+    }
+}
+
+/* ============================================
+   FIX IMAGE SCROLLING
+=========================================== */
+.article-image {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* ============================================
+   PREVENT ZOOM ON DOUBLE TAP
+=========================================== */
+input, button, textarea, select {
+    font-size: 16px;
+}
+
+a {
+    touch-action: manipulation;
+}
+
+/* ============================================
+   FIX FOR ANDROID CHROME
+=========================================== */
+body {
+    position: fixed;
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overscroll-behavior: contain;
+}
+
+html {
+    position: fixed;
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+.screen {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+}
+
+.screen.active {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ============================================
+   FIX INPUT FOCUS ZOOM
+=========================================== */
+input:focus {
+    font-size: 16px;
+}
+
+textarea:focus {
+    font-size: 16px;
+}
+
+select:focus {
+    font-size: 16px;
+}
+
+/* ============================================
+   DISABLE DOUBLE TAP ZOOM
+=========================================== */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+    touch-action: manipulation;
 }
