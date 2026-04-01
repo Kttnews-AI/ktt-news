@@ -1,7 +1,6 @@
 // ============================================
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
-// FIX: 60sec routing — checks category AND title pattern
-// 4 Tabs: AI-S | AI-D | 60 Sec | Current Affairs
+// WITH: Back Button Handler + 60sec Translator + Bottom Padding Fix
 // ============================================
 
 const API_BASE       = "https://centrinsicnpt.com";
@@ -20,7 +19,7 @@ let allArticles     = [];
 let currentTab      = 'gnews';
 
 let originalArticleContent = null;
-let original60SecContent   = {}; // Store original 60sec content for translation
+let original60SecContent   = {};
 
 /* ============================================
    INITIALIZATION
@@ -62,45 +61,20 @@ function initializeApp() {
 
 /* ============================================
    ✅ SINGLE SOURCE OF TRUTH — which tab does this article belong to?
-   Checks multiple fields to be robust against server variations
 ============================================ */
 function getArticleTab(article) {
-    // GNews articles — not manual
     if (!article.isManual) return 'gnews';
-
-    // Check ALL possible fields the server might use
     const cat    = (article.category    || '').toLowerCase().trim();
     const type   = (article.type        || '').toLowerCase().trim();
     const tag    = (article.tag         || '').toLowerCase().trim();
     const source = (article.source      || '').toLowerCase().trim();
-
-    // ── 60 Sec detection ──
-    // Match any variation: '60sec', '60 sec', '60seconds', '60-sec', 'sixty'
     const is60sec =
-        cat === '60sec' ||
-        cat === '60 sec' ||
-        cat === '60seconds' ||
-        cat === '60-sec' ||
-        cat === 'sixtysec' ||
-        type === '60sec' ||
-        tag === '60sec' ||
-        article.is60sec === true ||
-        article.bulletinDigest === true;
-
+        cat === '60sec' || cat === '60 sec' || cat === '60seconds' || cat === '60-sec' || cat === 'sixtysec' ||
+        type === '60sec' || tag === '60sec' || article.is60sec === true || article.bulletinDigest === true;
     if (is60sec) return '60sec';
-
-    // ── Current Affairs detection ──
-    const isCA =
-        cat === 'currentaffairs' ||
-        cat === 'current affairs' ||
-        cat === 'current_affairs' ||
-        type === 'currentaffairs' ||
-        tag === 'currentaffairs' ||
-        article.isCurrentAffairs === true;
-
+    const isCA = cat === 'currentaffairs' || cat === 'current affairs' || cat === 'current_affairs' ||
+        type === 'currentaffairs' || tag === 'currentaffairs' || article.isCurrentAffairs === true;
     if (isCA) return 'currentaffairs';
-
-    // ── Everything else = AI-D ──
     return 'manual';
 }
 
@@ -137,7 +111,6 @@ function exportAllFunctions() {
     window.translate60SecDigest  = translate60SecDigest;
     window.getArticleTab         = getArticleTab;
     window.handleMobileBack      = handleMobileBack;
-    window.setupMobileBackButton = setupMobileBackButton;
 }
 
 /* ============================================
@@ -193,32 +166,18 @@ function setupOtherListeners() {
    NAVIGATION
 ============================================ */
 function showScreen(screenId) {
-    // Debug: Log screen changes
-    console.log("🖥️ Showing screen:", screenId);
-    
-    // Hide all screens first
     document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.remove('active');
         screen.style.display = 'none';
     });
-    
-    // Find and show target screen
     const target = document.getElementById(screenId);
-    if (!target) {
-        console.error("❌ Screen not found:", screenId);
-        return;
-    }
-    
+    if (!target) return;
     target.classList.add('active');
     target.style.display = screenId === 'splash' ? 'flex' : 'block';
-    
-    // Show/hide navigation based on screen
     const showNav = ['home', 'saved', 'preferences'].includes(screenId);
     document.querySelectorAll('.bottom-nav').forEach(nav => {
         nav.style.display = showNav ? 'flex' : 'none';
     });
-    
-    // Load content for specific screens
     if (screenId === 'home')        { updateSavedFolder(); setTimeout(loadNews, 100); }
     if (screenId === 'saved')       setTimeout(loadSavedArticles, 100);
     if (screenId === 'preferences') {
@@ -226,11 +185,6 @@ function showScreen(screenId) {
         updateUserDisplay();
         highlightSizeButton(localStorage.getItem("font_size") || "medium");
     }
-    if (screenId === 'detail') {
-        const detailContent = document.getElementById("detailContent");
-        if (detailContent) detailContent.scrollTop = 0;
-    }
-    
     window.scrollTo(0, 0);
     setTimeout(bindMobileButtons, 200);
 }
@@ -505,7 +459,6 @@ async function loadNews() {
         localStorage.setItem("news_meta",   JSON.stringify(data.meta || {}));
         isOnline = true;
 
-        // ── Debug: print all manual articles with their category ──
         console.log('📊 Manual articles routing:');
         newsArray.filter(a => a.isManual).forEach(a => {
             console.log(`  tab="${getArticleTab(a)}" | category="${a.category}" | title="${(a.title||'').substring(0,40)}"`);
@@ -539,7 +492,7 @@ function switchTab(tab) {
 }
 
 /* ============================================
-   TAB CONFIG — all filters use getArticleTab()
+   TAB CONFIG
 ============================================ */
 const TAB_CONFIG = {
     gnews: {
@@ -598,26 +551,26 @@ function renderTabView() {
         const count    = t.filter(allArticles).length;
         return `
             <button onclick="switchTab('${tabKey}')" style="
-                flex:1;padding:8px 2px;border-radius:20px;border:none;
-                font-weight:600;font-size:10px;cursor:pointer;transition:all 0.3s;
+                flex:1;padding:10px 4px;border-radius:22px;border:none;
+                font-weight:600;font-size:12px;cursor:pointer;transition:all 0.3s;
                 background:${isActive ? t.color : theme.inactiveTabBg};
                 color:${isActive ? '#fff' : theme.inactiveTabText};
                 box-shadow:${isActive ? `0 2px 8px ${t.shadow}` : 'none'};
-                position:relative;min-width:45px;max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                position:relative;">
                 ${t.label}
-                ${count > 0 ? `<span style="position:absolute;top:-6px;right:-4px;background:${isActive ? 'rgba(255,255,255,0.3)' : t.color};color:white;font-size:8px;font-weight:700;padding:1px 3px;border-radius:6px;min-width:12px;line-height:13px;text-align:center;">${count}</span>` : ''}
+                ${count > 0 ? `<span style="position:absolute;top:-4px;right:-2px;background:${isActive ? 'rgba(255,255,255,0.3)' : t.color};color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;min-width:14px;line-height:16px;">${count}</span>` : ''}
             </button>`;
     }).join('');
 
     let html = `
-        <div style="position:sticky;top:0;z-index:100;background:${theme.headerBg};padding:8px 8px;border-bottom:1px solid ${theme.headerBorder};overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;">
-            <div style="display:flex;gap:6px;margin-bottom:8px;width:100%;box-sizing:border-box;padding:0 4px;">${tabButtons}</div>
-            ${lastUpdatedTime ? `<div style="text-align:center;color:${theme.updatedColor};font-size:11px;padding:0 4px;">🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})}</div>` : ''}
+        <div style="position:sticky;top:0;z-index:100;background:${theme.headerBg};padding:10px 16px;border-bottom:1px solid ${theme.headerBorder};">
+            <div style="display:flex;gap:8px;margin-bottom:10px;">${tabButtons}</div>
+            ${lastUpdatedTime ? `<div style="text-align:center;color:${theme.updatedColor};font-size:11px;">🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})}</div>` : ''}
         </div>
-        <div style="margin:16px 12px 12px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <div style="width:4px;height:20px;background:${cfg.color};border-radius:2px;"></div>
-            <h2 style="color:${theme.sectionTitleColor};font-size:18px;font-weight:700;margin:0;flex:1;">${cfg.icon} ${cfg.title}</h2>
-            <span style="background:${cfg.color};color:white;font-size:11px;padding:3px 10px;border-radius:10px;">${activeArticles.length}</span>
+        <div style="margin:20px 16px 12px 16px;display:flex;align-items:center;gap:10px;">
+            <div style="width:4px;height:24px;background:${cfg.color};border-radius:2px;"></div>
+            <h2 style="color:${theme.sectionTitleColor};font-size:20px;font-weight:700;margin:0;">${cfg.icon} ${cfg.title}</h2>
+            <span style="background:${cfg.color};color:white;font-size:12px;padding:4px 12px;border-radius:12px;margin-left:auto;">${activeArticles.length}</span>
         </div>`;
 
     if (activeArticles.length > 0) {
@@ -764,37 +717,26 @@ function render60SecDigest(articles) {
 async function translate60SecDigest(articleId, targetLang) {
     const digestEl = document.getElementById(`digestContent_${articleId}`);
     const selectEl = document.getElementById(`digestTranslateSelect_${articleId}`);
-    
     if (!digestEl || !targetLang) return;
-    
-    // Store original if not already stored
     if (!original60SecContent[articleId]) {
         original60SecContent[articleId] = digestEl.innerHTML;
     }
-    
-    // Reset to original if English selected
     if (targetLang === 'en') {
         digestEl.innerHTML = original60SecContent[articleId];
         if (selectEl) selectEl.value = 'en';
         return;
     }
-    
-    // Get text content to translate
     const textContent = digestEl.innerText;
-    
-    digestEl.innerHTML = '<div style="text-align:center;color:#FF9800;padding:20px;"><span>🌐 Translating to ' + targetLang.toUpperCase() + '...</span></div>';
-    
+    digestEl.innerHTML = '<div style="text-align:center;color:#FF9800;padding:20px;"><span>🌐 Translating...</span></div>';
     try {
         const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(textContent)}`);
         const data = await response.json();
-        
         let translated = '';
         if (data && data[0]) {
             data[0].forEach(seg => {
                 if (seg[0]) translated += seg[0];
             });
         }
-        
         if (translated) {
             digestEl.innerHTML = `<p style="color:#222;font-size:14px;line-height:1.7;padding:8px 0;white-space:pre-wrap;">${escapeHtml(translated)}</p>`;
             showToast(`✅ Translated to ${targetLang.toUpperCase()}`);
@@ -1050,7 +992,6 @@ function displayArticleDetail() {
     showScreen("detail");
     const detailContent = document.getElementById("detailContent");
     if (detailContent) detailContent.scrollTop = 0;
-    console.log("📄 Article detail screen displayed - ready for back button");
 }
 
 /* ============================================
@@ -1193,131 +1134,80 @@ function bindMobileButtons() {
 }
 
 /* ============================================
-   MOBILE BACK BUTTON HANDLER - PREVENTS APP CLOSE
+   MOBILE BACK BUTTON HANDLER
 ============================================ */
 let backButtonProcessing = false;
-let lastBackPressTime = 0;
-let backPressCount = 0;
 
 function setupMobileBackButton() {
     console.log("🚀 Setting up mobile back button handler...");
-    
-    // ═══ CAPACITOR (for native iOS/Android apps) ═══
     if (window.Capacitor?.Plugins?.App) {
-        console.log("✅ Capacitor detected - registering back button");
         try {
             window.Capacitor.Plugins.App.addListener('backButton', (e) => {
                 console.log("🔙 CAPACITOR BACK BUTTON PRESSED");
                 handleMobileBack();
-                // DO NOT call exit() - let our handler manage navigation
             });
         } catch (err) {
             console.warn("⚠️ Capacitor setup error:", err);
         }
     }
-    
-    // ═══ CORDOVA (for older hybrid apps) ═══
     if (window.cordova) {
-        console.log("✅ Cordova detected - registering back button");
         document.addEventListener('backbutton', (e) => {
-            e.preventDefault();  // CRITICAL: Prevents app close
+            e.preventDefault();
             console.log("🔙 CORDOVA BACK BUTTON PRESSED");
             handleMobileBack();
         }, false);
     }
-    
-    // ═══ Browser/PWA back button ═══
     window.addEventListener('popstate', (e) => {
         e.preventDefault();
         console.log("🔙 BROWSER POPSTATE EVENT");
         handleMobileBack();
     });
-    
-    // ═══ Alternative: Direct key handler ═══
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' || e.keyCode === 27) {
-            e.preventDefault();
-            console.log("🔙 ESCAPE KEY PRESSED");
-            handleMobileBack();
-        }
-    });
-    
-    console.log("✅ Mobile back button fully initialized");
 }
 
 function handleMobileBack() {
-    // Prevent rapid consecutive back presses
     if (backButtonProcessing) {
         console.log("⚠️ Back button already processing - ignoring");
         return;
     }
-    
     backButtonProcessing = true;
-    
-    // Get the currently active screen
     const activeScreenEl = document.querySelector('.screen.active');
     const currentScreen = activeScreenEl?.id || 'home';
-    
-    console.log("═══════════════════════════════════════");
-    console.log("🔙 BACK BUTTON HANDLER TRIGGERED");
-    console.log("📍 Current screen:", currentScreen);
-    console.log("═══════════════════════════════════════");
-    
-    // Route navigation based on current screen
+    console.log("🔙 BACK BUTTON - Current screen:", currentScreen);
     switch(currentScreen) {
         case 'detail':
-            // FROM ARTICLE DETAIL → GO TO HOME
             console.log("📖 Navigating: DETAIL → HOME");
             showScreen('home');
             break;
-            
         case 'login':
-            // FROM LOGIN → GO TO ABOUT
             console.log("🔐 Navigating: LOGIN → ABOUT");
             showScreen('about');
             break;
-            
         case 'aboutpage':
-            // FROM ABOUT PAGE → GO TO PREFERENCES
             console.log("ℹ️ Navigating: ABOUTPAGE → PREFERENCES");
             showScreen('preferences');
             break;
-            
         case 'contact':
-            // FROM CONTACT → GO TO PREFERENCES
             console.log("📧 Navigating: CONTACT → PREFERENCES");
             showScreen('preferences');
             break;
-            
         case 'saved':
-            // FROM SAVED → GO TO HOME
             console.log("💾 Navigating: SAVED → HOME");
             showScreen('home');
             break;
-            
         case 'preferences':
-            // FROM PREFERENCES → GO TO HOME
             console.log("⚙️ Navigating: PREFERENCES → HOME");
             showScreen('home');
             break;
-            
         case 'about':
         case 'home':
         case 'splash':
-            // MAIN SCREENS - PREVENT EXIT
             console.log("🛑 BLOCKING EXIT - Staying on", currentScreen);
             showToast("App navigation active");
             break;
-            
         default:
-            // UNKNOWN SCREEN - GO TO HOME
             console.log("❓ Unknown screen:", currentScreen, "→ defaulting to HOME");
             showScreen('home');
     }
-    
-    console.log("✅ Back button action completed\n");
-    
-    // Re-enable back button after delay
     setTimeout(() => {
         backButtonProcessing = false;
     }, 300);
