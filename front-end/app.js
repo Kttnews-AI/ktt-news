@@ -139,8 +139,12 @@ function attachLogoutListener() {
     if (!logoutBtn) return;
     const newBtn = logoutBtn.cloneNode(true);
     logoutBtn.parentNode.replaceChild(newBtn, logoutBtn);
-    newBtn.addEventListener('click',    (e) => { e.preventDefault(); e.stopPropagation(); logout(); });
-    newBtn.addEventListener('touchend', (e) => { e.preventDefault(); logout(); });
+    newBtn.onclick = function(e) { 
+        e.preventDefault(); 
+        e.stopPropagation(); 
+        logout(); 
+        return false;
+    };
 }
 
 function attachClearAllListener() {
@@ -148,8 +152,12 @@ function attachClearAllListener() {
     if (!clearBtn) return;
     const newBtn = clearBtn.cloneNode(true);
     clearBtn.parentNode.replaceChild(newBtn, clearBtn);
-    newBtn.addEventListener('click',    (e) => { e.preventDefault(); e.stopPropagation(); clearAll(); });
-    newBtn.addEventListener('touchend', (e) => { e.preventDefault(); clearAll(); });
+    newBtn.onclick = function(e) { 
+        e.preventDefault(); 
+        e.stopPropagation(); 
+        clearAll(); 
+        return false;
+    };
 }
 
 function setupOtherListeners() {
@@ -1128,9 +1136,9 @@ function showToast(msg) {
 
 function bindMobileButtons() {
     const logoutBtn = document.getElementById("logoutButton");
-    if (logoutBtn) logoutBtn.onpointerup = () => logout();
+    if (logoutBtn) logoutBtn.onclick = () => logout();
     const deleteBtn = document.getElementById("deleteDataButton");
-    if (deleteBtn) deleteBtn.onpointerup = () => clearAll();
+    if (deleteBtn) deleteBtn.onclick = () => clearAll();
 }
 
 /* ============================================
