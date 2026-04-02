@@ -793,6 +793,21 @@ body {
     background: rgba(0, 0, 0, 0.98);
 }
 
+/* Keep Preferences header LIGHT even in dark mode */
+#preferences .page-header {
+    background: rgba(242, 242, 247, 0.98) !important;
+    color: #000 !important;
+    border-bottom: 1px solid #e5e5ea !important;
+}
+
+#preferences .page-header h1 {
+    color: #000 !important;
+}
+
+#preferences .page-header .btn-back {
+    color: #007aff !important;
+}
+
 .page-header .btn-back {
     background: none;
     border: none;
