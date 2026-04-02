@@ -842,7 +842,6 @@ body {
     margin-top: 1px;
 }
 
-
 /* ============================================
    PAGE HEADER - FIXED FOR SAFE AREA
 =========================================== */
@@ -850,7 +849,7 @@ body {
     background: rgba(242, 242, 247, 0.98);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    /* Add safe area padding for notch/status bar */
+    /* Safe area padding for notch/status bar */
     padding-top: max(44px, env(safe-area-inset-top));
     padding-bottom: 12px;
     padding-left: 16px;
@@ -948,105 +947,6 @@ body {
     flex-shrink: 0;
 }
 
-/* ============================================
-   ARTICLE DETAIL SCREEN - FIXED HEADER POSITION
-=========================================== */
-#detail {
-    background: var(--bg);
-    width: 100vw;
-    max-width: 100vw;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    height: -webkit-fill-available;
-    padding-top: 0; /* No padding here, handled by content */
-}
-
-/* Content starts BELOW the fixed header */
-#detail .detail-content {
-    background: var(--bg);
-    min-height: calc(100% - 80px);
-    padding: 0;
-    margin: 0;
-    width: 100vw;
-    max-width: 100vw;
-    /* Push content below header - header height ~80-100px with safe area */
-    padding-top: max(80px, calc(44px + env(safe-area-inset-top) + 12px));
-    box-sizing: border-box;
-}
-
-/* Image scrolls normally */
-#detail .article-image-container {
-    width: 100vw;
-    height: clamp(200px, 45vw, 280px);
-    overflow: hidden;
-    background: var(--border);
-    position: relative;
-    margin: 0;
-    padding: 0;
-}
-
-#detail .article-image-container::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background: linear-gradient(to top, rgba(0,0,0,0.3), transparent);
-    pointer-events: none;
-}
-
-#detail .article-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
-/* Text content */
-#detail .article-text-content {
-    padding: 20px 16px;
-    max-width: 100%;
-    margin: 0;
-    width: 100vw;
-    box-sizing: border-box;
-    background: var(--bg);
-}
-
-#detail .article-headline {
-    font-size: clamp(22px, 6.5vw, 26px);
-    font-weight: 700;
-    line-height: 1.25;
-    margin-bottom: 12px;
-    color: var(--text);
-    word-wrap: break-word;
-}
-
-#detail .article-meta {
-    color: var(--text-secondary);
-    font-size: 14px;
-    margin-bottom: 20px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-#detail .article-body-text {
-    font-size: 17px;
-    line-height: 1.7;
-    color: var(--text);
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    padding-bottom: 40px;
-}
 /* ============================================
    PREFERENCES SCREEN
 =========================================== */
@@ -1245,62 +1145,36 @@ input:checked + .switch-slider:before {
 }
 
 /* ============================================
-   ARTICLE DETAIL SCREEN - FIXED SCROLLING
+   ARTICLE DETAIL SCREEN - FIXED
 =========================================== */
 #detail {
     background: var(--bg);
     width: 100vw;
     max-width: 100vw;
-    overflow-y: auto; /* Enable scrolling for entire screen */
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    /* Remove fixed positioning constraints */
     position: fixed;
     top: 0;
     left: 0;
     height: 100vh;
     height: -webkit-fill-available;
+    padding-top: 0;
 }
 
-/* FIXED: Header stays at top when scrolling */
-#detail .page-header {
-    position: fixed; /* Fixed at top */
-    top: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    z-index: 1000; /* Above everything */
-    background: rgba(242, 242, 247, 0.98);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    padding: 12px 16px;
-    padding-top: max(12px, env(safe-area-inset-top));
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border);
-    min-height: 56px;
-    box-sizing: border-box;
-}
-
-.dark #detail .page-header {
-    background: rgba(0, 0, 0, 0.98);
-}
-
-/* Content wrapper - starts below header and scrolls */
+/* Content starts BELOW the fixed header */
 #detail .detail-content {
     background: var(--bg);
-    min-height: 100%;
+    min-height: calc(100% - 80px);
     padding: 0;
     margin: 0;
     width: 100vw;
     max-width: 100vw;
-    /* Push content below fixed header */
-    padding-top: 56px; /* Header height */
-    padding-top: max(56px, calc(56px + env(safe-area-inset-top)));
+    /* Push content below header - accounts for safe area */
+    padding-top: max(80px, calc(44px + env(safe-area-inset-top) + 12px));
     box-sizing: border-box;
 }
 
-/* Image scrolls with content (NOT fixed) */
+/* Image scrolls normally */
 #detail .article-image-container {
     width: 100vw;
     height: clamp(200px, 45vw, 280px);
@@ -1309,7 +1183,6 @@ input:checked + .switch-slider:before {
     position: relative;
     margin: 0;
     padding: 0;
-    flex-shrink: 0;
 }
 
 #detail .article-image-container::after {
@@ -1330,7 +1203,7 @@ input:checked + .switch-slider:before {
     display: block;
 }
 
-/* Text content area */
+/* Text content */
 #detail .article-text-content {
     padding: 20px 16px;
     max-width: 100%;
@@ -1368,7 +1241,7 @@ input:checked + .switch-slider:before {
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    padding-bottom: 40px; /* Extra padding at bottom for comfortable reading */
+    padding-bottom: 40px;
 }
 
 /* ============================================
@@ -1506,8 +1379,10 @@ body[data-font-size="large"] .article-body-text {
     }
     
     .page-header {
-        padding: 10px 12px;
-        padding-top: max(10px, env(safe-area-inset-top));
+        padding-top: max(38px, env(safe-area-inset-top));
+        padding-bottom: 10px;
+        padding-left: 12px;
+        padding-right: 12px;
     }
     
     .page-header .btn-back,
@@ -1519,6 +1394,10 @@ body[data-font-size="large"] .article-body-text {
     .page-header h1 {
         font-size: 15px;
         margin: 0 5px;
+    }
+    
+    #detail .detail-content {
+        padding-top: max(70px, calc(38px + env(safe-area-inset-top) + 10px));
     }
 }
 
@@ -1678,8 +1557,12 @@ body[data-font-size="large"] .article-body-text {
     }
     
     .page-header {
-        min-height: 48px;
-        padding-top: 8px;
+        padding-top: max(38px, env(safe-area-inset-top));
+        padding-bottom: 8px;
+    }
+    
+    #detail .detail-content {
+        padding-top: max(70px, calc(38px + env(safe-area-inset-top) + 8px));
     }
     
     #detail .article-image-container {
@@ -1695,7 +1578,6 @@ body[data-font-size="large"] .article-body-text {
     }
     
     .page-header {
-        padding-top: max(12px, env(safe-area-inset-top));
         padding-left: max(16px, env(safe-area-inset-left));
         padding-right: max(16px, env(safe-area-inset-right));
     }
@@ -1712,18 +1594,15 @@ body[data-font-size="large"] .article-body-text {
     }
     
     #detail.screen {
-        padding-top: env(safe-area-inset-top);
-    }
-    
-    #detail .page-header {
-        margin-top: calc(-1 * env(safe-area-inset-top));
-        padding-top: max(12px, env(safe-area-inset-top));
+        padding-top: 0;
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
     }
 }
 
 @supports (-webkit-touch-callout: none) {
     .page-header {
-        padding-top: max(12px, env(safe-area-inset-top));
+        padding-top: max(44px, env(safe-area-inset-top));
     }
     
     #detail .page-header,
@@ -1731,7 +1610,7 @@ body[data-font-size="large"] .article-body-text {
     #preferences .page-header,
     #aboutpage .page-header,
     #contact .page-header {
-        padding-top: max(12px, env(safe-area-inset-top));
+        padding-top: max(44px, env(safe-area-inset-top));
     }
 }
 
