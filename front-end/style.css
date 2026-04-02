@@ -1141,27 +1141,62 @@ input:checked + .switch-slider:before {
 }
 
 /* ============================================
-   ARTICLE DETAIL SCREEN - FIXED
+   ARTICLE DETAIL SCREEN - FIXED SCROLLING
 =========================================== */
 #detail {
     background: var(--bg);
-    padding-top: 0;
     width: 100vw;
     max-width: 100vw;
-    overflow-x: hidden;
+    overflow-y: auto; /* Enable scrolling for entire screen */
+    -webkit-overflow-scrolling: touch;
+    /* Remove fixed positioning constraints */
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    height: -webkit-fill-available;
 }
 
+/* FIXED: Header stays at top when scrolling */
+#detail .page-header {
+    position: fixed; /* Fixed at top */
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 1000; /* Above everything */
+    background: rgba(242, 242, 247, 0.98);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 12px 16px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    min-height: 56px;
+    box-sizing: border-box;
+}
+
+.dark #detail .page-header {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+/* Content wrapper - starts below header and scrolls */
 #detail .detail-content {
     background: var(--bg);
-    min-height: calc(100vh - 56px);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    min-height: 100%;
     padding: 0;
     margin: 0;
     width: 100vw;
     max-width: 100vw;
+    /* Push content below fixed header */
+    padding-top: 56px; /* Header height */
+    padding-top: max(56px, calc(56px + env(safe-area-inset-top)));
+    box-sizing: border-box;
 }
 
+/* Image scrolls with content (NOT fixed) */
 #detail .article-image-container {
     width: 100vw;
     height: clamp(200px, 45vw, 280px);
@@ -1170,6 +1205,7 @@ input:checked + .switch-slider:before {
     position: relative;
     margin: 0;
     padding: 0;
+    flex-shrink: 0;
 }
 
 #detail .article-image-container::after {
@@ -1188,15 +1224,16 @@ input:checked + .switch-slider:before {
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: transform 0.3s ease;
 }
 
+/* Text content area */
 #detail .article-text-content {
     padding: 20px 16px;
     max-width: 100%;
     margin: 0;
     width: 100vw;
     box-sizing: border-box;
+    background: var(--bg);
 }
 
 #detail .article-headline {
@@ -1227,6 +1264,7 @@ input:checked + .switch-slider:before {
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    padding-bottom: 40px; /* Extra padding at bottom for comfortable reading */
 }
 
 /* ============================================
