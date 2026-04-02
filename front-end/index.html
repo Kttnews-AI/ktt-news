@@ -24,6 +24,7 @@
             overflow-y: auto;
             background: #f2f2f7;
             -webkit-overflow-scrolling: touch;
+            padding-top: env(safe-area-inset-top);
         }
         
         /* Only show active screen */
@@ -40,17 +41,152 @@
         #splash {
             display: flex !important;
             z-index: 9999;
+            padding-top: 0 !important;
         }
         
         /* Prevent pull-to-refresh on mobile */
         body {
             overscroll-behavior-y: none;
             touch-action: pan-y;
+            margin: 0;
+            padding: 0;
         }
         
-        /* Safe area support for notched phones */
+        /* CRITICAL FIX: Page header with proper safe area */
+        .page-header {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000 !important;
+            background: rgba(0, 0, 0, 0.98);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid #222;
+            padding: max(12px, env(safe-area-inset-top)) 16px 12px 16px;
+            min-height: 56px;
+            height: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-sizing: border-box;
+        }
+        
+        /* Light mode header */
+        body:not(.dark) .page-header {
+            background: rgba(242, 242, 247, 0.98);
+            border-bottom: 1px solid #e5e5ea;
+        }
+        
+        /* Header buttons */
+        .page-header .btn-back {
+            background: none;
+            border: none;
+            font-size: 17px;
+            color: #007aff;
+            cursor: pointer;
+            padding: 8px 0;
+            min-width: 60px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 400;
+            min-height: 44px;
+            touch-action: manipulation;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1001;
+            margin: 0;
+        }
+        
+        .page-header h1 {
+            font-size: 17px;
+            font-weight: 600;
+            text-align: center;
+            flex: 1;
+            margin: 0 10px;
+            position: static;
+            transform: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: inherit;
+            z-index: 1001;
+        }
+        
+        .page-header .btn-save {
+            min-width: 60px;
+            text-align: right;
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 32px;
+            touch-action: manipulation;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1001;
+            margin: 0;
+        }
+        
+        .page-header .btn-save.saved {
+            background: #34c759;
+        }
+        
+        /* Spacer for alignment */
+        .page-header .spacer,
+        .page-header > div:last-child {
+            min-width: 60px;
+            width: auto;
+            flex-shrink: 0;
+        }
+        
+        /* CRITICAL FIX: Content padding to account for fixed header */
+        #detail .detail-content,
+        #saved .page-content,
+        #preferences .page-content,
+        #aboutpage .page-content,
+        #contact .page-content {
+            padding-top: calc(56px + env(safe-area-inset-top));
+            padding-bottom: 100px;
+            min-height: 100vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* CRITICAL FIX: Article image container */
+        #detail .article-image-container {
+            width: 100%;
+            height: 200px;
+            max-height: 35vh;
+            overflow: hidden;
+            background: #1c1c1e;
+            position: relative;
+            z-index: 1;
+            margin: 0;
+        }
+        
+        #detail .article-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: block;
+        }
+        
+        /* Safe area support */
         @supports (padding: max(0px)) {
-            .main-header, .page-header {
+            .main-header {
                 padding-top: max(12px, env(safe-area-inset-top));
                 padding-left: max(16px, env(safe-area-inset-left));
                 padding-right: max(16px, env(safe-area-inset-right));
@@ -65,24 +201,6 @@
             .screen {
                 padding-left: env(safe-area-inset-left);
                 padding-right: env(safe-area-inset-right);
-            }
-            
-            /* iOS specific - push content below notch */
-            #detail.screen,
-            #saved.screen,
-            #preferences.screen,
-            #aboutpage.screen,
-            #contact.screen {
-                padding-top: env(safe-area-inset-top);
-            }
-            
-            #detail .page-header,
-            #saved .page-header,
-            #preferences .page-header,
-            #aboutpage .page-header,
-            #contact .page-header {
-                margin-top: calc(-1 * env(safe-area-inset-top));
-                padding-top: max(12px, env(safe-area-inset-top));
             }
         }
     </style>
@@ -151,7 +269,7 @@
         </div>
     </div>
 
-    <!-- LOGIN SCREEN - STEP 1: EMAIL -->
+    <!-- LOGIN SCREEN -->
     <div id="login" class="screen">
         <div class="login-wrapper">
             <button class="btn-back" onclick="navigateTo('about')" ontouchstart="" style="touch-action: manipulation;">←</button>
@@ -172,7 +290,6 @@
                 </button>
             </div>
 
-            <!-- OTP Step (Hidden initially) -->
             <div class="login-form hidden" id="otpStep">
                 <div class="otp-info">
                     <p>We've sent a 6-digit code to</p>
@@ -349,11 +466,9 @@
                 <button id="logoutButton" onclick="logout()" style="width:100%;padding:16px;background:#2a2a2a;color:#ff3b30;border:none;border-radius:12px;font-size:16px;font-weight:600;margin-top:10px;cursor:pointer;touch-action: manipulation;" ontouchstart="">Logout 👋</button>
             </section>
 
-            <!-- INFORMATION Section -->
             <section class="pref-section">
                 <h3>Information</h3>
                 <div class="pref-card">
-                    <!-- About Us Row -->
                     <div class="pref-row" onclick="navigateTo('aboutpage')" style="cursor: pointer; touch-action: manipulation;" ontouchstart="">
                         <div class="pref-label">
                             <span class="pref-title">About Us</span>
@@ -364,7 +479,6 @@
                         </svg>
                     </div>
 
-                    <!-- Contact Us Row -->
                     <div class="pref-row border-top" onclick="navigateTo('contact')" style="cursor: pointer; touch-action: manipulation;" ontouchstart="">
                         <div class="pref-label">
                             <span class="pref-title">Contact Us</span>
@@ -404,7 +518,7 @@
         </nav>
     </div>
 
-    <!-- ABOUT US PAGE - FIXED DARK MODE -->
+    <!-- ABOUT US PAGE -->
     <div id="aboutpage" class="screen" style="background-color: #0a0a0a; min-height: 100%;">
         <header class="page-header" style="background-color: #0a0a0a; border-bottom: 1px solid #222;">
             <button class="btn-back" onclick="navigateTo('preferences')" style="color: #667eea; background: none; border: none; font-size: 16px; cursor: pointer; touch-action: manipulation;" ontouchstart="">← Back</button>
@@ -414,8 +528,6 @@
 
         <main class="page-content" style="background-color: #0a0a0a; padding: 20px 16px 100px 16px;">
             <div class="aboutpage-container">
-                
-                <!-- App Header -->
                 <div style="text-align: center; margin-bottom: 30px; padding-top: 20px;">
                     <div style="width: clamp(70px, 20vw, 90px); height: clamp(70px, 20vw, 90px); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 22px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);">
                         <svg viewBox="0 0 24 24" fill="white" style="width: clamp(35px, 10vw, 45px); height: clamp(35px, 10vw, 45px);">
@@ -426,7 +538,6 @@
                     <p style="color: #888; font-size: 15px; margin: 0;">Version 2.0.0</p>
                 </div>
 
-                <!-- App Features Section -->
                 <div style="background: #1a1a1a; border-radius: 20px; padding: 25px 20px; margin-bottom: 20px; border: 1px solid #2a2a2a;">
                     <h3 style="margin-bottom: 25px; font-size: 20px; color: #ffffff; font-weight: 600; display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 24px;">✨</span>
@@ -474,7 +585,6 @@
                     </div>
                 </div>
 
-                <!-- Founder Section -->
                 <div style="background: #1a1a1a; border-radius: 20px; padding: 25px 20px; margin-bottom: 20px; border: 1px solid #2a2a2a;">
                     <h3 style="margin-bottom: 25px; font-size: 20px; color: #ffffff; font-weight: 600; display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 24px;">👨‍💻</span>
@@ -496,7 +606,6 @@
                     </p>
                 </div>
 
-                <!-- Mission Section -->
                 <div style="background: #1a1a1a; border-radius: 20px; padding: 25px 20px; margin-bottom: 20px; border: 1px solid #2a2a2a;">
                     <h3 style="margin-bottom: 15px; font-size: 20px; color: #ffffff; font-weight: 600; display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 24px;">🎯</span>
@@ -507,7 +616,6 @@
                     </p>
                 </div>
 
-                <!-- Footer -->
                 <div style="text-align: center; margin-top: 40px; padding-bottom: 30px;">
                     <p style="color: #666; font-size: 15px; margin-bottom: 8px;">.</p>
                     <p style="color: #444; font-size: 13px; margin: 0;">..</p>
@@ -527,7 +635,6 @@
         <main class="page-content" style="background-color: #0a0a0a; padding: 20px 16px 100px 16px;">
             <div class="contact-container">
                 
-                <!-- Email Card -->
                 <div onclick="window.location.href='mailto:centrinsicnpt@gmail.com'" style="background: #1a1a1a; border-radius: 16px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; cursor: pointer; border: 1px solid #2a2a2a; touch-action: manipulation;" ontouchstart="">
                     <div style="width: 50px; height: 50px; background: #4CAF50; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0;">
                         <svg viewBox="0 0 24 24" fill="white" style="width: 24px; height: 24px;">
@@ -544,7 +651,6 @@
                     </svg>
                 </div>
 
-                <!-- Contact Form -->
                 <div style="background: #1a1a1a; border-radius: 20px; padding: 25px 20px; border: 1px solid #2a2a2a;">
                     <h3 style="margin-bottom: 25px; color: #ffffff; font-size: 20px; font-weight: 600;">Send a Message</h3>
                     
@@ -571,16 +677,15 @@
         </main>
     </div>
 
-    <!-- ARTICLE DETAIL SCREEN - FIXED HEADER -->
+    <!-- ARTICLE DETAIL SCREEN - FIXED HEADER & IMAGE -->
     <div id="detail" class="screen">
         <header class="page-header">
             <button class="btn-back" onclick="navigateTo('home')" ontouchstart="" style="touch-action: manipulation;">← Back</button>
-            <h1 style="flex: 1; text-align: center; margin: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Article</h1>
+            <h1 style="flex: 1; text-align: center; margin: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: 600;">Article</h1>
             <button class="btn-save" onclick="saveCurrentArticle()" id="saveBtn" ontouchstart="" style="touch-action: manipulation;">💾 Save</button>
         </header>
         
         <main class="detail-content" id="detailContent">
-            <!-- ONLY this div - everything goes inside here dynamically -->
             <div id="articleBody"></div>
         </main>
     </div>        
@@ -592,7 +697,6 @@
     <script src="app.js"></script>
     
     <script>
-        // Handle contact form submission
         function handleContactSubmit(e) {
             e.preventDefault();
             const name = document.getElementById('contactName').value;
