@@ -1,3 +1,42 @@
+/* 
+IMPORTANT: Add this meta tag to your HTML <head>:
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+*/
+
+/* ============================================
+   CRITICAL FIX: SCREEN VISIBILITY (MUST BE FIRST)
+=========================================== */
+.screen {
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    height: 100vh; /* Fallback */
+    height: -webkit-fill-available; /* iOS Safari fix */
+    overflow-y: auto;
+    background: var(--bg);
+    z-index: 1;
+    pointer-events: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.screen.active {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+    z-index: 100;
+    pointer-events: auto;
+}
+
+#splash.screen.active {
+    display: flex !important;
+    z-index: 9999;
+}
+
 /* ============================================
    CSS VARIABLES
 =========================================== */
@@ -34,7 +73,7 @@
 html {
     font-size: 16px;
     -webkit-text-size-adjust: 100%;
-    height: 100%;
+    -ms-text-size-adjust: 100%;
 }
 
 html, body {
@@ -42,6 +81,9 @@ html, body {
     width: 100%;
     max-width: 100vw;
     overflow-x: hidden;
+    position: fixed; /* Prevent bounce scroll on iOS */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 body {
@@ -50,36 +92,8 @@ body {
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     font-size: 16px;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
     touch-action: pan-y;
-    position: relative; /* Changed from fixed */
-}
-
-/* ============================================
-   SCREEN CONTAINER - FIXED
-=========================================== */
-.screen {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw; /* Use viewport width */
-    height: 100vh; /* Use viewport height */
-    height: -webkit-fill-available;
-    overflow-y: auto;
-    background: var(--bg);
-    z-index: 1;
-    -webkit-overflow-scrolling: touch;
-}
-
-.screen.active {
-    display: block;
-    z-index: 100;
-}
-
-#splash.screen.active {
-    display: flex !important;
-    z-index: 9999;
 }
 
 /* ============================================
@@ -109,6 +123,10 @@ body {
     to { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
 
+@keyframes fadeInImage {
+    to { opacity: 1; }
+}
+
 /* ============================================
    SPLASH SCREEN
 =========================================== */
@@ -126,7 +144,6 @@ body {
     align-items: center;
     justify-content: center;
     min-height: 100%;
-    width: 100%;
 }
 
 .splash-logo {
@@ -527,14 +544,13 @@ body {
 }
 
 /* ============================================
-   HOME SCREEN - FULL WIDTH FIXED
+   HOME SCREEN - FULL WIDTH (SINGLE DEFINITION)
 =========================================== */
 #home {
     background: var(--bg);
     padding-bottom: 80px;
-    width: 100vw; /* Full viewport width */
-    max-width: 100vw;
-    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
 }
 
 .main-header {
@@ -592,11 +608,10 @@ body {
     color: white;
 }
 
-/* FIXED: Main body takes full width with minimal padding */
 .main-body {
-    padding: 12px 0 100px 0; /* Remove side padding for full width cards */
+    padding: 12px 12px 100px 12px;
     width: 100%;
-    max-width: 100vw;
+    max-width: 100%;
     margin: 0;
     box-sizing: border-box;
     overflow-x: hidden;
@@ -609,7 +624,7 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 14px;
     padding: 16px;
-    margin: 0 12px 16px 12px; /* Add margin for spacing */
+    margin-bottom: 16px;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -653,7 +668,7 @@ body {
 }
 
 /* ============================================
-   NEWS CARDS - FULL WIDTH HORIZONTAL
+   NEWS CARDS - MOBILE OPTIMIZED
 =========================================== */
 .articles-list {
     display: flex;
@@ -661,37 +676,28 @@ body {
     gap: 10px;
     padding: 0;
     width: 100%;
-    max-width: 100vw;
 }
 
-/* FIXED: Full width cards with proper spacing */
 .news-card {
     background: var(--card);
-    border-radius: 0; /* Remove border radius for edge-to-edge */
-    padding: 14px 12px; /* Horizontal padding inside card */
+    border-radius: 12px;
+    padding: 12px;
     display: flex;
     flex-direction: row;
     gap: 12px;
     cursor: pointer;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     transition: transform 0.2s;
-    border-bottom: 1px solid var(--border);
+    border: 1px solid var(--border);
     width: 100%;
-    max-width: 100vw;
     box-sizing: border-box;
     margin: 0;
-    min-height: 100px;
+    min-height: 90px;
     touch-action: manipulation;
 }
 
-/* Add rounded corners only on first and last card if needed, or keep all square for modern look */
-.news-card:first-child {
-    border-top: 1px solid var(--border);
-}
-
 .news-card:active {
-    transform: scale(0.99);
-    background: rgba(0,0,0,0.02);
+    transform: scale(0.98);
 }
 
 .news-content {
@@ -700,12 +706,12 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
     overflow: hidden;
 }
 
 .news-title {
-    font-size: clamp(15px, 4.5vw, 17px);
+    font-size: clamp(14px, 4.2vw, 16px);
     font-weight: 700;
     line-height: 1.3;
     color: var(--text);
@@ -718,7 +724,7 @@ body {
 }
 
 .news-excerpt {
-    font-size: clamp(13px, 3.8vw, 14px);
+    font-size: clamp(12px, 3.5vw, 14px);
     color: var(--text-secondary);
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -729,23 +735,21 @@ body {
 }
 
 .news-meta {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 4px;
+    margin-top: 2px;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* FIXED: Larger, consistent image size on right */
 .news-thumb {
-    width: 100px;
-    height: 100px;
-    min-width: 100px; /* Prevent shrinking */
+    width: clamp(70px, 22vw, 90px);
+    height: clamp(70px, 22vw, 90px);
     border-radius: 10px;
     object-fit: cover;
     background: var(--border);
@@ -771,7 +775,6 @@ body {
     padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
     z-index: 1000;
     height: calc(60px + env(safe-area-inset-bottom));
-    width: 100vw;
 }
 
 .dark .bottom-nav {
@@ -841,14 +844,13 @@ body {
 }
 
 /* ============================================
-   PAGE HEADER - FIXED FOR ALL SCREENS
+   PAGE HEADER
 =========================================== */
 .page-header {
     background: rgba(242, 242, 247, 0.98);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     padding: 12px 16px;
-    padding-top: max(12px, env(safe-area-inset-top));
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -856,17 +858,13 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
-    min-height: 56px;
-    height: auto;
-    box-sizing: border-box;
-    width: 100vw;
+    height: 56px;
 }
 
 .dark .page-header {
     background: rgba(0, 0, 0, 0.98);
 }
 
-/* FIXED: Header buttons with consistent sizing */
 .page-header .btn-back {
     background: none;
     border: none;
@@ -874,75 +872,39 @@ body {
     color: var(--accent);
     cursor: pointer;
     padding: 8px 0;
-    min-width: 70px;
+    min-width: 60px;
     text-align: left;
     display: flex;
     align-items: center;
     gap: 4px;
     font-weight: 400;
-    min-height: 44px;
-    touch-action: manipulation;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 101;
+    height: 44px;
 }
 
-/* FIXED: Title takes available space */
 .page-header h1 {
     font-size: 17px;
     font-weight: 600;
     text-align: center;
     flex: 1;
-    margin: 0 10px;
-    position: static;
-    transform: none;
+    margin: 0;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     white-space: nowrap;
+    max-width: 50%;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: var(--text);
-    min-width: 0; /* Allow shrinking */
 }
 
-/* FIXED: Save button sizing */
-.page-header .btn-save {
-    min-width: 70px;
-    text-align: right;
-    background: var(--accent);
-    color: white;
-    border: none;
-    padding: 8px 14px;
-    border-radius: 16px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    min-height: 32px;
-    touch-action: manipulation;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 101;
-    white-space: nowrap;
-}
-
-.page-header .btn-save.saved {
-    background: var(--success);
-}
-
-.page-header .btn-save:active {
-    transform: scale(0.95);
-    opacity: 0.9;
-}
-
-/* Spacer for alignment when no right button */
 .page-header .spacer,
 .page-header > div:last-child {
-    min-width: 70px;
-    width: auto;
-    flex-shrink: 0;
+    min-width: 60px;
+    width: 60px;
+}
+
+.page-header .btn-save {
+    min-width: 60px;
+    text-align: right;
 }
 
 /* ============================================
@@ -951,7 +913,6 @@ body {
 #preferences {
     background: var(--bg);
     padding-bottom: 100px;
-    width: 100vw;
 }
 
 .pref-section {
@@ -1143,40 +1104,53 @@ input:checked + .switch-slider:before {
 }
 
 /* ============================================
-   ARTICLE DETAIL SCREEN - FIXED
+   ARTICLE DETAIL SCREEN
 =========================================== */
 #detail {
     background: var(--bg);
-    padding-top: 0;
-    width: 100vw;
-    max-width: 100vw;
-    overflow-x: hidden;
 }
 
-/* FIXED: Content area full width */
-#detail .detail-content {
+.btn-save {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 32px;
+    touch-action: manipulation;
+}
+
+.btn-save.saved {
+    background: var(--success);
+}
+
+.btn-save:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+}
+
+.detail-content {
     background: var(--bg);
-    min-height: calc(100vh - 56px);
+    min-height: calc(100vh - 60px);
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 0;
-    margin: 0;
-    width: 100vw;
-    max-width: 100vw;
 }
 
-/* FIXED: Article image full width */
-#detail .article-image-container {
-    width: 100vw;
-    height: clamp(200px, 45vw, 280px);
+.article-image-container {
+    width: 100%;
+    height: clamp(180px, 40vw, 220px);
     overflow: hidden;
     background: var(--border);
     position: relative;
-    margin: 0;
-    padding: 0;
 }
 
-#detail .article-image-container::after {
+.article-image-container::after {
     content: '';
     position: absolute;
     bottom: 0;
@@ -1187,7 +1161,7 @@ input:checked + .switch-slider:before {
     pointer-events: none;
 }
 
-#detail .article-image {
+.article-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -1195,27 +1169,28 @@ input:checked + .switch-slider:before {
     transition: transform 0.3s ease;
 }
 
-/* FIXED: Article text content with proper padding */
-#detail .article-text-content {
-    padding: 20px 16px;
-    max-width: 100%;
-    margin: 0;
-    width: 100vw;
-    box-sizing: border-box;
+.article-image-container:active .article-image {
+    transform: scale(1.02);
 }
 
-#detail .article-headline {
-    font-size: clamp(22px, 6.5vw, 26px);
+.article-text-content {
+    padding: 20px 16px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.article-headline {
+    font-size: clamp(20px, 6vw, 24px);
     font-weight: 700;
-    line-height: 1.25;
-    margin-bottom: 12px;
+    line-height: 1.2;
+    margin-bottom: 10px;
     color: var(--text);
     word-wrap: break-word;
 }
 
-#detail .article-meta {
+.article-meta {
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 13px;
     margin-bottom: 20px;
     padding-bottom: 14px;
     border-bottom: 1px solid var(--border);
@@ -1225,9 +1200,9 @@ input:checked + .switch-slider:before {
     flex-wrap: wrap;
 }
 
-#detail .article-body-text {
+.article-body-text {
     font-size: 17px;
-    line-height: 1.7;
+    line-height: 1.6;
     color: var(--text);
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -1300,11 +1275,9 @@ body[data-font-size="large"] .article-body-text {
 
 .page-content {
     padding: 16px;
-    max-width: 100%;
-    margin: 0;
+    max-width: 500px;
+    margin: 0 auto;
     padding-bottom: 100px;
-    width: 100vw;
-    box-sizing: border-box;
 }
 
 /* ============================================
@@ -1318,19 +1291,18 @@ body[data-font-size="large"] .article-body-text {
     }
     
     .main-body {
-        padding: 8px 0 100px 0 !important;
+        padding: 8px 8px 100px 8px !important;
     }
     
     .news-card {
-        padding: 12px 10px !important;
-        gap: 10px !important;
-        min-height: 90px;
+        padding: 10px !important;
+        gap: 8px !important;
+        min-height: 80px;
     }
     
     .news-thumb {
-        width: 80px !important;
-        height: 80px !important;
-        min-width: 80px !important;
+        width: 65px !important;
+        height: 65px !important;
         border-radius: 8px;
     }
     
@@ -1341,11 +1313,7 @@ body[data-font-size="large"] .article-body-text {
     
     .news-excerpt {
         font-size: 12px !important;
-        -webkit-line-clamp: 2;
-    }
-    
-    .saved-folder {
-        margin: 0 10px 12px 10px !important;
+        -webkit-line-clamp: 1;
     }
     
     .splash-title {
@@ -1368,28 +1336,12 @@ body[data-font-size="large"] .article-body-text {
     .pref-row {
         padding: 12px;
     }
-    
-    .page-header {
-        padding: 10px 12px;
-        padding-top: max(10px, env(safe-area-inset-top));
-    }
-    
-    .page-header .btn-back,
-    .page-header .btn-save,
-    .page-header .spacer {
-        min-width: 60px;
-    }
-    
-    .page-header h1 {
-        font-size: 15px;
-        margin: 0 5px;
-    }
 }
 
 /* Small devices (landscape phones, 576px and up) */
 @media (min-width: 576px) {
     .main-body {
-        padding: 16px 0 100px 0 !important;
+        padding: 16px 20px 100px 20px !important;
     }
     
     .news-card {
@@ -1398,18 +1350,12 @@ body[data-font-size="large"] .article-body-text {
     }
     
     .news-thumb {
-        width: 110px;
-        height: 110px;
-        min-width: 110px;
+        width: 100px;
+        height: 100px;
     }
     
     .news-title {
-        font-size: 17px;
-    }
-    
-    .saved-folder {
-        margin: 0 16px 16px 16px;
-        border-radius: 16px;
+        font-size: 16px;
     }
     
     .about-wrapper,
@@ -1427,9 +1373,9 @@ body[data-font-size="large"] .article-body-text {
     }
     
     .main-body {
-        max-width: 100%;
+        max-width: 700px;
         margin: 0 auto;
-        padding: 20px 0 100px 0 !important;
+        padding: 20px 24px 100px 24px !important;
     }
     
     .articles-list {
@@ -1437,41 +1383,27 @@ body[data-font-size="large"] .article-body-text {
     }
     
     .news-card {
-        padding: 18px 20px;
-        border-radius: 12px;
-        margin: 0 16px;
-        width: calc(100% - 32px);
-        border: 1px solid var(--border);
+        padding: 18px;
     }
     
     .news-thumb {
-        width: 120px;
-        height: 120px;
-        min-width: 120px;
+        width: 110px;
+        height: 110px;
     }
     
     .news-title {
-        font-size: 18px;
+        font-size: 17px;
         -webkit-line-clamp: 2;
     }
     
     .news-excerpt {
-        font-size: 15px;
+        font-size: 14px;
         -webkit-line-clamp: 2;
-    }
-    
-    .saved-folder {
-        margin: 0 16px 20px 16px;
-        padding: 18px;
     }
     
     .about-wrapper,
     .login-wrapper {
         max-width: 600px;
-    }
-    
-    #detail .article-image-container {
-        height: 350px;
     }
 }
 
@@ -1485,13 +1417,6 @@ body[data-font-size="large"] .article-body-text {
         box-shadow: 0 0 20px rgba(0,0,0,0.05);
     }
     
-    .screen {
-        width: 100%;
-        max-width: 414px;
-        left: 50%;
-        transform: translateX(-50%);
-    }
-    
     .bottom-nav {
         max-width: 414px;
         left: 50%;
@@ -1501,16 +1426,6 @@ body[data-font-size="large"] .article-body-text {
     .offline-banner,
     .toast {
         max-width: 380px;
-    }
-    
-    .main-body {
-        padding: 16px 0 100px 0 !important;
-    }
-    
-    .news-card {
-        margin: 0;
-        width: 100%;
-        border-radius: 0;
     }
 }
 
@@ -1544,26 +1459,11 @@ body[data-font-size="large"] .article-body-text {
     .nav-btn {
         min-height: 40px;
     }
-    
-    .page-header {
-        min-height: 48px;
-        padding-top: 8px;
-    }
-    
-    #detail .article-image-container {
-        height: 180px;
-    }
 }
 
 /* Notch/Safe Area Support */
 @supports (padding: max(0px)) {
     .main-header {
-        padding-top: max(12px, env(safe-area-inset-top));
-        padding-left: max(16px, env(safe-area-inset-left));
-        padding-right: max(16px, env(safe-area-inset-right));
-    }
-    
-    .page-header {
         padding-top: max(12px, env(safe-area-inset-top));
         padding-left: max(16px, env(safe-area-inset-left));
         padding-right: max(16px, env(safe-area-inset-right));
@@ -1578,30 +1478,6 @@ body[data-font-size="large"] .article-body-text {
     .screen {
         padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);
-    }
-    
-    #detail.screen {
-        padding-top: env(safe-area-inset-top);
-    }
-    
-    #detail .page-header {
-        margin-top: calc(-1 * env(safe-area-inset-top));
-        padding-top: max(12px, env(safe-area-inset-top));
-    }
-}
-
-/* iOS specific fixes */
-@supports (-webkit-touch-callout: none) {
-    .page-header {
-        padding-top: max(12px, env(safe-area-inset-top));
-    }
-    
-    #detail .page-header,
-    #saved .page-header,
-    #preferences .page-header,
-    #aboutpage .page-header,
-    #contact .page-header {
-        padding-top: max(12px, env(safe-area-inset-top));
     }
 }
 
@@ -1734,28 +1610,46 @@ input:focus-visible {
 }
 
 /* ============================================
-   DARK MODE FIXES FOR SAVED/OTHER SCREENS
+   ANDROID WEBVIEW FIXES
 =========================================== */
-body.dark #saved {
-    background: #1c1c1e !important;
+.switch-slider {
+    position: relative;
+    display: block;
+    width: 50px;
+    height: 30px;
+    background: #ccc;
+    border-radius: 30px;
+    transition: 0.3s;
 }
 
-body.dark #saved .page-content {
-    background: #1c1c1e !important;
+.switch-slider::after {
+    content: "";
+    position: absolute;
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
 }
 
-body.dark #saved #savedList {
-    background: #1c1c1e !important;
+#darkToggle:checked ~ .switch-slider {
+    background: #007aff !important;
 }
 
-body.dark #saved article {
-    background: #2c2c2e !important;
-    color: #ffffff !important;
+#darkToggle:checked ~ .switch-slider::after {
+    transform: translateX(20px);
 }
 
-body.dark #saved .page-header {
-    background: #1c1c1e !important;
-    color: #ffffff !important;
+#darkToggle {
+    position: absolute;
+    width: 50px;
+    height: 30px;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 100;
+    margin: 0;
 }
 
 /* Touch improvements */
@@ -1778,6 +1672,29 @@ button {
     -webkit-user-select: none;
     user-select: none;
     position: relative;
+}
+
+/* Dark mode for saved screen */
+body.dark #saved {
+    background: #1c1c1e !important;
+}
+
+body.dark #saved .page-content {
+    background: #1c1c1e !important;
+}
+
+body.dark #saved #savedList {
+    background: #1c1c1e !important;
+}
+
+body.dark #saved article {
+    background: #2c2c2e !important;
+    color: #ffffff !important;
+}
+
+body.dark #saved .page-header {
+    background: #1c1c1e !important;
+    color: #ffffff !important;
 }
 
 /* Settings actions */
@@ -1857,32 +1774,4 @@ button {
 .btn-share-inline:active {
     background: #218838;
     transform: scale(0.98);
-}
-
-/* Empty state */
-.empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--text-secondary);
-}
-
-.empty-state.hidden {
-    display: none;
-}
-
-.empty-icon {
-    font-size: 48px;
-    display: block;
-    margin-bottom: 16px;
-}
-
-.empty-state h3 {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--text);
-}
-
-.empty-state p {
-    font-size: 14px;
 }
