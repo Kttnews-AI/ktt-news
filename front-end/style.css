@@ -1,5 +1,6 @@
 /* ============================================
    CRITICAL FIX: SCREEN VISIBILITY (MUST BE FIRST)
+   FIXED FOR BOTH LAPTOP AND MOBILE
 =========================================== */
 .screen {
     display: none;
@@ -8,14 +9,17 @@
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
-    height: -webkit-fill-available;
+    width: 100%;
+    height: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
     overflow-y: auto;
+    overflow-x: hidden;
     background: var(--bg);
     z-index: 1;
     pointer-events: none;
     -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
 }
 
 .screen.active {
@@ -68,13 +72,16 @@ html {
     font-size: 16px;
     -webkit-text-size-adjust: 100%;
     height: 100%;
+    width: 100%;
 }
 
 html, body {
     height: 100%;
     width: 100%;
-    max-width: 100vw;
+    max-width: 100%;
     overflow-x: hidden;
+    margin: 0;
+    padding: 0;
 }
 
 body {
@@ -86,6 +93,8 @@ body {
     overscroll-behavior-y: none;
     touch-action: pan-y;
     position: relative;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
 }
 
 /* ============================================
@@ -538,8 +547,8 @@ body {
 #home {
     background: var(--bg);
     padding-bottom: 80px;
-    width: 100vw;
-    max-width: 100vw;
+    width: 100%;
+    max-width: 100%;
     overflow-x: hidden;
 }
 
@@ -601,7 +610,7 @@ body {
 .main-body {
     padding: 12px 0 100px 0;
     width: 100%;
-    max-width: 100vw;
+    max-width: 100%;
     margin: 0;
     box-sizing: border-box;
     overflow-x: hidden;
@@ -666,7 +675,7 @@ body {
     gap: 10px;
     padding: 0;
     width: 100%;
-    max-width: 100vw;
+    max-width: 100%;
 }
 
 .news-card {
@@ -681,7 +690,7 @@ body {
     transition: transform 0.2s;
     border-bottom: 1px solid var(--border);
     width: 100%;
-    max-width: 100vw;
+    max-width: 100%;
     box-sizing: border-box;
     margin: 0;
     min-height: 100px;
@@ -773,7 +782,7 @@ body {
     padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
     z-index: 1000;
     height: calc(60px + env(safe-area-inset-bottom));
-    width: 100vw;
+    width: 100%;
 }
 
 .dark .bottom-nav {
@@ -952,15 +961,16 @@ body {
 =========================================== */
 #preferences {
     background: var(--bg);
-    width: 100vw;
-    max-width: 100vw;
+    width: 100%;
+    max-width: 100%;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
-    height: -webkit-fill-available;
+    height: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
     /* Increased padding to prevent covering content */
     padding-top: max(90px, calc(50px + env(safe-area-inset-top) + 12px));
     padding-bottom: 100px;
@@ -1160,15 +1170,16 @@ input:checked + .switch-slider:before {
 =========================================== */
 #saved {
     background: var(--bg);
-    width: 100vw;
-    max-width: 100vw;
+    width: 100%;
+    max-width: 100%;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
-    height: -webkit-fill-available;
+    height: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
     /* Increased padding */
     padding-top: max(90px, calc(50px + env(safe-area-inset-top) + 12px));
     box-sizing: border-box;
@@ -1184,15 +1195,16 @@ input:checked + .switch-slider:before {
 =========================================== */
 #aboutpage {
     background: #0a0a0a;
-    width: 100vw;
-    max-width: 100vw;
+    width: 100%;
+    max-width: 100%;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
-    height: -webkit-fill-available;
+    height: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
     /* Increased padding */
     padding-top: max(90px, calc(50px + env(safe-area-inset-top) + 12px));
     box-sizing: border-box;
@@ -1221,15 +1233,16 @@ input:checked + .switch-slider:before {
 =========================================== */
 #contact {
     background: #0a0a0a;
-    width: 100vw;
-    max-width: 100vw;
+    width: 100%;
+    max-width: 100%;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
-    height: -webkit-fill-available;
+    height: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
     /* Increased padding */
     padding-top: max(90px, calc(50px + env(safe-area-inset-top) + 12px));
     box-sizing: border-box;
@@ -1258,15 +1271,16 @@ input:checked + .switch-slider:before {
 =========================================== */
 #detail {
     background: var(--bg);
-    width: 100vw;
-    max-width: 100vw;
+    width: 100%;
+    max-width: 100%;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
-    height: -webkit-fill-available;
+    height: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
     padding-top: 0;
 }
 
@@ -1276,8 +1290,8 @@ input:checked + .switch-slider:before {
     min-height: calc(100% - 90px);
     padding: 0;
     margin: 0;
-    width: 100vw;
-    max-width: 100vw;
+    width: 100%;
+    max-width: 100%;
     /* Increased padding to prevent image cutoff */
     padding-top: max(90px, calc(50px + env(safe-area-inset-top) + 12px));
     box-sizing: border-box;
@@ -1285,7 +1299,7 @@ input:checked + .switch-slider:before {
 
 /* Image scrolls normally */
 #detail .article-image-container {
-    width: 100vw;
+    width: 100%;
     height: clamp(220px, 50vw, 300px); /* Slightly taller image */
     overflow: hidden;
     background: var(--border);
@@ -1317,7 +1331,7 @@ input:checked + .switch-slider:before {
     padding: 20px 16px;
     max-width: 100%;
     margin: 0;
-    width: 100vw;
+    width: 100%;
     box-sizing: border-box;
     background: var(--bg);
 }
@@ -1422,14 +1436,16 @@ body[data-font-size="large"] .article-body-text {
     max-width: 100%;
     margin: 0;
     padding-bottom: 100px;
-    width: 100vw;
+    width: 100%;
     box-sizing: border-box;
 }
 
 /* ============================================
    MOBILE-FIRST RESPONSIVE BREAKPOINTS
+   FIXED FOR LAPTOP/DESKTOP CENTERING
 =========================================== */
 
+/* Extra Small Devices */
 @media (max-width: 320px) {
     body {
         font-size: 14px;
@@ -1514,6 +1530,7 @@ body[data-font-size="large"] .article-body-text {
     }
 }
 
+/* Small Devices */
 @media (min-width: 576px) {
     .main-body {
         padding: 16px 0 100px 0 !important;
@@ -1546,6 +1563,7 @@ body[data-font-size="large"] .article-body-text {
     }
 }
 
+/* Medium Devices (Tablets) */
 @media (min-width: 768px) {
     body {
         max-width: 100%;
@@ -1601,26 +1619,42 @@ body[data-font-size="large"] .article-body-text {
     }
 }
 
+/* Large Devices (Laptop/Desktop) - CENTERED MOBILE VIEW */
 @media (min-width: 1024px) {
+    html, body {
+        height: 100%;
+        min-height: 100vh;
+    }
+    
     body {
         max-width: 414px;
         margin: 0 auto;
         border-left: 1px solid var(--border);
         border-right: 1px solid var(--border);
         box-shadow: 0 0 20px rgba(0,0,0,0.05);
+        position: relative;
+        overflow-x: hidden;
     }
     
+    /* CRITICAL FIX: Screens must be centered and sized correctly */
     .screen {
         width: 100%;
         max-width: 414px;
-        left: 50%;
+        left: 50% !important;
+        transform: translateX(-50%);
+        right: auto;
+    }
+    
+    /* Override for screens that shouldn't be transformed */
+    .screen.active {
         transform: translateX(-50%);
     }
     
     .bottom-nav {
         max-width: 414px;
-        left: 50%;
+        left: 50% !important;
         transform: translateX(-50%);
+        right: auto;
     }
     
     .offline-banner,
@@ -1637,8 +1671,30 @@ body[data-font-size="large"] .article-body-text {
         width: 100%;
         border-radius: 0;
     }
+    
+    /* Fix page headers on desktop */
+    .page-header {
+        max-width: 414px;
+        left: 50% !important;
+        transform: translateX(-50%);
+        right: auto;
+    }
 }
 
+/* Extra Large Devices */
+@media (min-width: 1400px) {
+    body {
+        max-width: 480px;
+    }
+    
+    .screen,
+    .bottom-nav,
+    .page-header {
+        max-width: 480px;
+    }
+}
+
+/* Landscape Mode */
 @media (max-height: 500px) and (orientation: landscape) {
     .splash-wrapper {
         padding: 20px;
@@ -1687,6 +1743,7 @@ body[data-font-size="large"] .article-body-text {
     }
 }
 
+/* Safe Area Support */
 @supports (padding: max(0px)) {
     .main-header {
         padding-top: max(12px, env(safe-area-inset-top));
@@ -1720,6 +1777,7 @@ body[data-font-size="large"] .article-body-text {
     }
 }
 
+/* iOS Safari Specific */
 @supports (-webkit-touch-callout: none) {
     .page-header {
         padding-top: max(50px, env(safe-area-inset-top));
@@ -1734,6 +1792,7 @@ body[data-font-size="large"] .article-body-text {
     }
 }
 
+/* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
     * {
         animation-duration: 0.01ms !important;
@@ -1742,12 +1801,14 @@ body[data-font-size="large"] .article-body-text {
     }
 }
 
+/* Focus Styles */
 button:focus-visible,
 input:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 
+/* Scrollbar Styling */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -1766,10 +1827,12 @@ input:focus-visible {
     background: var(--text-secondary);
 }
 
+/* Utility Classes */
 .hidden {
     display: none !important;
 }
 
+/* OTP Styles */
 .otp-info {
     text-align: center;
     margin-bottom: 24px;
@@ -1853,6 +1916,7 @@ input:focus-visible {
     animation: spin 0.8s linear infinite;
 }
 
+/* Dark Mode Saved Screen */
 body.dark #saved {
     background: #1c1c1e !important;
 }
@@ -1875,6 +1939,7 @@ body.dark #saved .page-header {
     color: #ffffff !important;
 }
 
+/* Touch Action Optimization */
 button, 
 .nav-btn, 
 .icon-btn, 
@@ -1896,6 +1961,7 @@ button {
     position: relative;
 }
 
+/* Settings Actions */
 .settings-actions {
     padding: 16px;
 }
