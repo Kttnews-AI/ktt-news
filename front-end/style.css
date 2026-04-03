@@ -1636,25 +1636,22 @@ body[data-font-size="large"] .article-body-text {
         overflow-x: hidden;
     }
     
-    /* CRITICAL FIX: Screens must be centered and sized correctly */
+    /* CRITICAL FIX: Use margin auto for centering instead of transform */
     .screen {
         width: 100%;
         max-width: 414px;
-        left: 50% !important;
-        transform: translateX(-50%);
-        right: auto;
-    }
-    
-    /* Override for screens that shouldn't be transformed */
-    .screen.active {
-        transform: translateX(-50%);
+        left: 0;
+        right: 0;
+        margin-left: auto;
+        margin-right: auto;
     }
     
     .bottom-nav {
         max-width: 414px;
-        left: 50% !important;
-        transform: translateX(-50%);
-        right: auto;
+        left: 0;
+        right: 0;
+        margin-left: auto;
+        margin-right: auto;
     }
     
     .offline-banner,
@@ -1675,9 +1672,10 @@ body[data-font-size="large"] .article-body-text {
     /* Fix page headers on desktop */
     .page-header {
         max-width: 414px;
-        left: 50% !important;
-        transform: translateX(-50%);
-        right: auto;
+        left: 0;
+        right: 0;
+        margin-left: auto;
+        margin-right: auto;
     }
 }
 
