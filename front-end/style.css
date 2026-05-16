@@ -667,6 +667,81 @@ body {
 }
 
 /* ============================================
+   TAB BAR — HORIZONTAL SCROLLABLE (NEW)
+=========================================== */
+.tab-scroll-container {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 4px;
+    padding-right: 16px; /* Allow last tab to peek */
+}
+
+.tab-scroll-container::-webkit-scrollbar {
+    display: none;
+}
+
+.tab-btn {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    border-radius: 22px;
+    border: none;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    white-space: nowrap;
+    touch-action: manipulation;
+    outline: none;
+    min-height: 36px;
+}
+
+.tab-btn:active {
+    transform: scale(0.95);
+}
+
+.tab-badge {
+    position: absolute;
+    top: -4px;
+    right: -2px;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px;
+    min-width: 14px;
+    line-height: 16px;
+    text-align: center;
+}
+
+/* Tab colors (match JS TAB_CONFIG) */
+.tab-upsc      { background: #c62828; color: #fff; box-shadow: 0 2px 8px rgba(198,40,40,0.35); }
+.tab-ssc       { background: #1565c0; color: #fff; box-shadow: 0 2px 8px rgba(21,101,192,0.35); }
+.tab-defence   { background: #2e7d32; color: #fff; box-shadow: 0 2px 8px rgba(46,125,50,0.35); }
+.tab-students  { background: #6a1b9a; color: #fff; box-shadow: 0 2px 8px rgba(106,27,154,0.35); }
+.tab-business  { background: #e65100; color: #fff; box-shadow: 0 2px 8px rgba(230,81,0,0.35); }
+.tab-general   { background: #455a64; color: #fff; box-shadow: 0 2px 8px rgba(69,90,100,0.35); }
+.tab-gnews     { background: #4CAF50; color: #fff; box-shadow: 0 2px 8px rgba(76,175,80,0.35); }
+.tab-manual    { background: #667eea; color: #fff; box-shadow: 0 2px 8px rgba(102,126,234,0.35); }
+.tab-60sec     { background: #FF9800; color: #fff; box-shadow: 0 2px 8px rgba(255,152,0,0.35); }
+
+/* Inactive tab state */
+.tab-inactive {
+    background: var(--inactive-tab-bg, #f0f0f0);
+    color: var(--inactive-tab-text, #555);
+    box-shadow: none;
+}
+
+.dark .tab-inactive {
+    background: #1a1a1a;
+    color: #888;
+}
+
+/* ============================================
    NEWS CARDS - FULL WIDTH HORIZONTAL
 =========================================== */
 .articles-list {
@@ -765,6 +840,30 @@ body {
 }
 
 /* ============================================
+   SECTION BADGE (on article cards)
+=========================================== */
+.section-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.badge-upsc      { background: #c62828; color: white; }
+.badge-ssc       { background: #1565c0; color: white; }
+.badge-defence   { background: #2e7d32; color: white; }
+.badge-students  { background: #6a1b9a; color: white; }
+.badge-business  { background: #e65100; color: white; }
+.badge-general   { background: #455a64; color: white; }
+.badge-gnews     { background: #4CAF50; color: white; }
+.badge-manual    { background: #667eea; color: white; }
+.badge-60sec     { background: #FF9800; color: white; }
+
+/* ============================================
    BOTTOM NAVIGATION
 =========================================== */
 .bottom-nav {
@@ -858,7 +957,6 @@ body {
     background: rgba(242, 242, 247, 0.98);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    /* Increased padding for better spacing */
     padding-top: max(50px, env(safe-area-inset-top));
     padding-bottom: 12px;
     padding-left: 16px;
@@ -971,7 +1069,6 @@ body {
     height: 100%;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    /* Increased padding to prevent covering content */
     padding-top: max(90px, calc(50px + env(safe-area-inset-top) + 12px));
     padding-bottom: 100px;
     box-sizing: border-box;
@@ -1180,7 +1277,6 @@ input:checked + .switch-slider:before {
     height: 100%;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    /* Increased padding */
     padding-top: max(90px, calc(50px + env(safe-area-inset-top) + 12px));
     box-sizing: border-box;
 }
@@ -1205,7 +1301,6 @@ input:checked + .switch-slider:before {
     height: 100%;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    /* Increased padding */
     padding-top: max(90px, calc(50px + env(safe-area-inset-top) + 12px));
     box-sizing: border-box;
 }
@@ -1243,7 +1338,6 @@ input:checked + .switch-slider:before {
     height: 100%;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    /* Increased padding */
     padding-top: max(90px, calc(50px + env(safe-area-inset-top) + 12px));
     box-sizing: border-box;
 }
@@ -1528,6 +1622,12 @@ body[data-font-size="large"] .article-body-text {
     #detail .detail-content {
         padding-top: max(80px, calc(44px + env(safe-area-inset-top) + 10px));
     }
+
+    /* Compact tabs for very small screens */
+    .tab-btn {
+        padding: 8px 10px;
+        font-size: 11px;
+    }
 }
 
 /* Small Devices */
@@ -1738,6 +1838,12 @@ body[data-font-size="large"] .article-body-text {
     
     #detail .article-image-container {
         height: 180px;
+    }
+
+    /* Compact tabs in landscape */
+    .tab-btn {
+        padding: 8px 12px;
+        font-size: 11px;
     }
 }
 
