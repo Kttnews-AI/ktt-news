@@ -1,6 +1,7 @@
 // ============================================
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
 // WITH: FIXED MOBILE BACK BUTTON + HISTORY API
+// WITH: DYNAMIC TAB ORDER — AI-D first when it has content, else AI-S first
 // ============================================
 
 const API_BASE       = "https://centrinsicnpt.com";
@@ -278,6 +279,24 @@ function getArticleTab(article) {
         type === 'currentaffairs' || tag === 'currentaffairs' || article.isCurrentAffairs === true;
     if (isCA) return 'currentaffairs';
     return 'manual';
+}
+
+/* ============================================
+   DYNAMIC TAB ORDER — AI-D first when it has content, else AI-S first
+============================================ */
+function getDynamicTabOrder(articles) {
+    const manualCount = articles.filter(a => getArticleTab(a) === 'manual').length;
+    if (manualCount > 0) {
+        // AI-D has content → AI-D first, then AI-S, then others
+        return ['manual', 'gnews', '60sec', 'currentaffairs'];
+    }
+    // Default: AI-S first
+    return ['gnews', 'manual', '60sec', 'currentaffairs'];
+}
+
+function getDefaultTab(articles) {
+    const order = getDynamicTabOrder(articles);
+    return order[0]; // First tab in dynamic order
 }
 
 /* ============================================
@@ -641,6 +660,9 @@ async function loadNews() {
             console.log(`  tab="${getArticleTab(a)}" | category="${a.category}" | title="${(a.title||'').substring(0,40)}"`);
         });
 
+        // ✅ DYNAMIC TAB SWITCHING: AI-D first if it has content, else AI-S
+        currentTab = getDefaultTab(allArticles);
+
         renderTabView();
         updateSavedFolder();
     } catch (error) {
@@ -648,6 +670,7 @@ async function loadNews() {
         const backup = localStorage.getItem("news_backup");
         if (backup) {
             allArticles = JSON.parse(backup);
+            currentTab = getDefaultTab(allArticles); // ✅ Also switch on backup load
             renderTabView();
             showToast("Offline mode");
         } else {
@@ -698,8 +721,6 @@ const TAB_CONFIG = {
     }
 };
 
-const TAB_ORDER = ['gnews', 'manual', '60sec', 'currentaffairs'];
-
 /* ============================================
    RENDER TAB VIEW
 ============================================ */
@@ -719,10 +740,12 @@ function renderTabView() {
         emptyTextColor:    isDark ? '#666'    : '#999',
     };
 
-    const cfg            = TAB_CONFIG[currentTab] || TAB_CONFIG.gnews;
+    // ✅ USE DYNAMIC TAB ORDER: AI-D first when it has content, else AI-S first
+    const tabOrder       = getDynamicTabOrder(allArticles);
+    const cfg            = TAB_CONFIG[currentTab] || TAB_CONFIG[tabOrder[0]];
     const activeArticles = cfg.filter(allArticles);
 
-    const tabButtons = TAB_ORDER.map(tabKey => {
+    const tabButtons = tabOrder.map(tabKey => {
         const t        = TAB_CONFIG[tabKey];
         const isActive = currentTab === tabKey;
         const count    = t.filter(allArticles).length;
@@ -1429,4 +1452,4 @@ function bindMobileButtons() {
     }
 }
 
-console.log("✅ Centrinsic NPT — Mobile Back Button Fixed with History API");
+console.log("✅ Centrinsic NPT — Mobile Back Button Fixed with History API + Dynamic Tab Order");
