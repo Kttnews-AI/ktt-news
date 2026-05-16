@@ -1,7 +1,7 @@
 // ============================================
-// CENTRINSIC NPT NEWS APP — FULLY UPDATED
-// WITH: AUDIENCE SECTIONS (UPSC / SSC / DEFENCE / STUDENTS / ENTREPRENEURS / GENERAL)
-// WITH: HORIZONTAL SCROLLABLE TABS
+// CENTRINSIC NPT NEWS APP - FULLY UPDATED
+// WITH: FIXED MOBILE BACK BUTTON + HISTORY API
+// WITH: DYNAMIC TAB ORDER — AI-D first when it has content, else AI-S first
 // ============================================
 
 const API_BASE       = "https://centrinsicnpt.com";
@@ -21,7 +21,7 @@ let currentTab      = 'gnews';
 
 let originalArticleContent = null;
 let original60SecContent   = {};
-let navigationHistory      = [];
+let navigationHistory      = []; // Track navigation stack
 
 /* ============================================
    INITIALIZATION
@@ -36,10 +36,11 @@ function initApp() {
     if (window.appInitialized) return;
     window.appInitialized = true;
     console.log("🚀 Centrinsic NPT News App Starting...");
-
+    
+    // Setup back button first thing
     setupMobileBackButton();
     setupHistoryHandling();
-
+    
     initializeApp();
     exportAllFunctions();
     setTimeout(setupAllEventListeners, 100);
@@ -55,19 +56,22 @@ function initializeApp() {
     }
     const savedSize = localStorage.getItem("font_size");
     if (savedSize) applyFontSize(savedSize);
-
+    
+    // Set initial history state
     history.replaceState({ screen: 'splash' }, '', '#splash');
-    showScreen("splash", false);
-
+    showScreen("splash", false); // Don't push state on init
+    
     setTimeout(() => {
-        if (currentUser && currentUser.loggedIn) {
-            navigateTo('home');
-            loadNews();
-        } else {
+        if (currentUser && currentUser.loggedIn) { 
+            navigateTo('home'); 
+            loadNews(); 
+        }
+        else {
             navigateTo('about');
         }
     }, 2000);
-
+    
+    // Logout Button Handler
     setTimeout(() => {
         const logoutBtn = document.getElementById("logoutButton");
         if (logoutBtn) {
@@ -91,12 +95,15 @@ function initializeApp() {
 /* ============================================
    HISTORY API & BACK BUTTON MANAGEMENT
 ============================================ */
+
 function setupHistoryHandling() {
+    // Handle browser back button (for web/PWA)
     window.addEventListener('popstate', (e) => {
         console.log("🔙 POPSTATE EVENT:", e.state);
         if (e.state && e.state.screen) {
             handleBackNavigation(e.state.screen);
         } else {
+            // No state, try to determine current screen
             const hash = window.location.hash.replace('#', '');
             if (hash && hash !== getCurrentScreenId()) {
                 handleBackNavigation(hash);
@@ -109,11 +116,13 @@ function setupHistoryHandling() {
 
 function setupMobileBackButton() {
     console.log("🚀 Setting up mobile back button handler...");
-
+    
+    // Capacitor/Cordova back button
     if (window.Capacitor?.Plugins?.App) {
         try {
             window.Capacitor.Plugins.App.addListener('backButton', (e) => {
                 console.log("🔙 CAPACITOR BACK BUTTON", e);
+                // Prevent default exit
                 e?.preventDefault?.();
                 handleMobileBack();
             });
@@ -121,7 +130,8 @@ function setupMobileBackButton() {
             console.warn("⚠️ Capacitor setup error:", err);
         }
     }
-
+    
+    // Cordova specific
     if (window.cordova) {
         document.addEventListener('backbutton', (e) => {
             console.log("🔙 CORDOVA BACK BUTTON");
@@ -129,11 +139,13 @@ function setupMobileBackButton() {
             handleMobileBack();
         }, false);
     }
-
+    
+    // Android WebView back button (using history API)
     window.addEventListener('hashchange', (e) => {
         console.log("🔙 HASH CHANGE:", e.oldURL, "->", e.newURL);
         const newHash = window.location.hash.replace('#', '');
         if (newHash && newHash !== getCurrentScreenId()) {
+            // Don't push state, just show screen
             showScreen(newHash, false);
         }
     });
@@ -142,9 +154,10 @@ function setupMobileBackButton() {
 function handleMobileBack() {
     const currentScreen = getCurrentScreenId();
     console.log("🔙 BACK BUTTON - Current:", currentScreen);
-
+    
+    // Determine where to go back to
     let targetScreen = 'home';
-
+    
     switch(currentScreen) {
         case 'detail':
             targetScreen = 'home';
@@ -161,20 +174,23 @@ function handleMobileBack() {
             targetScreen = 'home';
             break;
         case 'about':
+            // On about screen, stay there (don't exit app)
             showToast("Press back again to exit");
             return;
         case 'home':
+            // On home screen, stay there (don't exit app)
             showToast("App is running");
             return;
         default:
             targetScreen = 'home';
     }
-
+    
     console.log("🔙 NAVIGATING:", currentScreen, "->", targetScreen);
     navigateTo(targetScreen);
 }
 
 function handleBackNavigation(screenId) {
+    // Show screen without pushing new state (we're going back)
     if (document.getElementById(screenId)) {
         showScreen(screenId, false);
     } else {
@@ -187,103 +203,100 @@ function getCurrentScreenId() {
     return activeScreen?.id || 'home';
 }
 
+// Main navigation function - use this instead of showScreen directly
 function navigateTo(screenId) {
+    // Push state for history tracking
     history.pushState({ screen: screenId }, '', `#${screenId}`);
-    showScreen(screenId, false);
+    showScreen(screenId, false); // State already pushed
 }
 
 /* ============================================
    SCREEN NAVIGATION
 ============================================ */
 function showScreen(screenId, pushState = true) {
+    // Hide all screens
     document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.remove('active');
         screen.style.display = 'none';
     });
-
+    
+    // Show target screen
     const target = document.getElementById(screenId);
     if (!target) {
         console.error("Screen not found:", screenId);
         return;
     }
-
+    
     target.classList.add('active');
     target.style.display = screenId === 'splash' ? 'flex' : 'block';
-
+    
+    // Update URL if needed (but don't create duplicate history)
     if (pushState && window.location.hash !== `#${screenId}`) {
         history.pushState({ screen: screenId }, '', `#${screenId}`);
     }
-
+    
+    // Show/hide bottom nav
     const showNav = ['home', 'saved', 'preferences'].includes(screenId);
     document.querySelectorAll('.bottom-nav').forEach(nav => {
         nav.style.display = showNav ? 'flex' : 'none';
     });
-
-    if (screenId === 'home') {
-        updateSavedFolder();
-        setTimeout(loadNews, 100);
+    
+    // Screen-specific logic
+    if (screenId === 'home') { 
+        updateSavedFolder(); 
+        setTimeout(loadNews, 100); 
     }
     if (screenId === 'saved') setTimeout(loadSavedArticles, 100);
     if (screenId === 'preferences') {
-        setTimeout(() => {
-            attachLogoutListener();
-            attachClearAllListener();
-            attachDarkModeListener();
+        setTimeout(() => { 
+            attachLogoutListener(); 
+            attachClearAllListener(); 
+            attachDarkModeListener(); 
         }, 300);
         updateUserDisplay();
         highlightSizeButton(localStorage.getItem("font_size") || "medium");
     }
-
+    
+    // Scroll to top
     window.scrollTo(0, 0);
     setTimeout(bindMobileButtons, 200);
 }
 
 /* ============================================
-   ✅ ARTICLE TAB ROUTING — Audience Sections
+   ✅ SINGLE SOURCE OF TRUTH — which tab does this article belong to?
 ============================================ */
 function getArticleTab(article) {
     if (!article.isManual) return 'gnews';
-
     const cat    = (article.category    || '').toLowerCase().trim();
     const type   = (article.type        || '').toLowerCase().trim();
     const tag    = (article.tag         || '').toLowerCase().trim();
     const source = (article.source      || '').toLowerCase().trim();
-    const all    = `${cat} ${type} ${tag} ${source}`;
-
     const is60sec =
         cat === '60sec' || cat === '60 sec' || cat === '60seconds' || cat === '60-sec' || cat === 'sixtysec' ||
         type === '60sec' || tag === '60sec' || article.is60sec === true || article.bulletinDigest === true;
     if (is60sec) return '60sec';
-
-    // Audience sections
-    if (/\bupsc\b/.test(all) || /\bias\b/.test(all) || /\bips\b/.test(all) || /\bcivil\s*services\b/.test(all)) return 'upsc';
-    if (/\bssc\b/.test(all) || /\bbanking\b/.test(all) || /\bibps\b/.test(all) || /\brrb\b/.test(all) || /\brailway\b/.test(all)) return 'ssc';
-    if (/\bdefence\b/.test(all) || /\bnda\b/.test(all) || /\bcds\b/.test(all) || /\bafcat\b/.test(all) || /\bcapf\b/.test(all) || /\barmy\b/.test(all) || /\bnavy\b/.test(all) || /\bair\s*force\b/.test(all)) return 'defence';
-    if (/\bstudent\b/.test(all) || /\beducation\b/.test(all) || /\bschool\b/.test(all) || /\bcollege\b/.test(all) || /\bcbse\b/.test(all) || /\bncert\b/.test(all) || /\bjee\b/.test(all) || /\bneet\b/.test(all)) return 'students';
-    if (/\bentrepreneur\b/.test(all) || /\bstartup\b/.test(all) || /\bbusiness\b/.test(all) || /\bmsme\b/.test(all) || /\bself\s*employed\b/.test(all)) return 'entrepreneurs';
-
-    // Fallback for anything tagged current affairs / general
     const isCA = cat === 'currentaffairs' || cat === 'current affairs' || cat === 'current_affairs' ||
         type === 'currentaffairs' || tag === 'currentaffairs' || article.isCurrentAffairs === true;
-    if (isCA) return 'general';
-
+    if (isCA) return 'currentaffairs';
     return 'manual';
 }
 
 /* ============================================
-   DYNAMIC TAB ORDER
+   DYNAMIC TAB ORDER — AI-D first when it has content, else AI-S first
 ============================================ */
 function getDynamicTabOrder(articles) {
     const manualCount = articles.filter(a => getArticleTab(a) === 'manual').length;
     if (manualCount > 0) {
-        return ['manual', 'gnews', '60sec', 'upsc', 'ssc', 'defence', 'students', 'entrepreneurs', 'general'];
+        // AI-D has content → AI-D first, then AI-S, then others
+        return ['manual', 'gnews', '60sec', 'currentaffairs'];
     }
-    return ['gnews', 'manual', '60sec', 'upsc', 'ssc', 'defence', 'students', 'entrepreneurs', 'general'];
+    // Default: AI-S first
+    return ['gnews', 'manual', '60sec', 'currentaffairs'];
 }
 
 function getDefaultTab(articles) {
     const order = getDynamicTabOrder(articles);
-    return order[0];
+    return order[0]; // First tab in dynamic order
 }
 
 /* ============================================
@@ -346,10 +359,12 @@ function attachDarkModeListener() {
 function attachLogoutListener() {
     const logoutBtn = document.getElementById('logoutButton');
     if (!logoutBtn) return;
-
+    
+    // Remove all existing listeners
     const newBtn = logoutBtn.cloneNode(true);
     logoutBtn.parentNode.replaceChild(newBtn, logoutBtn);
-
+    
+    // Multiple event handlers to ensure it works on all devices
     newBtn.addEventListener('click', (e) => { e.preventDefault(); logout(); });
     newBtn.addEventListener('touchstart', (e) => { e.preventDefault(); logout(); });
 }
@@ -357,10 +372,12 @@ function attachLogoutListener() {
 function attachClearAllListener() {
     const clearBtn = document.querySelector('.btn-danger');
     if (!clearBtn) return;
-
+    
+    // Remove all existing listeners
     const newBtn = clearBtn.cloneNode(true);
     clearBtn.parentNode.replaceChild(newBtn, clearBtn);
-
+    
+    // Multiple event handlers to ensure it works on all devices
     newBtn.addEventListener('click', (e) => { e.preventDefault(); clearAll(); });
     newBtn.addEventListener('touchstart', (e) => { e.preventDefault(); clearAll(); });
 }
@@ -643,7 +660,9 @@ async function loadNews() {
             console.log(`  tab="${getArticleTab(a)}" | category="${a.category}" | title="${(a.title||'').substring(0,40)}"`);
         });
 
+        // ✅ DYNAMIC TAB SWITCHING: AI-D first if it has content, else AI-S
         currentTab = getDefaultTab(allArticles);
+
         renderTabView();
         updateSavedFolder();
     } catch (error) {
@@ -651,7 +670,7 @@ async function loadNews() {
         const backup = localStorage.getItem("news_backup");
         if (backup) {
             allArticles = JSON.parse(backup);
-            currentTab = getDefaultTab(allArticles);
+            currentTab = getDefaultTab(allArticles); // ✅ Also switch on backup load
             renderTabView();
             showToast("Offline mode");
         } else {
@@ -673,7 +692,7 @@ function switchTab(tab) {
 }
 
 /* ============================================
-   TAB CONFIG — Audience Sections
+   TAB CONFIG
 ============================================ */
 const TAB_CONFIG = {
     gnews: {
@@ -694,46 +713,16 @@ const TAB_CONFIG = {
         emptyIcon: '⏱️', emptyMsg: '60-second digest coming soon',
         filter: (a) => a.filter(x => getArticleTab(x) === '60sec')
     },
-    upsc: {
-        label: 'UPSC', title: 'UPSC Aspirants', icon: '📚',
-        color: '#c62828', shadow: 'rgba(198,40,40,0.35)',
-        emptyIcon: '📖', emptyMsg: 'UPSC articles coming soon',
-        filter: (a) => a.filter(x => getArticleTab(x) === 'upsc')
-    },
-    ssc: {
-        label: 'SSC', title: 'SSC & Banking', icon: '🏦',
-        color: '#1565c0', shadow: 'rgba(21,101,192,0.35)',
-        emptyIcon: '📋', emptyMsg: 'SSC & Banking articles coming soon',
-        filter: (a) => a.filter(x => getArticleTab(x) === 'ssc')
-    },
-    defence: {
-        label: 'Defence', title: 'Defence Aspirants', icon: '🎖️',
-        color: '#2e7d32', shadow: 'rgba(46,125,50,0.35)',
-        emptyIcon: '🛡️', emptyMsg: 'Defence articles coming soon',
-        filter: (a) => a.filter(x => getArticleTab(x) === 'defence')
-    },
-    students: {
-        label: 'Students', title: 'Students', icon: '🎓',
-        color: '#6a1b9a', shadow: 'rgba(106,27,154,0.35)',
-        emptyIcon: '📝', emptyMsg: 'Student articles coming soon',
-        filter: (a) => a.filter(x => getArticleTab(x) === 'students')
-    },
-    entrepreneurs: {
-        label: 'Business', title: 'Entrepreneurs', icon: '🚀',
-        color: '#e65100', shadow: 'rgba(230,81,0,0.35)',
-        emptyIcon: '💼', emptyMsg: 'Business & Startup articles coming soon',
-        filter: (a) => a.filter(x => getArticleTab(x) === 'entrepreneurs')
-    },
-    general: {
-        label: 'General', title: 'General Affairs', icon: '🗞️',
-        color: '#455a64', shadow: 'rgba(69,90,100,0.35)',
-        emptyIcon: '📰', emptyMsg: 'General current affairs coming soon',
-        filter: (a) => a.filter(x => getArticleTab(x) === 'general')
+    currentaffairs: {
+        label: 'Current', title: 'Current Affairs', icon: '🔴',
+        color: '#e53935', shadow: 'rgba(229,57,53,0.35)',
+        emptyIcon: '🗞️', emptyMsg: 'Current affairs coming soon',
+        filter: (a) => a.filter(x => getArticleTab(x) === 'currentaffairs')
     }
 };
 
 /* ============================================
-   RENDER TAB VIEW — Horizontal Scrollable
+   RENDER TAB VIEW
 ============================================ */
 function renderTabView() {
     const container = document.getElementById("newsFeed");
@@ -751,23 +740,23 @@ function renderTabView() {
         emptyTextColor:    isDark ? '#666'    : '#999',
     };
 
+    // ✅ USE DYNAMIC TAB ORDER: AI-D first when it has content, else AI-S first
     const tabOrder       = getDynamicTabOrder(allArticles);
     const cfg            = TAB_CONFIG[currentTab] || TAB_CONFIG[tabOrder[0]];
     const activeArticles = cfg.filter(allArticles);
 
-    // Horizontal scrollable tabs
     const tabButtons = tabOrder.map(tabKey => {
         const t        = TAB_CONFIG[tabKey];
         const isActive = currentTab === tabKey;
         const count    = t.filter(allArticles).length;
         return `
             <button onclick="switchTab('${tabKey}')" style="
-                flex:0 0 auto;padding:10px 14px;border-radius:22px;border:none;
+                flex:1;padding:10px 4px;border-radius:22px;border:none;
                 font-weight:600;font-size:12px;cursor:pointer;transition:all 0.3s;
                 background:${isActive ? t.color : theme.inactiveTabBg};
                 color:${isActive ? '#fff' : theme.inactiveTabText};
                 box-shadow:${isActive ? `0 2px 8px ${t.shadow}` : 'none'};
-                position:relative;white-space:nowrap;">
+                position:relative;">
                 ${t.label}
                 ${count > 0 ? `<span style="position:absolute;top:-4px;right:-2px;background:${isActive ? 'rgba(255,255,255,0.3)' : t.color};color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;min-width:14px;line-height:16px;">${count}</span>` : ''}
             </button>`;
@@ -775,9 +764,7 @@ function renderTabView() {
 
     let html = `
         <div style="position:sticky;top:0;z-index:100;background:${theme.headerBg};padding:10px 16px;border-bottom:1px solid ${theme.headerBorder};">
-            <div style="display:flex;gap:8px;margin-bottom:10px;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px;">
-                ${tabButtons}
-            </div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">${tabButtons}</div>
             ${lastUpdatedTime ? `<div style="text-align:center;color:${theme.updatedColor};font-size:11px;">🕐 Updated ${new Date(lastUpdatedTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})}</div>` : ''}
         </div>
         <div style="margin:20px 16px 12px 16px;display:flex;align-items:center;gap:10px;">
@@ -1000,6 +987,7 @@ function renderArticleCards(articles) {
         const title    = item.title || "Untitled";
         const isSaved  = getSavedArticles().some(s => String(s._id||s.id||s.articleId) === id);
         const imageUrl = getImageUrl(item.image);
+        const isCA     = getArticleTab(item) === 'currentaffairs';
 
         return `
             <article class="news-card"
@@ -1008,6 +996,7 @@ function renderArticleCards(articles) {
                 data-article-source="${escapeHtml(item.source||'Unknown')}"
                 onclick="handleArticleClick(this)">
                 <div class="news-content">
+                    ${isCA ? `<span style="background:#e53935;color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;display:inline-block;margin-bottom:6px;">🔴 CURRENT AFFAIRS</span>` : ''}
                     <h3 class="news-title">${isSaved ? '🔖 ' : ''}${escapeHtml(title)}</h3>
                     <p class="news-excerpt">${escapeHtml(excerpt)}</p>
                     <div class="news-meta">
@@ -1035,24 +1024,24 @@ function handleArticleClick(element) {
     const articleId     = element.getAttribute('data-article-id');
     const articleTitle  = element.getAttribute('data-article-title');
     const articleSource = element.getAttribute('data-article-source');
-    if (articlesCache.has(articleId)) {
-        currentArticle = articlesCache.get(articleId);
-        displayArticleDetail();
-        return;
+    if (articlesCache.has(articleId)) { 
+        currentArticle = articlesCache.get(articleId); 
+        displayArticleDetail(); 
+        return; 
     }
     const found = allArticles.find(a => a.title === articleTitle && a.source === articleSource);
-    if (found) {
-        currentArticle = found;
-        displayArticleDetail();
-        return;
+    if (found) { 
+        currentArticle = found; 
+        displayArticleDetail(); 
+        return; 
     }
     if (!articleId.startsWith('gnews_')) {
-        fetch(`${API_ARTICLES}/${articleId}`).then(r => r.json()).then(a => {
-            currentArticle = a;
-            displayArticleDetail();
+        fetch(`${API_ARTICLES}/${articleId}`).then(r => r.json()).then(a => { 
+            currentArticle = a; 
+            displayArticleDetail(); 
         }).catch(() => showToast("Failed to load article"));
-    } else {
-        showToast("Article expired. Please refresh.");
+    } else { 
+        showToast("Article expired. Please refresh."); 
     }
 }
 
@@ -1064,9 +1053,9 @@ function updateSavedFolder() {
     const folder  = document.getElementById("savedFolder");
     const countEl = document.getElementById("savedCount");
     const saved   = getSavedArticles();
-    if (folder) {
-        folder.style.display = saved.length > 0 ? 'flex' : 'none';
-        if (countEl) countEl.textContent = `${saved.length} saved`;
+    if (folder) { 
+        folder.style.display = saved.length > 0 ? 'flex' : 'none'; 
+        if (countEl) countEl.textContent = `${saved.length} saved`; 
     }
 }
 
@@ -1074,9 +1063,9 @@ function loadSavedArticles() {
     const container = document.getElementById("savedList");
     if (!container) return;
     const saved = getSavedArticles();
-    if (saved.length === 0) {
-        container.innerHTML = `<div class="empty"><div>📁</div><h3>No saved</h3></div>`;
-        return;
+    if (saved.length === 0) { 
+        container.innerHTML = `<div class="empty"><div>📁</div><h3>No saved</h3></div>`; 
+        return; 
     }
     container.innerHTML = saved.map(item => {
         const id    = String(item._id || item.articleId || item.id).replace(/[^a-zA-Z0-9-]/g, '');
@@ -1093,36 +1082,36 @@ function loadSavedArticles() {
 ============================================ */
 function openArticle(id) {
     const cleanId = String(id).replace(/[^a-zA-Z0-9-]/g, '');
-    if (articlesCache.has(cleanId)) {
-        currentArticle = articlesCache.get(cleanId);
-        displayArticleDetail();
-        return;
+    if (articlesCache.has(cleanId)) { 
+        currentArticle = articlesCache.get(cleanId); 
+        displayArticleDetail(); 
+        return; 
     }
     if (!cleanId.startsWith('gnews_')) {
-        fetch(`${API_ARTICLES}/${cleanId}`).then(r => r.json()).then(a => {
-            currentArticle = a;
-            displayArticleDetail();
+        fetch(`${API_ARTICLES}/${cleanId}`).then(r => r.json()).then(a => { 
+            currentArticle = a; 
+            displayArticleDetail(); 
         }).catch(() => showToast("Failed to load article"));
-    } else {
-        showToast("Article expired. Please refresh.");
+    } else { 
+        showToast("Article expired. Please refresh."); 
     }
 }
 
 function displayArticleDetail() {
     const articleBody = document.getElementById("articleBody");
     const saveBtn     = document.getElementById("saveBtn");
-    if (!articleBody || !currentArticle) {
-        showToast("Article not found");
-        return;
+    if (!articleBody || !currentArticle) { 
+        showToast("Article not found"); 
+        return; 
     }
 
     originalArticleContent = null;
 
     const articleId  = currentArticle._id || currentArticle.id || currentArticle.articleId;
     const isSaved    = getSavedArticles().some(s => String(s._id||s.id||s.articleId) === String(articleId));
-    if (saveBtn) {
-        saveBtn.innerHTML = isSaved ? '✓ Saved' : '💾 Save';
-        saveBtn.classList.toggle('saved', isSaved);
+    if (saveBtn) { 
+        saveBtn.innerHTML = isSaved ? '✓ Saved' : '💾 Save'; 
+        saveBtn.classList.toggle('saved', isSaved); 
     }
 
     let date = "Recent";
@@ -1136,6 +1125,7 @@ function displayArticleDetail() {
     const category   = currentArticle.category || 'General';
     const articleTab = getArticleTab(currentArticle);
     const is60sec    = articleTab === '60sec';
+    const isCA       = articleTab === 'currentaffairs';
 
     let originalLink = '#';
     if      (currentArticle.originalLink)     originalLink = currentArticle.originalLink;
@@ -1156,15 +1146,8 @@ function displayArticleDetail() {
     const selectBg     = isDark ? '#111'    : '#ffffff';
     const selectColor  = isDark ? '#ccc'    : '#333';
     const selectBorder = isDark ? '#333'    : '#ccc';
-
-    // Dynamic category badge color
-    const TAB_COLORS = {
-        gnews: '#4CAF50', manual: '#667eea', '60sec': '#FF9800',
-        upsc: '#c62828', ssc: '#1565c0', defence: '#2e7d32',
-        students: '#6a1b9a', entrepreneurs: '#e65100', general: '#455a64'
-    };
-    const catColor = TAB_COLORS[articleTab] || '#4CAF50';
-    const catLabel = TAB_CONFIG[articleTab]?.label || category;
+    const catColor     = is60sec ? '#FF9800' : isCA ? '#e53935' : '#4CAF50';
+    const catLabel     = is60sec ? '⚡ 60 Sec' : isCA ? '🔴 Current Affairs' : category;
 
     let bodyContent = '';
     if (is60sec) {
@@ -1177,9 +1160,9 @@ function displayArticleDetail() {
                 section.points.forEach((point, pIdx) => {
                     const colonIdx = point.indexOf(':');
                     let boldPart = '', restPart = point;
-                    if (colonIdx > 0 && colonIdx < 60) {
-                        boldPart = point.substring(0, colonIdx);
-                        restPart = point.substring(colonIdx+1).trim();
+                    if (colonIdx > 0 && colonIdx < 60) { 
+                        boldPart = point.substring(0, colonIdx); 
+                        restPart = point.substring(colonIdx+1).trim(); 
                     }
                     bodyContent += `
                         <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid ${detailBorder};">
@@ -1243,6 +1226,7 @@ function displayArticleDetail() {
             </div>` : ''}
         </div>`;
 
+    // Use navigateTo for detail screen so back button works
     navigateTo('detail');
     const detailContent = document.getElementById("detailContent");
     if (detailContent) detailContent.scrollTop = 0;
@@ -1256,59 +1240,59 @@ async function translateArticle(targetLang) {
     const headlineEl = document.querySelector('.article-headline');
     if (!bodyEl || !currentArticle) return;
     if (targetLang === 'en') {
-        if (originalArticleContent) {
-            bodyEl.textContent = originalArticleContent.body;
-            if (headlineEl) headlineEl.textContent = originalArticleContent.title;
-            originalArticleContent = null;
+        if (originalArticleContent) { 
+            bodyEl.textContent = originalArticleContent.body; 
+            if (headlineEl) headlineEl.textContent = originalArticleContent.title; 
+            originalArticleContent = null; 
         }
-        highlightTranslateBtn('en');
+        highlightTranslateBtn('en'); 
         return;
     }
-    if (!originalArticleContent) {
-        originalArticleContent = { body: bodyEl.textContent, title: headlineEl ? headlineEl.textContent : '' };
+    if (!originalArticleContent) { 
+        originalArticleContent = { body: bodyEl.textContent, title: headlineEl ? headlineEl.textContent : '' }; 
     }
     bodyEl.innerHTML = '<span style="color:#888;font-size:14px;">🌐 Translating...</span>';
     if (headlineEl) headlineEl.style.opacity = '0.5';
     try {
         const bodyData = await (await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.body)}`)).json();
-        let translated = '';
+        let translated = ''; 
         if (bodyData && bodyData[0]) bodyData[0].forEach(seg => { if (seg[0]) translated += seg[0]; });
         bodyEl.textContent = translated || 'Translation not available.';
         if (headlineEl && originalArticleContent.title) {
             const titleData = await (await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(originalArticleContent.title)}`)).json();
-            let translatedTitle = '';
+            let translatedTitle = ''; 
             if (titleData && titleData[0]) titleData[0].forEach(seg => { if (seg[0]) translatedTitle += seg[0]; });
             if (translatedTitle) headlineEl.textContent = translatedTitle;
         }
         if (headlineEl) headlineEl.style.opacity = '1';
     } catch (err) {
         bodyEl.textContent = originalArticleContent.body;
-        if (headlineEl) {
-            headlineEl.textContent = originalArticleContent.title;
-            headlineEl.style.opacity = '1';
+        if (headlineEl) { 
+            headlineEl.textContent = originalArticleContent.title; 
+            headlineEl.style.opacity = '1'; 
         }
         originalArticleContent = null;
-        const select = document.getElementById('translateSelect');
+        const select = document.getElementById('translateSelect'); 
         if (select) select.value = 'en';
         showToast('⚠️ Translation failed.');
     }
 }
 
-function highlightTranslateBtn(lang) {
-    const s = document.getElementById('translateSelect');
-    if (s) s.value = lang;
+function highlightTranslateBtn(lang) { 
+    const s = document.getElementById('translateSelect'); 
+    if (s) s.value = lang; 
 }
 
 function openExternalLink(url) {
-    if (!url || url === '#') {
-        showToast("Link not available");
-        return;
+    if (!url || url === '#') { 
+        showToast("Link not available"); 
+        return; 
     }
-    if (window.Capacitor?.Plugins?.Browser) {
-        window.Capacitor.Plugins.Browser.open({ url });
+    if (window.Capacitor?.Plugins?.Browser) { 
+        window.Capacitor.Plugins.Browser.open({ url }); 
     }
-    else if (window.cordova?.InAppBrowser)  {
-        window.cordova.InAppBrowser.open(url, '_system');
+    else if (window.cordova?.InAppBrowser)  { 
+        window.cordova.InAppBrowser.open(url, '_system'); 
     }
     else window.open(url, '_blank', 'noopener,noreferrer');
 }
@@ -1321,16 +1305,16 @@ function saveCurrentArticle() {
     const index       = savedArticles.findIndex(s => String(s._id||s.id||s.articleId) === String(articleId));
     if (index !== -1) {
         savedArticles.splice(index, 1);
-        if (saveBtn) {
-            saveBtn.innerHTML = '💾 Save';
-            saveBtn.classList.remove('saved');
+        if (saveBtn) { 
+            saveBtn.innerHTML = '💾 Save'; 
+            saveBtn.classList.remove('saved'); 
         }
         showToast("Removed from saved");
     } else {
         savedArticles.unshift({ ...currentArticle, savedAt: new Date().toISOString() });
-        if (saveBtn) {
-            saveBtn.innerHTML = '✓ Saved';
-            saveBtn.classList.add('saved');
+        if (saveBtn) { 
+            saveBtn.innerHTML = '✓ Saved'; 
+            saveBtn.classList.add('saved'); 
         }
         showToast("Saved!");
     }
@@ -1348,9 +1332,9 @@ async function shareCurrentArticle() {
     const shareText = `📰 ${title}\n\n${content}\n\n📲 Read more on Centrinsic NPT:\n${appLink}`;
     const imageUrl  = getImageUrl(currentArticle.image);
     const shareBtn  = document.getElementById('shareBtn');
-    if (shareBtn) {
-        shareBtn.innerHTML = '⏳ Sharing...';
-        shareBtn.disabled = true;
+    if (shareBtn) { 
+        shareBtn.innerHTML = '⏳ Sharing...'; 
+        shareBtn.disabled = true; 
     }
     try {
         if (window.Capacitor?.Plugins?.Share) {
@@ -1359,11 +1343,11 @@ async function shareCurrentArticle() {
             if (imageUrl && Filesystem) {
                 try {
                     const imgBlob = await (await fetch(imageUrl)).blob();
-                    const base64  = await new Promise((res, rej) => {
-                        const r = new FileReader();
-                        r.onload = () => res(r.result.split(',')[1]);
-                        r.onerror = rej;
-                        r.readAsDataURL(imgBlob);
+                    const base64  = await new Promise((res, rej) => { 
+                        const r = new FileReader(); 
+                        r.onload = () => res(r.result.split(',')[1]); 
+                        r.onerror = rej; 
+                        r.readAsDataURL(imgBlob); 
                     });
                     const fileName = `centrinsic_${Date.now()}.jpg`;
                     await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
@@ -1371,64 +1355,64 @@ async function shareCurrentArticle() {
                     fileUri = uriResult.uri;
                 } catch(e) {}
             }
-            if (fileUri) {
-                await Share.share({ title, text: shareText, url: appLink, files: [fileUri] });
+            if (fileUri) { 
+                await Share.share({ title, text: shareText, url: appLink, files: [fileUri] }); 
             }
-            else {
-                await Share.share({ title, text: shareText, url: appLink });
+            else { 
+                await Share.share({ title, text: shareText, url: appLink }); 
             }
             return;
         }
-        if (navigator.share) {
-            try {
-                await navigator.share({ title, text: shareText, url: appLink });
-                return;
-            } catch(e) {
-                if (e.name === 'AbortError') return;
-            }
+        if (navigator.share) { 
+            try { 
+                await navigator.share({ title, text: shareText, url: appLink }); 
+                return; 
+            } catch(e) { 
+                if (e.name === 'AbortError') return; 
+            } 
         }
         copyToClipboard(shareText);
         showToast('🔗 Link copied!');
     } catch (err) {
         const msg = (err?.message || err?.errorMessage || '').toLowerCase();
         if (msg.includes('cancel') || err?.name === 'AbortError') return;
-        if (window.Capacitor?.Plugins?.Share) {
-            try {
-                await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: appLink });
-                return;
-            } catch(e) {}
+        if (window.Capacitor?.Plugins?.Share) { 
+            try { 
+                await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: appLink }); 
+                return; 
+            } catch(e) {} 
         }
         copyToClipboard(shareText);
         showToast('🔗 Link copied!');
     } finally {
-        if (shareBtn) {
-            shareBtn.innerHTML = '📤 Share';
-            shareBtn.disabled = false;
+        if (shareBtn) { 
+            shareBtn.innerHTML = '📤 Share'; 
+            shareBtn.disabled = false; 
         }
     }
 }
 
 function copyToClipboard(text) {
-    if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(text).then(() => showToast("✅ Link copied!")).catch(() => fallbackCopy(text));
+    if (navigator.clipboard?.writeText) { 
+        navigator.clipboard.writeText(text).then(() => showToast("✅ Link copied!")).catch(() => fallbackCopy(text)); 
     }
     else fallbackCopy(text);
 }
 
 function fallbackCopy(text) {
     const el = document.createElement('textarea');
-    el.value = text;
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand('copy');
+    el.value = text; 
+    document.body.appendChild(el); 
+    el.select(); 
+    document.execCommand('copy'); 
     document.body.removeChild(el);
     showToast("✅ Link copied!");
 }
 
-function refreshFeed() {
-    isOnline = false;
-    loadNews();
-    showToast("Refreshing...");
+function refreshFeed() { 
+    isOnline = false; 
+    loadNews(); 
+    showToast("Refreshing..."); 
 }
 
 function escapeHtml(text) {
@@ -1440,14 +1424,14 @@ function escapeHtml(text) {
 
 function showToast(msg) {
     let toast = document.getElementById('toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'toast';
-        toast.className = 'toast';
-        document.body.appendChild(toast);
+    if (!toast) { 
+        toast = document.createElement('div'); 
+        toast.id = 'toast'; 
+        toast.className = 'toast'; 
+        document.body.appendChild(toast); 
     }
     if (toastTimeout) clearTimeout(toastTimeout);
-    toast.textContent = msg;
+    toast.textContent = msg; 
     toast.classList.add('show');
     toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
 }
@@ -1459,7 +1443,7 @@ function bindMobileButtons() {
         logoutBtn.addEventListener('click', () => logout());
         logoutBtn.addEventListener('touchstart', () => logout());
     }
-
+    
     const deleteBtn = document.getElementById("deleteDataButton");
     if (deleteBtn) {
         deleteBtn.onclick = () => clearAll();
@@ -1468,4 +1452,4 @@ function bindMobileButtons() {
     }
 }
 
-console.log("✅ Centrinsic NPT — Audience Sections + Horizontal Scrollable Tabs");
+console.log("✅ Centrinsic NPT — Mobile Back Button Fixed with History API + Dynamic Tab Order");
