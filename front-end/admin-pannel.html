@@ -183,6 +183,7 @@
     .topbar { padding: 16px; }
   }
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -298,6 +299,29 @@
               <div style="font-size:13px;color:var(--muted);">Full detailed articles with image shown in AI-D tab.</div>
             </div>
           </div>
+
+          <!-- BULK PASTE PARSER -->
+          <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+            <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📝 Bulk Paste Parser</div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+              Paste the full article block here — the system will auto-extract <strong>Source</strong>, <strong>Category</strong>, <strong>Original Link</strong>, <strong>Title</strong> and <strong>Content</strong> into the form below.
+            </div>
+            <textarea id="aid-bulkPaste" placeholder="Paste full block here...
+
+Source: ...
+Category: ...
+Original Link: ...
+Title: ...
+Content: ..."
+              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px 14px;font-size:13px;font-family:'DM Mono',monospace;min-height:120px;resize:vertical;outline:none;"
+              onpaste="setTimeout(()=>parseBulkPaste(),50)"></textarea>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="parseBulkPaste()">🔍 Parse & Fill Fields</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('aid-bulkPaste').value=''">Clear</button>
+            </div>
+            <div id="aid-parseFeedback" style="margin-top:8px;font-size:12px;color:var(--accent2);display:none;"></div>
+          </div>
+
           <div class="form-group">
             <label>Article Title *</label>
             <input type="text" id="aid-title" placeholder="Enter a clear, descriptive headline..." />
@@ -1082,6 +1106,86 @@ window.addEventListener('load', () => {
   const textarea = document.getElementById('60sec-content');
   if (textarea) textarea.addEventListener('input', update60SecPreview);
 });
+
+// ── BULK PASTE PARSER ─────────────────────────
+function parseBulkPaste() {
+  const raw = document.getElementById('aid-bulkPaste')?.value || '';
+  if (!raw.trim()) return;
+
+  const feedback = document.getElementById('aid-parseFeedback');
+  const lines = raw.split('
+');
+  let currentField = null;
+  const fields = { source: '', category: '', link: '', title: '', content: '' };
+  const fieldMap = {
+    'source': 'source', 'src': 'source',
+    'category': 'category', 'cat': 'category', 'subcategory': 'category', 'sub-category': 'category',
+    'original link': 'link', 'link': 'link', 'url': 'link', 'original url': 'link',
+    'title': 'title', 'headline': 'title',
+    'content': 'content', 'body': 'content', 'article': 'content', 'text': 'content'
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const colonIdx = line.indexOf(':');
+    if (colonIdx > 0) {
+      const keyRaw = line.substring(0, colonIdx).trim().toLowerCase();
+      const key = fieldMap[keyRaw];
+      if (key) {
+        currentField = key;
+        const val = line.substring(colonIdx + 1).trim();
+        fields[key] = val;
+        continue;
+      }
+    }
+    if (currentField && line.trim()) {
+      fields[currentField] += '
+' + line.trim();
+    }
+  }
+
+  // Trim all
+  Object.keys(fields).forEach(k => fields[k] = fields[k].trim());
+
+  // Fill form fields
+  if (fields.title)   document.getElementById('aid-title').value   = fields.title;
+  if (fields.content) document.getElementById('aid-content').value = fields.content;
+  if (fields.source)  document.getElementById('aid-source').value  = fields.source;
+  if (fields.link)    document.getElementById('aid-link').value    = fields.link;
+
+  // Try to match category to select options
+  if (fields.category) {
+    const select = document.getElementById('aid-subcategory');
+    const opts = Array.from(select.options);
+    const match = opts.find(o => o.value.toLowerCase() === fields.category.toLowerCase());
+    if (match) {
+      select.value = match.value;
+    } else {
+      // If no exact match, try partial
+      const partial = opts.find(o => fields.category.toLowerCase().includes(o.value.toLowerCase()) || o.value.toLowerCase().includes(fields.category.toLowerCase()));
+      if (partial) select.value = partial.value;
+    }
+  }
+
+  // Show feedback
+  const filled = [];
+  if (fields.title)   filled.push('Title');
+  if (fields.content) filled.push('Content');
+  if (fields.source)  filled.push('Source');
+  if (fields.link)    filled.push('Link');
+  if (fields.category)filled.push('Category');
+
+  if (filled.length > 0) {
+    feedback.style.display = 'block';
+    feedback.innerHTML = `✅ Auto-filled: <strong>${filled.join(', ')}</strong>`;
+    showToast(`Parsed ${filled.length} fields`, 'success');
+  } else {
+    feedback.style.display = 'block';
+    feedback.innerHTML = `⚠️ No recognized fields found. Use format: <code>Title: ...</code>`;
+    feedback.style.color = 'var(--danger)';
+  }
+}
+
 </script>
 </body>
 </html>
