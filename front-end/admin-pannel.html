@@ -195,21 +195,31 @@
     <p>Centrinsic NPT — Control Panel</p>
     <div class="form-group">
       <label>Email Address</label>
-      <input type="email" id="loginEmail" placeholder="admin@email.com" onkeydown="if(event.key==='Enter')doLogin()" />
-    </div>
-    <div class="form-group">
-      <label>Password <span style="color:var(--muted);font-size:12px;">(optional — not required for OTP login)</span></label>
-      <input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
+      <input type="email" id="loginEmail" placeholder="admin@email.com" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="email" />
     </div>
     <button id="loginBtn" class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In →</button>
-    <p style="margin-top:14px;font-size:12px;text-align:center;color:var(--muted);">OTP login — enter email then verify OTP below</p>
+
+    <!-- Inline error display -->
+    <div id="loginError" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;line-height:1.5;"></div>
+
+    <!-- Inline success display -->
+    <div id="loginSuccess" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(46,213,115,0.12);border:1px solid rgba(46,213,115,0.3);border-radius:10px;color:var(--green);font-size:13px;line-height:1.5;"></div>
+
+    <p style="margin-top:14px;font-size:12px;text-align:center;color:var(--muted);">📧 OTP login — enter your email and we'll send a 6-digit code</p>
+
     <div id="otpSection" style="display:none;margin-top:16px;">
       <div class="divider"></div>
       <div class="form-group">
         <label>Enter OTP sent to your email</label>
-        <input type="text" id="otpInput" placeholder="6-digit OTP" maxlength="6" style="letter-spacing:6px;font-size:20px;text-align:center;" onkeydown="if(event.key==='Enter')doVerifyOTP()" />
+        <input type="text" id="otpInput" placeholder="6-digit OTP" maxlength="6" style="letter-spacing:8px;font-size:22px;text-align:center;font-family:'DM Mono',monospace;" onkeydown="if(event.key==='Enter')doVerifyOTP()" autocomplete="one-time-code" inputmode="numeric" />
       </div>
       <button id="verifyOtpBtn" class="btn btn-success" style="width:100%;justify-content:center;" onclick="doVerifyOTP()">Verify OTP →</button>
+      <div id="otpError" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;"></div>
+    </div>
+
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:center;">
+      <button class="btn btn-ghost btn-sm" onclick="testServerConnection()" style="font-size:12px;">🔌 Test Server Connection</button>
+      <div id="connStatus" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
     </div>
   </div>
 </div>
@@ -652,40 +662,93 @@ window.onload = () => {
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const btn = document.getElementById('loginBtn');
-  if (!email) return showToast('Enter email address', 'error');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Sending OTP...'; }
-  showToast('Sending OTP...', '');
+  const errBox = document.getElementById('loginError');
+  const succBox = document.getElementById('loginSuccess');
+
+  // Reset messages
+  if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
+  if (succBox) { succBox.style.display = 'none'; succBox.textContent = ''; }
+
+  if (!email) {
+    if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ Please enter your email address'; }
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Sending OTP...'; }
+
+  console.log('[Login] Sending OTP to:', email);
+
   try {
     const r = await api('/api/auth/send-otp', 'POST', { email });
+    console.log('[Login] Response:', r);
+
     if (r.success) {
       document.getElementById('otpSection').style.display = 'block';
       localStorage.setItem('admin_temp_email', email);
-      showToast('📧 OTP sent! Check your email.', 'success');
-      setTimeout(() => document.getElementById('otpInput')?.focus(), 300);
+      if (succBox) { succBox.style.display = 'block'; succBox.textContent = '✅ OTP sent! Check your email inbox.'; }
+      showToast('📧 OTP sent!', 'success');
+      setTimeout(() => { const el = document.getElementById('otpInput'); if (el) el.focus(); }, 300);
     } else {
-      showToast(r.message || r.error || 'Failed to send OTP', 'error');
+      const msg = r.message || r.error || 'Failed to send OTP. Please try again.';
+      console.error('[Login] Server error:', msg);
+      if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ ' + msg; }
+      showToast(msg, 'error');
     }
-  } catch(e) { showToast('Network error: ' + (e.message || 'Cannot reach server'), 'error'); }
-  finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In →'; } }
+  } catch(e) {
+    console.error('[Login] Network/exception error:', e);
+    const msg = 'Network error: ' + (e.message || 'Cannot reach server. Check your internet connection or try the Test Connection button below.');
+    if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ ' + msg; }
+    showToast(msg, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In →'; }
+  }
 }
 
 async function doVerifyOTP() {
   const email = localStorage.getItem('admin_temp_email');
   const otp   = document.getElementById('otpInput').value.trim();
   const btn   = document.getElementById('verifyOtpBtn');
-  if (!otp || otp.length !== 6) return showToast('Enter 6-digit OTP', 'error');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Verifying...'; }
+  const errBox = document.getElementById('otpError');
+
+  if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
+
+  if (!otp) {
+    if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ Please enter the OTP'; }
+    return;
+  }
+  if (otp.length !== 6) {
+    if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ OTP must be exactly 6 digits'; }
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Verifying...'; }
+
+  console.log('[Verify] Checking OTP for:', email);
+
   try {
     const r = await api('/api/auth/verify-otp', 'POST', { email, otp });
+    console.log('[Verify] Response:', r);
+
     if (r.success && r.token) {
       authToken = r.token;
       localStorage.setItem('admin_token', authToken);
       localStorage.setItem('admin_email', email);
       showMainLayout(); loadDashboard();
       showToast('✅ Logged in successfully!', 'success');
-    } else { showToast(r.message || r.error || 'Invalid OTP', 'error'); }
-  } catch(e) { showToast('Network error: ' + (e.message || 'Cannot reach server'), 'error'); }
-  finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Verify OTP →'; } }
+    } else {
+      const msg = r.message || r.error || 'Invalid OTP. Please try again.';
+      console.error('[Verify] Server error:', msg);
+      if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ ' + msg; }
+      showToast(msg, 'error');
+    }
+  } catch(e) {
+    console.error('[Verify] Network/exception error:', e);
+    const msg = 'Network error: ' + (e.message || 'Cannot reach server');
+    if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ ' + msg; }
+    showToast(msg, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Verify OTP →'; }
+  }
 }
 
 function showMainLayout() {
@@ -1203,6 +1266,36 @@ function parseBulkPaste() {
     feedback.style.display = 'block';
     feedback.innerHTML = `⚠️ No recognized fields found. Use format: <code>Title: ...</code>`;
     feedback.style.color = 'var(--danger)';
+  }
+}
+
+
+// ── SERVER CONNECTION TEST ────────────────────
+async function testServerConnection() {
+  const statusEl = document.getElementById('connStatus');
+  if (statusEl) { statusEl.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px;"></div> Testing connection...'; }
+
+  console.log('[ConnTest] Testing:', API_BASE);
+
+  try {
+    const response = await fetch(API_BASE + '/api/health', { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+    const text = await response.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) { data = { raw: text.substring(0,100) }; }
+
+    console.log('[ConnTest] Status:', response.status, data);
+
+    if (response.ok) {
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✅ Server is online (' + response.status + ')</span>';
+      showToast('✅ Server connection OK', 'success');
+    } else {
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--danger)">⚠️ Server returned ' + response.status + ' ' + response.statusText + '</span>';
+      showToast('⚠️ Server error: ' + response.status, 'error');
+    }
+  } catch(e) {
+    console.error('[ConnTest] Failed:', e);
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--danger)">❌ Cannot reach server. Error: ' + (e.message || 'Unknown') + '</span>';
+    showToast('❌ Server unreachable', 'error');
   }
 }
 
