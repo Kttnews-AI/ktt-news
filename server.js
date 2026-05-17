@@ -213,7 +213,7 @@ const adminAuthMiddleware = async (req, res, next) => {
     // 1) Try admin password first (no OTP needed)
     if (adminPassword && checkAdminPassword(adminPassword)) {
         // For password-only access, attach a mock admin user so downstream code works
-        const adminUser = await User.findOne({ email: "centrinsicnpt@gmail.com" });
+        const adminUser = await User.findOne({ email: "dheerajexperiment8@gmail.com" });
         req.userId = adminUser ? adminUser._id.toString() : null;
         req.userName = adminUser ? adminUser.name : 'Admin';
         req.isAdminPassword = true; // flag to know which auth was used
@@ -230,7 +230,7 @@ const adminAuthMiddleware = async (req, res, next) => {
         }
         const decoded = jwt.verify(token, JWT_SECRET);
         const user = await User.findById(decoded.userId);
-        if (!user || user.email !== "centrinsicnpt@gmail.com") {
+        if (!user || user.email !== "dheerajexperiment8@gmail.com") {
             return res.status(403).json({ error: 'Only admin allowed via OTP' });
         }
         req.userId = decoded.userId;
