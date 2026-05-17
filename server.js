@@ -213,7 +213,7 @@ const adminAuthMiddleware = async (req, res, next) => {
     // 1) Try admin password first (no OTP needed)
     if (adminPassword && checkAdminPassword(adminPassword)) {
         // For password-only access, attach a mock admin user so downstream code works
-        const adminUser = await User.findOne({ email: "dheerajexperiment8@gmail.com" });
+        const adminUser = await User.findOne({ email: "centrinsicnpt@gmail.com" });
         req.userId = adminUser ? adminUser._id.toString() : null;
         req.userName = adminUser ? adminUser.name : 'Admin';
         req.isAdminPassword = true; // flag to know which auth was used
