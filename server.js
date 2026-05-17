@@ -230,7 +230,7 @@ const adminAuthMiddleware = async (req, res, next) => {
         }
         const decoded = jwt.verify(token, JWT_SECRET);
         const user = await User.findById(decoded.userId);
-        if (!user || user.email !== "dheerajexperiment8@gmail.com") {
+        if (!user || user.email !== "centrinsicnpt@gmail.com") {
             return res.status(403).json({ error: 'Only admin allowed via OTP' });
         }
         req.userId = decoded.userId;
