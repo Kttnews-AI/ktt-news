@@ -195,21 +195,21 @@
     <p>Centrinsic NPT — Control Panel</p>
     <div class="form-group">
       <label>Email Address</label>
-      <input type="email" id="loginEmail" placeholder="admin@email.com" />
+      <input type="email" id="loginEmail" placeholder="admin@email.com" onkeydown="if(event.key==='Enter')doLogin()" />
     </div>
     <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" />
+      <label>Password <span style="color:var(--muted);font-size:12px;">(optional — not required for OTP login)</span></label>
+      <input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
     </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In →</button>
+    <button id="loginBtn" class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In →</button>
     <p style="margin-top:14px;font-size:12px;text-align:center;color:var(--muted);">OTP login — enter email then verify OTP below</p>
     <div id="otpSection" style="display:none;margin-top:16px;">
       <div class="divider"></div>
       <div class="form-group">
         <label>Enter OTP sent to your email</label>
-        <input type="text" id="otpInput" placeholder="6-digit OTP" maxlength="6" style="letter-spacing:6px;font-size:20px;text-align:center;" />
+        <input type="text" id="otpInput" placeholder="6-digit OTP" maxlength="6" style="letter-spacing:6px;font-size:20px;text-align:center;" onkeydown="if(event.key==='Enter')doVerifyOTP()" />
       </div>
-      <button class="btn btn-success" style="width:100%;justify-content:center;" onclick="doVerifyOTP()">Verify OTP →</button>
+      <button id="verifyOtpBtn" class="btn btn-success" style="width:100%;justify-content:center;" onclick="doVerifyOTP()">Verify OTP →</button>
     </div>
   </div>
 </div>
@@ -651,22 +651,30 @@ window.onload = () => {
 // ── AUTH ──────────────────────────────────────
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
-  if (!email) return showToast('Enter email', 'error');
+  const btn = document.getElementById('loginBtn');
+  if (!email) return showToast('Enter email address', 'error');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Sending OTP...'; }
   showToast('Sending OTP...', '');
   try {
     const r = await api('/api/auth/send-otp', 'POST', { email });
     if (r.success) {
       document.getElementById('otpSection').style.display = 'block';
       localStorage.setItem('admin_temp_email', email);
-      showToast('📧 OTP sent!', 'success');
-    } else { showToast(r.message || 'Failed', 'error'); }
-  } catch(e) { showToast('Network error', 'error'); }
+      showToast('📧 OTP sent! Check your email.', 'success');
+      setTimeout(() => document.getElementById('otpInput')?.focus(), 300);
+    } else {
+      showToast(r.message || r.error || 'Failed to send OTP', 'error');
+    }
+  } catch(e) { showToast('Network error: ' + (e.message || 'Cannot reach server'), 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In →'; } }
 }
 
 async function doVerifyOTP() {
   const email = localStorage.getItem('admin_temp_email');
   const otp   = document.getElementById('otpInput').value.trim();
+  const btn   = document.getElementById('verifyOtpBtn');
   if (!otp || otp.length !== 6) return showToast('Enter 6-digit OTP', 'error');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Verifying...'; }
   try {
     const r = await api('/api/auth/verify-otp', 'POST', { email, otp });
     if (r.success && r.token) {
@@ -674,8 +682,10 @@ async function doVerifyOTP() {
       localStorage.setItem('admin_token', authToken);
       localStorage.setItem('admin_email', email);
       showMainLayout(); loadDashboard();
-    } else { showToast(r.message || 'Invalid OTP', 'error'); }
-  } catch(e) { showToast('Network error', 'error'); }
+      showToast('✅ Logged in successfully!', 'success');
+    } else { showToast(r.message || r.error || 'Invalid OTP', 'error'); }
+  } catch(e) { showToast('Network error: ' + (e.message || 'Cannot reach server'), 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Verify OTP →'; } }
 }
 
 function showMainLayout() {
@@ -1056,13 +1066,23 @@ async function confirmDeleteSingle() {
 async function api(path, method='GET', body=null) {
   const opts = { method, headers:{'Content-Type':'application/json'} };
   if (body) opts.body = JSON.stringify(body);
-  return (await fetch(API_BASE + path, opts)).json();
+  const response = await fetch(API_BASE + path, opts);
+  const text = await response.text();
+  let data;
+  try { data = JSON.parse(text); } catch(e) { data = { error: text.substring(0,200) || 'Server returned non-JSON response' }; }
+  if (!response.ok && !data.error) data.error = `HTTP ${response.status}: ${response.statusText}`;
+  return data;
 }
 
 async function apiAuth(path, method='GET', body=null) {
   const opts = { method, headers:{'Content-Type':'application/json','Authorization':`Bearer ${authToken}`} };
   if (body) opts.body = JSON.stringify(body);
-  return (await fetch(API_BASE + path, opts)).json();
+  const response = await fetch(API_BASE + path, opts);
+  const text = await response.text();
+  let data;
+  try { data = JSON.parse(text); } catch(e) { data = { error: text.substring(0,200) || 'Server returned non-JSON response' }; }
+  if (!response.ok && !data.error) data.error = `HTTP ${response.status}: ${response.statusText}`;
+  return data;
 }
 
 // ── TOAST ─────────────────────────────────────
@@ -1115,7 +1135,7 @@ function parseBulkPaste() {
   const feedback = document.getElementById('aid-parseFeedback');
   const lines = raw.split('
 ');
-      letcurrentField = null;
+  let currentField = null;
   const fields = { source: '', category: '', link: '', title: '', content: '' };
   const fieldMap = {
     'source': 'source', 'src': 'source',

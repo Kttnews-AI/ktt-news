@@ -1,1211 +1,844 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Centrinsic NPT — Admin Panel</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #0a0a0f;
-    --surface: #111118;
-    --surface2: #1a1a24;
-    --border: #2a2a38;
-    --accent: #6c63ff;
-    --accent2: #00d4aa;
-    --danger: #ff4757;
-    --text: #e8e8f0;
-    --muted: #6b6b80;
-    --green: #2ed573;
-    --orange: #FF9800;
-    --red: #e53935;
-    --radius: 14px;
-  }
+// ============================================
+// CENTRINSIC NPT SERVER — ADMIN: PASSWORD OR OTP
+// ============================================
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const path = require('path');
+const multer = require('multer');
+const os = require('os');
+const axios = require('axios');
+const crypto = require('crypto');
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
-  .layout { display: flex; min-height: 100vh; }
+const { v2: cloudinary } = require('cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-  /* SIDEBAR */
-  .sidebar { width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; overflow-y: auto; }
-  .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border); }
-  .sidebar-logo h1 { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: #fff; }
-  .sidebar-logo span { font-size: 11px; color: var(--accent); font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; }
-  .sidebar-nav { padding: 16px 12px; flex: 1; }
-  .nav-section-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding: 12px 12px 6px; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; cursor: pointer; color: var(--muted); font-size: 14px; font-weight: 500; transition: all 0.2s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left; }
-  .nav-item:hover { background: var(--surface2); color: var(--text); }
-  .nav-item.active { background: var(--accent); color: #fff; }
-  .nav-item.active-orange { background: var(--orange); color: #fff; }
-  .nav-item.active-red    { background: var(--red);    color: #fff; }
-  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
-  .sidebar-footer { padding: 16px 12px; border-top: 1px solid var(--border); }
-  .admin-badge { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface2); border-radius: 10px; }
-  .admin-avatar { width: 32px; height: 32px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; }
-  .admin-info { flex: 1; min-width: 0; }
-  .admin-info .name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .admin-info .role { font-size: 11px; color: var(--accent); font-family: 'DM Mono', monospace; }
+const app = express();
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD; // Set this in .env
 
-  /* MAIN */
-  .main { margin-left: 240px; flex: 1; display: flex; flex-direction: column; }
-  .topbar { padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface); position: sticky; top: 0; z-index: 40; }
-  .topbar h2 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; }
-  .topbar-right { display: flex; align-items: center; gap: 12px; }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); display: inline-block; }
-  .status-text { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; }
-  .content { padding: 28px 32px; }
-  .panel { display: none; }
-  .panel.active { display: block; }
+// GNEWS
+const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
+const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
+const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 60) * 60 * 1000;
+const MANUAL_ARTICLES_LIMIT = 0;
+const GNEWS_ARTICLES_LIMIT = 10;
+const MAX_GNEWS_PER_REQUEST = 10;
 
-  /* LOGIN */
-  #loginScreen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; }
-  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px; width: 380px; max-width: 90vw; }
-  .login-card h2 { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 6px; }
-  .login-card p  { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+let gnewsCache = [];
+let lastFetchTime = 0;
+let cacheStatus = { lastSuccessfulFetch: null, lastError: null, totalFetches: 0, isStale: false };
+const DEBUG = true;
+function log(...args) { if (DEBUG) console.log('[DEBUG]', ...args); }
 
-  /* FORMS */
-  .form-group { margin-bottom: 18px; }
-  .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 7px; letter-spacing: 0.3px; }
-  .form-group input, .form-group textarea, .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 11px 14px; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; resize: vertical; }
-  .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--accent); }
-  .form-group textarea { min-height: 140px; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-
-  /* BUTTONS */
-  .btn { padding: 11px 22px; border-radius: 10px; border: none; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 7px; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: #7c74ff; transform: translateY(-1px); }
-  .btn-success { background: var(--accent2); color: #000; }
-  .btn-success:hover { background: #00eabb; transform: translateY(-1px); }
-  .btn-orange { background: var(--orange); color: #fff; }
-  .btn-orange:hover { background: #ffad33; transform: translateY(-1px); }
-  .btn-red { background: var(--red); color: #fff; }
-  .btn-red:hover { background: #ef5350; transform: translateY(-1px); }
-  .btn-danger { background: var(--danger); color: #fff; }
-  .btn-danger:hover { background: #ff6b7a; }
-  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-sm { padding: 7px 14px; font-size: 13px; border-radius: 8px; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
-
-  /* UPLOAD CARDS */
-  .upload-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; position: relative; overflow: hidden; }
-  .upload-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-  .upload-card.blue::before   { background: var(--accent); }
-  .upload-card.orange::before { background: var(--orange); }
-  .upload-card.red::before    { background: var(--red); }
-  .upload-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-  .upload-card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-  .upload-card-icon.blue   { background: rgba(108,99,255,0.15); }
-  .upload-card-icon.orange { background: rgba(255,152,0,0.15); }
-  .upload-card-icon.red    { background: rgba(229,57,53,0.15); }
-
-  /* STATS */
-  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; position: relative; overflow: hidden; }
-  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-  .stat-card.purple::before { background: var(--accent); }
-  .stat-card.teal::before   { background: var(--accent2); }
-  .stat-card.green::before  { background: var(--green); }
-  .stat-card.red-b::before  { background: var(--danger); }
-  .stat-card.orange::before { background: var(--orange); }
-  .stat-card.dark-red::before { background: var(--red); }
-  .stat-label { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
-  .stat-value { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; line-height: 1; }
-  .stat-sub   { font-size: 12px; color: var(--muted); margin-top: 6px; }
-
-  /* ARTICLE CARDS */
-  .article-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-  .article-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; display: flex; align-items: flex-start; gap: 16px; transition: border-color 0.2s; }
-  .article-card:hover { border-color: var(--accent); }
-  .article-thumb { width: 70px; height: 60px; border-radius: 8px; background: var(--surface2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; border: 1px solid var(--border); overflow: hidden; }
-  .article-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .article-info { flex: 1; min-width: 0; }
-  .article-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 5px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .article-meta  { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 8px; }
-  .article-excerpt { font-size: 13px; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .article-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
-
-  /* IMAGE UPLOAD */
-  .image-drop { border: 2px dashed var(--border); border-radius: 12px; padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
-  .image-drop:hover { border-color: var(--accent); background: rgba(108,99,255,0.05); }
-  .image-drop.dragover { border-color: var(--accent2); background: rgba(0,212,170,0.07); }
-  .image-drop input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .image-drop .drop-icon { font-size: 28px; margin-bottom: 8px; }
-  .image-drop .drop-text { font-size: 14px; color: var(--muted); }
-  .image-drop .drop-sub  { font-size: 12px; color: var(--border); margin-top: 4px; font-family: 'DM Mono', monospace; }
-  .image-preview { width: 100%; max-height: 180px; border-radius: 10px; object-fit: cover; margin-top: 12px; border: 1px solid var(--border); display: none; }
-
-  /* TOAST */
-  #toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; font-size: 14px; z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 320px; }
-  #toast.show    { transform: translateY(0); opacity: 1; }
-  #toast.success { border-color: var(--green); }
-  #toast.error   { border-color: var(--danger); }
-
-  /* MISC */
-  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-  .section-header h3 { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; }
-  .divider { height: 1px; background: var(--border); margin: 24px 0; }
-  .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-row { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 40px; color: var(--muted); }
-  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
-  .empty-state .empty-icon { font-size: 48px; margin-bottom: 14px; }
-  .empty-state h4 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-  .search-bar { position: relative; margin-bottom: 20px; }
-  .search-bar input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 14px 10px 40px; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; }
-  .search-bar input:focus { border-color: var(--accent); }
-  .search-bar .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 15px; }
-  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; }
-  .badge-purple { background: rgba(108,99,255,0.15); color: var(--accent); }
-  .badge-teal   { background: rgba(0,212,170,0.15);  color: var(--accent2); }
-  .badge-green  { background: rgba(46,213,115,0.15); color: var(--green); }
-  .badge-red    { background: rgba(255,71,87,0.15);  color: var(--danger); }
-  .badge-orange { background: rgba(255,152,0,0.15);  color: var(--orange); }
-
-  /* MODALS */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(4px); }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 32px; max-width: 400px; width: 90%; }
-  .modal h3 { font-family: 'Syne', sans-serif; font-size: 19px; font-weight: 700; margin-bottom: 10px; }
-  .modal p  { color: var(--muted); font-size: 14px; margin-bottom: 24px; line-height: 1.6; }
-  .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
-
-  /* RESPONSIVE */
-  @media (max-width: 768px) {
-    .sidebar { width: 60px; }
-    .sidebar-logo h1, .sidebar-logo span, .nav-item span, .admin-info, .nav-section-label { display: none; }
-    .nav-item { justify-content: center; padding: 12px; }
-    .main { margin-left: 60px; }
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .form-row { grid-template-columns: 1fr; }
-    .content { padding: 20px 16px; }
-    .topbar { padding: 16px; }
-  }
-</style>
-<base target="_blank">
-</head>
-<body>
-
-<!-- LOGIN -->
-<div id="loginScreen">
-  <div class="login-card">
-    <div style="font-size:32px;margin-bottom:12px;">⚡</div>
-    <h2>Admin Login</h2>
-    <p>Centrinsic NPT — Control Panel</p>
-    <div class="form-group">
-      <label>Email Address</label>
-      <input type="email" id="loginEmail" placeholder="admin@email.com" onkeydown="if(event.key==='Enter')doLogin()" />
-    </div>
-    <div class="form-group">
-      <label>Password <span style="color:var(--muted);font-size:12px;">(optional — not required for OTP login)</span></label>
-      <input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
-    </div>
-    <button id="loginBtn" class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In →</button>
-    <p style="margin-top:14px;font-size:12px;text-align:center;color:var(--muted);">OTP login — enter email then verify OTP below</p>
-    <div id="otpSection" style="display:none;margin-top:16px;">
-      <div class="divider"></div>
-      <div class="form-group">
-        <label>Enter OTP sent to your email</label>
-        <input type="text" id="otpInput" placeholder="6-digit OTP" maxlength="6" style="letter-spacing:6px;font-size:20px;text-align:center;" onkeydown="if(event.key==='Enter')doVerifyOTP()" />
-      </div>
-      <button id="verifyOtpBtn" class="btn btn-success" style="width:100%;justify-content:center;" onclick="doVerifyOTP()">Verify OTP →</button>
-    </div>
-  </div>
-</div>
-
-<!-- MAIN LAYOUT -->
-<div class="layout" id="mainLayout" style="display:none;">
-
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <h1>Centrinsic</h1>
-      <span>NPT Admin</span>
-    </div>
-    <nav class="sidebar-nav">
-      <button class="nav-item active" onclick="showPanel('dashboard')"><span class="icon">📊</span><span>Dashboard</span></button>
-      <div class="nav-section-label">Upload</div>
-      <button class="nav-item" onclick="showPanel('upload-aid')"><span class="icon">🔵</span><span>AI-D Upload</span></button>
-      <button class="nav-item" onclick="showPanel('upload-60sec')"><span class="icon">⚡</span><span>60 Sec Digest</span></button>
-      <button class="nav-item" onclick="showPanel('upload-ca')"><span class="icon">🔴</span><span>Current Affairs</span></button>
-      <div class="nav-section-label">Manage</div>
-      <button class="nav-item" onclick="showPanel('articles')"><span class="icon">📰</span><span>All Articles</span></button>
-      <button class="nav-item" onclick="showPanel('gnews')"><span class="icon">🌐</span><span>GNews Cache</span></button>
-      <button class="nav-item" onclick="showPanel('scheduler')"><span class="icon">⏰</span><span>Scheduler</span></button>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="admin-badge">
-        <div class="admin-avatar" id="adminAvatar">A</div>
-        <div class="admin-info">
-          <div class="name" id="adminName">Admin</div>
-          <div class="role">ADMIN</div>
-        </div>
-      </div>
-    </div>
-  </aside>
-
-  <main class="main">
-    <div class="topbar">
-      <h2 id="topbarTitle">Dashboard</h2>
-      <div class="topbar-right">
-        <span class="status-dot"></span>
-        <span class="status-text" id="dbStatus">Connected</span>
-        <button class="btn btn-ghost btn-sm" onclick="doLogout()">Logout</button>
-      </div>
-    </div>
-
-    <div class="content">
-
-      <!-- ══ DASHBOARD ══ -->
-      <div class="panel active" id="panel-dashboard">
-        <div class="stats-grid">
-          <div class="stat-card purple"><div class="stat-label">AI-D Articles</div><div class="stat-value" id="statManual">—</div><div class="stat-sub">Detailed cards</div></div>
-          <div class="stat-card orange"><div class="stat-label">60 Sec Digests</div><div class="stat-value" id="stat60sec">—</div><div class="stat-sub">Daily bulletins</div></div>
-          <div class="stat-card dark-red"><div class="stat-label">Current Affairs</div><div class="stat-value" id="statCA">—</div><div class="stat-sub">Current affairs</div></div>
-          <div class="stat-card teal"><div class="stat-label">GNews Cached</div><div class="stat-value" id="statGnews">—</div><div class="stat-sub">AI-S cards</div></div>
-          <div class="stat-card green"><div class="stat-label">Total Users</div><div class="stat-value" id="statUsers">—</div><div class="stat-sub">Registered</div></div>
-          <div class="stat-card red-b"><div class="stat-label">Bookmarks</div><div class="stat-value" id="statBookmarks">—</div><div class="stat-sub">Saved by users</div></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
-            <div class="section-header"><h3>Quick Upload</h3></div>
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              <button class="btn btn-primary" onclick="showPanel('upload-aid')">🔵 Upload AI-D Article</button>
-              <button class="btn btn-orange"  onclick="showPanel('upload-60sec')">⚡ Upload 60 Sec Digest</button>
-              <button class="btn btn-red"     onclick="showPanel('upload-ca')">🔴 Upload Current Affairs</button>
-              <div class="divider" style="margin:4px 0;"></div>
-              <button class="btn btn-ghost"   onclick="refreshGNews()">🔄 Refresh GNews Cache</button>
-              <button class="btn btn-danger"  onclick="openDeleteAllModal()">🗑️ Delete All Manual News</button>
-            </div>
-          </div>
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
-            <div class="section-header"><h3>Auto-Delete Status</h3></div>
-            <div id="schedulerStatusDash" style="color:var(--muted);font-size:14px;">Loading...</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ UPLOAD AI-D ══ -->
-      <div class="panel" id="panel-upload-aid">
-        <div class="section-header">
-          <h3>🔵 Upload AI-D Article</h3>
-          <button class="btn btn-ghost btn-sm" onclick="resetForm('aid')">🔁 Reset</button>
-        </div>
-        <div class="upload-card blue">
-          <div class="upload-card-header">
-            <div class="upload-card-icon blue">🔵</div>
-            <div>
-              <div style="font-weight:700;font-size:16px;color:var(--accent);">Detailed AI Card (AI-D)</div>
-              <div style="font-size:13px;color:var(--muted);">Full detailed articles with image shown in AI-D tab.</div>
-            </div>
-          </div>
-
-          <!-- BULK PASTE PARSER -->
-          <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
-            <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📝 Bulk Paste Parser</div>
-            <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
-              Paste the full article block here — the system will auto-extract <strong>Source</strong>, <strong>Category</strong>, <strong>Original Link</strong>, <strong>Title</strong> and <strong>Content</strong> into the form below.
-            </div>
-            <textarea id="aid-bulkPaste" placeholder="Paste full block here...
-
-Source: ...
-Category: ...
-Original Link: ...
-Title: ...
-Content: ..."
-              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px 14px;font-size:13px;font-family:'DM Mono',monospace;min-height:120px;resize:vertical;outline:none;"
-              onpaste="setTimeout(()=>parseBulkPaste(),50)"></textarea>
-            <div style="display:flex;gap:10px;margin-top:10px;">
-              <button type="button" class="btn btn-primary btn-sm" onclick="parseBulkPaste()">🔍 Parse & Fill Fields</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('aid-bulkPaste').value=''">Clear</button>
-            </div>
-            <div id="aid-parseFeedback" style="margin-top:8px;font-size:12px;color:var(--accent2);display:none;"></div>
-          </div>
-
-          <div class="form-group">
-            <label>Article Title *</label>
-            <input type="text" id="aid-title" placeholder="Enter a clear, descriptive headline..." />
-          </div>
-          <div class="form-group">
-            <label>Content / Body *</label>
-            <textarea id="aid-content" placeholder="Full article content..." style="min-height:200px;"></textarea>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Source</label>
-              <input type="text" id="aid-source" placeholder="e.g. Times of India, Reuters..." />
-            </div>
-            <div class="form-group">
-              <label>Sub-Category</label>
-              <select id="aid-subcategory">
-                <option value="General">General</option>
-                <option value="Technology">Technology</option>
-                <option value="Business">Business</option>
-                <option value="Science">Science</option>
-                <option value="Sports">Sports</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Health">Health</option>
-                <option value="Politics">Politics</option>
-                <option value="World">World</option>
-                <option value="India">India</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Original Article Link (optional)</label>
-            <input type="url" id="aid-link" placeholder="https://..." />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Auto-Expire Date (optional)</label>
-              <input type="datetime-local" id="aid-expiry" />
-            </div>
-            <div class="form-group">
-              <label>Status</label>
-              <select id="aid-status">
-                <option value="published">Published</option>
-                <option value="draft">Draft</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Article Image</label>
-            <div class="image-drop" id="aid-imageDrop">
-              <input type="file" id="aid-image" accept="image/*" onchange="previewImage(this,'aid')" />
-              <div class="drop-icon">🖼️</div>
-              <div class="drop-text">Click to upload image</div>
-              <div class="drop-sub">JPG, PNG, WEBP — max 10MB</div>
-            </div>
-            <img id="aid-imagePreview" class="image-preview" alt="Preview" />
-          </div>
-          <div style="display:flex;gap:12px;margin-top:8px;">
-            <button class="btn btn-primary" id="aid-uploadBtn" onclick="uploadArticle('aid')" style="flex:1;justify-content:center;">🔵 Publish AI-D Article</button>
-            <button class="btn btn-ghost" onclick="resetForm('aid')">Cancel</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ UPLOAD 60 SEC BULLETIN DIGEST ══ -->
-      <div class="panel" id="panel-upload-60sec">
-        <div class="section-header">
-          <h3>⚡ Upload 60 Sec Digest</h3>
-          <button class="btn btn-ghost btn-sm" onclick="resetForm('60sec')">🔁 Reset</button>
-        </div>
-        <div class="upload-card orange">
-          <div class="upload-card-header">
-            <div class="upload-card-icon orange">⚡</div>
-            <div>
-              <div style="font-weight:700;font-size:16px;color:var(--orange);">Daily News Bulletin Digest</div>
-              <div style="font-size:13px;color:var(--muted);">Paste the entire bulletin — sections auto-parse with colored headers. One upload per day.</div>
-            </div>
-          </div>
-
-          <!-- FORMAT GUIDE -->
-          <div style="background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
-            <div style="font-size:12px;font-weight:800;color:var(--orange);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📋 Paste Format Guide</div>
-            <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);line-height:1.8;background:var(--surface2);padding:12px;border-radius:8px;">
-              <span style="color:#FF9800;font-weight:700;">Global Conflict &amp; Middle East</span><br>
-              1. Iran Threatens Infrastructure: Tehran warns...<br>
-              2. Strait of Hormuz: Iran's blockade continues...<br>
-              <br>
-              <span style="color:#4CAF50;font-weight:700;">India National News</span><br>
-              1. PM Modi's Meet: Prime Minister held...<br>
-              2. Petrol Price Hike: Premium prices hiked...<br>
-            </div>
-            <div style="margin-top:10px;font-size:12px;color:var(--muted);">
-              ✅ Section name on its own line → becomes a colored header<br>
-              ✅ <code style="color:var(--accent2);">1. Bold Title: Content here</code> → numbered point with bold title<br>
-              ✅ Each section auto-gets a unique color automatically
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Digest Title * <span style="color:var(--muted);font-size:12px;">e.g. "Daily Digest — 23 March 2026"</span></label>
-            <input type="text" id="60sec-title" placeholder="Daily Digest — 23 March 2026" />
-          </div>
-
-          <div class="form-group">
-            <label>Full Bulletin Content * <span style="color:var(--orange);font-size:12px;">— paste entire bulletin here</span></label>
-            <textarea id="60sec-content"
-              placeholder="Global Conflict &amp; Middle East Crisis
-1. Iran Threatens Infrastructure: Tehran warns it will target all U.S. facilities.
-2. Strait of Hormuz Blockade: Iran's blockade cutting off 20% of global oil.
-
-India National News
-1. Shaheed Diwas: India observes Martyrs' Day today.
-2. PM Modi's Meet: Prime Minister held a meeting on West Asia."
-              style="min-height:380px;font-family:'DM Mono',monospace;font-size:13px;line-height:1.7;"></textarea>
-          </div>
-
-          <!-- Live preview count -->
-          <div id="60sec-parsePreview" style="background:var(--surface2);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted);display:none;">
-            📊 Detected: <span id="60sec-sectionCount" style="color:var(--orange);font-weight:700;">0</span> sections,
-            <span id="60sec-pointCount" style="color:var(--accent2);font-weight:700;">0</span> total points
-          </div>
-
-          <!-- IMPORTANT NOTE — category is auto-set to '60sec' -->
-          <div style="background:rgba(255,152,0,0.12);border:1px solid rgba(255,152,0,0.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;">
-            ✅ <strong style="color:var(--orange);">Category is automatically set to "60sec"</strong> — no need to select anything. This ensures the article always appears in the ⚡ 60 Sec tab.
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Source / Edition</label>
-              <input type="text" id="60sec-source" placeholder="e.g. Centrinsic NPT Daily" />
-            </div>
-            <div class="form-group">
-              <label>Auto-Expire Date (optional)</label>
-              <input type="datetime-local" id="60sec-expiry" />
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select id="60sec-status">
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-            </select>
-          </div>
-
-          <div style="display:flex;gap:12px;margin-top:8px;">
-            <button class="btn btn-orange" id="60sec-uploadBtn" onclick="uploadArticle('60sec')" style="flex:1;justify-content:center;">⚡ Publish 60 Sec Digest</button>
-            <button class="btn btn-ghost" onclick="resetForm('60sec')">Cancel</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ UPLOAD CURRENT AFFAIRS ══ -->
-      <div class="panel" id="panel-upload-ca">
-        <div class="section-header">
-          <h3>🔴 Upload Current Affairs</h3>
-          <button class="btn btn-ghost btn-sm" onclick="resetForm('ca')">🔁 Reset</button>
-        </div>
-        <div class="upload-card red">
-          <div class="upload-card-header">
-            <div class="upload-card-icon red">🔴</div>
-            <div>
-              <div style="font-weight:700;font-size:16px;color:var(--red);">Current Affairs Article</div>
-              <div style="font-size:13px;color:var(--muted);">Exam-relevant content, government policies, major events.</div>
-            </div>
-          </div>
-          <div style="background:rgba(229,57,53,0.08);border:1px solid rgba(229,57,53,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--red);">
-            💡 <strong>Best for:</strong> Exam-relevant current affairs, government schemes, major national/international events, policy changes.
-          </div>
-          <div class="form-group">
-            <label>Article Title *</label>
-            <input type="text" id="ca-title" placeholder="Current affairs headline..." />
-          </div>
-          <div class="form-group">
-            <label>Content / Body *</label>
-            <textarea id="ca-content" placeholder="Detailed current affairs content. Include key facts, dates, important names, and context..." style="min-height:200px;"></textarea>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Source</label>
-              <input type="text" id="ca-source" placeholder="e.g. PIB, Hindu, Indian Express..." />
-            </div>
-            <div class="form-group">
-              <label>Topic Tag</label>
-              <select id="ca-subcategory">
-                <option value="currentaffairs">General Current Affairs</option>
-                <option value="currentaffairs">Economy</option>
-                <option value="currentaffairs">Defence</option>
-                <option value="currentaffairs">International</option>
-                <option value="currentaffairs">Science &amp; Tech</option>
-                <option value="currentaffairs">Environment</option>
-                <option value="currentaffairs">Sports</option>
-                <option value="currentaffairs">Awards</option>
-                <option value="currentaffairs">Government Schemes</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Original Article Link (optional)</label>
-            <input type="url" id="ca-link" placeholder="https://..." />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Auto-Expire Date (optional)</label>
-              <input type="datetime-local" id="ca-expiry" />
-            </div>
-            <div class="form-group">
-              <label>Status</label>
-              <select id="ca-status">
-                <option value="published">Published</option>
-                <option value="draft">Draft</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Article Image</label>
-            <div class="image-drop" id="ca-imageDrop">
-              <input type="file" id="ca-image" accept="image/*" onchange="previewImage(this,'ca')" />
-              <div class="drop-icon">🖼️</div>
-              <div class="drop-text">Click to upload image</div>
-              <div class="drop-sub">JPG, PNG, WEBP — max 10MB</div>
-            </div>
-            <img id="ca-imagePreview" class="image-preview" alt="Preview" />
-          </div>
-          <div style="display:flex;gap:12px;margin-top:8px;">
-            <button class="btn btn-red" id="ca-uploadBtn" onclick="uploadArticle('ca')" style="flex:1;justify-content:center;">🔴 Publish Current Affairs</button>
-            <button class="btn btn-ghost" onclick="resetForm('ca')">Cancel</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ ALL ARTICLES ══ -->
-      <div class="panel" id="panel-articles">
-        <div class="section-header">
-          <h3>All Manual Articles</h3>
-          <div style="display:flex;gap:10px;align-items:center;">
-            <span class="badge badge-purple" id="articleCountBadge">0 articles</span>
-            <button class="btn btn-ghost btn-sm" onclick="loadArticles()">🔄 Refresh</button>
-            <button class="btn btn-danger btn-sm" onclick="openDeleteAllModal()">🗑️ Delete All</button>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-          <button class="btn btn-sm" id="filter-all"   onclick="filterByCategory('all')"    style="background:var(--accent);color:#fff;border:none;">All</button>
-          <button class="btn btn-sm btn-ghost" id="filter-aid"   onclick="filterByCategory('aid')">🔵 AI-D</button>
-          <button class="btn btn-sm btn-ghost" id="filter-60sec" onclick="filterByCategory('60sec')">⚡ 60 Sec</button>
-          <button class="btn btn-sm btn-ghost" id="filter-ca"    onclick="filterByCategory('ca')">🔴 Current Affairs</button>
-        </div>
-        <div class="search-bar">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="searchInput" placeholder="Search articles by title..." oninput="applyArticleFilters()" />
-        </div>
-        <div id="articlesList"><div class="loading-row"><div class="spinner"></div> Loading articles...</div></div>
-      </div>
-
-      <!-- ══ GNEWS ══ -->
-      <div class="panel" id="panel-gnews">
-        <div class="section-header">
-          <h3>GNews Cache (AI-S)</h3>
-          <button class="btn btn-primary btn-sm" onclick="refreshGNews()">🔄 Force Refresh</button>
-        </div>
-        <div id="gnewsStatus" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;">Loading...</div>
-        <div id="gnewsList"><div class="loading-row"><div class="spinner"></div> Loading GNews cache...</div></div>
-      </div>
-
-      <!-- ══ SCHEDULER ══ -->
-      <div class="panel" id="panel-scheduler">
-        <div class="section-header"><h3>Auto-Delete Scheduler</h3></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
-            <h4 style="font-family:'Syne',sans-serif;margin-bottom:16px;">Scheduler Status</h4>
-            <div id="schedulerStatusFull" style="color:var(--muted);font-size:14px;line-height:2;">Loading...</div>
-            <div class="divider"></div>
-            <button class="btn btn-danger" onclick="triggerAutoDelete()">🗑️ Run Delete Now (Test)</button>
-          </div>
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
-            <h4 style="font-family:'Syne',sans-serif;margin-bottom:12px;">About Auto-Delete</h4>
-            <div style="color:var(--muted);font-size:14px;line-height:1.8;">
-              <p>🕐 Runs daily at <strong style="color:var(--text);">11:57 PM IST</strong></p>
-              <p style="margin-top:8px;">🗑️ Deletes <strong style="color:var(--text);">all manual articles</strong> + Cloudinary images</p>
-              <p style="margin-top:8px;">🔖 Also clears <strong style="color:var(--text);">all bookmarks</strong></p>
-              <p style="margin-top:8px;">⚡ GNews cache is <strong style="color:var(--text);">not affected</strong></p>
-              <p style="margin-top:16px;padding:10px;background:rgba(255,71,87,0.1);border-radius:8px;border:1px solid rgba(255,71,87,0.2);color:var(--danger);">⚠️ "Run Delete Now" immediately deletes all manual articles!</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </main>
-</div>
-
-<!-- MODALS -->
-<div class="modal-overlay" id="deleteAllModal">
-  <div class="modal">
-    <h3>⚠️ Delete All Manual News?</h3>
-    <p>This permanently deletes all AI-D + 60 Sec + Current Affairs articles and Cloudinary images.</p>
-    <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="closeDeleteAllModal()">Cancel</button>
-      <button class="btn btn-danger" onclick="deleteAllNews()">Yes, Delete All</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="deleteSingleModal">
-  <div class="modal">
-    <h3>Delete Article?</h3>
-    <p id="deleteSingleMsg">Are you sure?</p>
-    <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="document.getElementById('deleteSingleModal').classList.remove('open')">Cancel</button>
-      <button class="btn btn-danger" onclick="confirmDeleteSingle()">Delete</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast"></div>
-
-<script>
-const API_BASE = 'https://centrinsicnpt.com';
-let authToken             = localStorage.getItem('admin_token') || '';
-let allArticlesData       = [];
-let currentCategoryFilter = 'all';
-let deleteTargetId        = null;
-
-window.onload = () => {
-  if (authToken) { showMainLayout(); loadDashboard(); }
-};
-
-// ── AUTH ──────────────────────────────────────
-async function doLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
-  const btn = document.getElementById('loginBtn');
-  if (!email) return showToast('Enter email address', 'error');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Sending OTP...'; }
-  showToast('Sending OTP...', '');
-  try {
-    const r = await api('/api/auth/send-otp', 'POST', { email });
-    if (r.success) {
-      document.getElementById('otpSection').style.display = 'block';
-      localStorage.setItem('admin_temp_email', email);
-      showToast('📧 OTP sent! Check your email.', 'success');
-      setTimeout(() => document.getElementById('otpInput')?.focus(), 300);
-    } else {
-      showToast(r.message || r.error || 'Failed to send OTP', 'error');
+function getLocalIP() {
+    const interfaces = os.networkInterfaces();
+    for (const name in interfaces) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal && !name.includes('Virtual')) return iface.address;
+        }
     }
-  } catch(e) { showToast('Network error: ' + (e.message || 'Cannot reach server'), 'error'); }
-  finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In →'; } }
+    return 'localhost';
 }
+const LOCAL_IP = getLocalIP();
+console.log('📡 Local IP:', LOCAL_IP);
 
-async function doVerifyOTP() {
-  const email = localStorage.getItem('admin_temp_email');
-  const otp   = document.getElementById('otpInput').value.trim();
-  const btn   = document.getElementById('verifyOtpBtn');
-  if (!otp || otp.length !== 6) return showToast('Enter 6-digit OTP', 'error');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Verifying...'; }
-  try {
-    const r = await api('/api/auth/verify-otp', 'POST', { email, otp });
-    if (r.success && r.token) {
-      authToken = r.token;
-      localStorage.setItem('admin_token', authToken);
-      localStorage.setItem('admin_email', email);
-      showMainLayout(); loadDashboard();
-      showToast('✅ Logged in successfully!', 'success');
-    } else { showToast(r.message || r.error || 'Invalid OTP', 'error'); }
-  } catch(e) { showToast('Network error: ' + (e.message || 'Cannot reach server'), 'error'); }
-  finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Verify OTP →'; } }
-}
+// ============================================
+// MONGODB
+// ============================================
+mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('✅ MongoDB Connected'))
+    .catch(err => { console.error('❌ MongoDB Failed:', err.message); process.exit(1); });
 
-function showMainLayout() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('mainLayout').style.display  = 'flex';
-  const email = localStorage.getItem('admin_email') || 'Admin';
-  const name  = email.split('@')[0];
-  document.getElementById('adminName').textContent   = name;
-  document.getElementById('adminAvatar').textContent = name[0].toUpperCase();
-}
-
-function doLogout() {
-  authToken = '';
-  localStorage.removeItem('admin_token');
-  localStorage.removeItem('admin_email');
-  location.reload();
-}
-
-// ── NAVIGATION ────────────────────────────────
-const panelTitles = {
-  'dashboard': 'Dashboard', 'upload-aid': '🔵 Upload AI-D Article',
-  'upload-60sec': '⚡ Upload 60 Sec Digest', 'upload-ca': '🔴 Upload Current Affairs',
-  'articles': 'All Articles', 'gnews': 'GNews Cache (AI-S)', 'scheduler': 'Scheduler'
-};
-
-function showPanel(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active','active-orange','active-red'));
-  const panel = document.getElementById('panel-' + name);
-  if (panel) panel.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => {
-    if (n.getAttribute('onclick')?.includes(`'${name}'`)) {
-      if (name === 'upload-60sec') n.classList.add('active-orange');
-      else if (name === 'upload-ca') n.classList.add('active-red');
-      else n.classList.add('active');
-    }
-  });
-  document.getElementById('topbarTitle').textContent = panelTitles[name] || name;
-  if (name === 'articles')  loadArticles();
-  if (name === 'gnews')     loadGNewsPanel();
-  if (name === 'scheduler') loadSchedulerStatus();
-  if (name === 'dashboard') loadDashboard();
-}
-
-// ── DASHBOARD ─────────────────────────────────
-async function loadDashboard() {
-  try {
-    const [dbStatus, cacheStatus, autoStatus, articlesData] = await Promise.all([
-      api('/api/debug/db-status'), api('/api/admin/cache-status'),
-      api('/api/admin/auto-delete-status'), api('/api/articles')
-    ]);
-    const articles = articlesData.articles || [];
-    document.getElementById('statManual').textContent    = articles.filter(a => a.isManual && !['60sec','currentaffairs'].includes((a.category||'').toLowerCase())).length;
-    document.getElementById('stat60sec').textContent     = articles.filter(a => a.isManual && (a.category||'').toLowerCase() === '60sec').length;
-    document.getElementById('statCA').textContent        = articles.filter(a => a.isManual && (a.category||'').toLowerCase() === 'currentaffairs').length;
-    document.getElementById('statGnews').textContent     = cacheStatus.articlesInCache ?? '—';
-    document.getElementById('statUsers').textContent     = dbStatus.collections?.users ?? '—';
-    document.getElementById('statBookmarks').textContent = dbStatus.collections?.bookmarks ?? '—';
-    document.getElementById('dbStatus').textContent      = dbStatus.mongoConnection === 'connected' ? 'Connected' : 'Disconnected';
-    const ad = autoStatus.autoDelete;
-    document.getElementById('schedulerStatusDash').innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;">
-        <div>⏰ <strong>Scheduled:</strong> ${ad.scheduledTime}</div>
-        <div>✅ <strong>Last Run:</strong> ${ad.lastRun ? new Date(ad.lastRun).toLocaleString() : 'Never'}</div>
-        <div>🗑️ <strong>Last Deleted:</strong> ${ad.lastDeletedCount} articles</div>
-        ${ad.lastError ? `<div style="color:var(--danger);">❌ ${ad.lastError}</div>` : ''}
-      </div>`;
-  } catch(e) { showToast('Failed to load dashboard', 'error'); }
-}
-
-// ── LIVE PARSE PREVIEW FOR 60 SEC ─────────────
-function update60SecPreview() {
-  const content   = document.getElementById('60sec-content')?.value || '';
-  const preview   = document.getElementById('60sec-parsePreview');
-  const secCount  = document.getElementById('60sec-sectionCount');
-  const ptCount   = document.getElementById('60sec-pointCount');
-  if (!preview) return;
-
-  const lines     = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  let sections    = 0;
-  let points      = 0;
-
-  for (const line of lines) {
-    const isNumbered = /^\d+[\.\)]\s/.test(line);
-    const isBullet   = /^[-•*]\s/.test(line);
-    if (!isNumbered && !isBullet && line.length > 3) sections++;
-    else if (isNumbered || isBullet) points++;
-  }
-
-  if (content.trim().length > 10) {
-    preview.style.display = 'block';
-    if (secCount) secCount.textContent = sections;
-    if (ptCount)  ptCount.textContent  = points;
-  } else {
-    preview.style.display = 'none';
-  }
-}
-
-// ── UPLOAD ────────────────────────────────────
-function previewImage(input, prefix) {
-  const file    = input.files[0];
-  const preview = document.getElementById(`${prefix}-imagePreview`);
-  const drop    = document.getElementById(`${prefix}-imageDrop`);
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      preview.src = e.target.result; preview.style.display = 'block';
-      drop.querySelector('.drop-icon').textContent = '✅';
-      drop.querySelector('.drop-text').textContent = file.name;
-    };
-    reader.readAsDataURL(file);
-  }
-}
-
-async function uploadArticle(prefix) {
-  const title   = document.getElementById(`${prefix}-title`).value.trim();
-  const content = document.getElementById(`${prefix}-content`).value.trim();
-  if (!title)   return showToast('Title is required', 'error');
-  if (!content) return showToast('Content is required', 'error');
-
-  // 60sec: validate has some content
-  if (prefix === '60sec' && content.length < 20) return showToast('Please add bulletin content', 'error');
-
-  const btn = document.getElementById(`${prefix}-uploadBtn`);
-  btn.disabled  = true;
-  btn.innerHTML = '<div class="spinner"></div> Uploading...';
-
-  const formData = new FormData();
-  formData.append('title',   title);
-  formData.append('content', content);
-  formData.append('source',  document.getElementById(`${prefix}-source`)?.value.trim() || 'Centrinsic NPT');
-  formData.append('status',  document.getElementById(`${prefix}-status`)?.value || 'published');
-
-  // Category — explicit per type, never falls through
-  let category;
-  if (prefix === 'aid') {
-    category = document.getElementById('aid-subcategory')?.value || 'General';
-  } else if (prefix === '60sec') {
-    category = '60sec'; // hardcoded — always goes to 60sec tab
-  } else if (prefix === 'ca') {
-    category = 'currentaffairs';
-  } else {
-    category = 'General';
-  }
-  // Safety check: 60sec must always be category="60sec"
-  console.log("[Admin Upload] prefix=" + prefix + " category=" + category);
-  if (prefix === "60sec" && category !== "60sec") {
-    showToast("ERROR: Wrong category! Got: " + category, "error");
-    btn.disabled = false;
-    btn.innerHTML = "Publish 60 Sec Digest";
-    return;
-  }
-  formData.append('category', category);
-
-  const linkEl = document.getElementById(`${prefix}-link`);
-  const link   = linkEl ? linkEl.value.trim() : '';
-  if (link) formData.append('originalLink', link);
-
-  const expiry = document.getElementById(`${prefix}-expiry`)?.value;
-  if (expiry) formData.append('expiresAt', new Date(expiry).toISOString());
-
-  const imageFile = document.getElementById(`${prefix}-image`)?.files[0];
-  if (imageFile) formData.append('image', imageFile);
-
-  try {
-    const response = await fetch(`${API_BASE}/api/articles`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${authToken}` },
-      body: formData
-    });
-    const data = await response.json();
-    if (data.success || data.articleId) {
-      const labels = { aid: '🔵 AI-D', '60sec': '⚡ 60 Sec Digest', ca: '🔴 Current Affairs' };
-      showToast(`✅ ${labels[prefix]} published!`, 'success');
-      resetForm(prefix);
-      loadDashboard();
-    } else {
-      showToast(data.error || 'Upload failed', 'error');
-    }
-  } catch(e) {
-    showToast('Network error: ' + e.message, 'error');
-  } finally {
-    btn.disabled  = false;
-    const btnLabels = { aid: '🔵 Publish AI-D Article', '60sec': '⚡ Publish 60 Sec Digest', ca: '🔴 Publish Current Affairs' };
-    btn.innerHTML = btnLabels[prefix];
-  }
-}
-
-function resetForm(prefix) {
-  ['title','content','source','link','expiry'].forEach(f => {
-    const el = document.getElementById(`${prefix}-${f}`);
-    if (el) el.value = '';
-  });
-  const status = document.getElementById(`${prefix}-status`);
-  if (status) status.value = 'published';
-  const img = document.getElementById(`${prefix}-image`);
-  if (img) img.value = '';
-  const preview = document.getElementById(`${prefix}-imagePreview`);
-  if (preview) preview.style.display = 'none';
-  const drop = document.getElementById(`${prefix}-imageDrop`);
-  if (drop) { drop.querySelector('.drop-icon').textContent = '🖼️'; drop.querySelector('.drop-text').textContent = 'Click to upload image'; }
-  if (prefix === '60sec') { const p = document.getElementById('60sec-parsePreview'); if (p) p.style.display = 'none'; }
-}
-
-// ── ALL ARTICLES ──────────────────────────────
-async function loadArticles() {
-  document.getElementById('articlesList').innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading...</div>';
-  try {
-    const data = await apiAuth('/api/admin/articles');
-    allArticlesData = data.articles || [];
-    document.getElementById('articleCountBadge').textContent = `${allArticlesData.length} articles`;
-    applyArticleFilters();
-  } catch(e) {
-    document.getElementById('articlesList').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><h4>Failed to load</h4><p>${e.message}</p></div>`;
-  }
-}
-
-function filterByCategory(cat) {
-  currentCategoryFilter = cat;
-  document.querySelectorAll('[id^="filter-"]').forEach(btn => {
-    btn.style.background = 'transparent'; btn.style.color = 'var(--muted)'; btn.style.border = '1px solid var(--border)';
-  });
-  const active = document.getElementById(`filter-${cat}`);
-  if (active) {
-    const colors = { all: 'var(--accent)', aid: 'var(--accent)', '60sec': 'var(--orange)', ca: 'var(--red)' };
-    active.style.background = colors[cat] || 'var(--accent)';
-    active.style.color      = '#fff';
-    active.style.border     = 'none';
-  }
-  applyArticleFilters();
-}
-
-function applyArticleFilters() {
-  const query = document.getElementById('searchInput')?.value.toLowerCase() || '';
-  let filtered = allArticlesData;
-  if (currentCategoryFilter === 'aid')   filtered = filtered.filter(a => !['60sec','currentaffairs'].includes((a.category||'').toLowerCase()));
-  if (currentCategoryFilter === '60sec') filtered = filtered.filter(a => (a.category||'').toLowerCase() === '60sec');
-  if (currentCategoryFilter === 'ca')    filtered = filtered.filter(a => (a.category||'').toLowerCase() === 'currentaffairs');
-  if (query) filtered = filtered.filter(a => a.title.toLowerCase().includes(query) || (a.source||'').toLowerCase().includes(query));
-  renderArticles(filtered);
-}
-
-function renderArticles(articles) {
-  const container = document.getElementById('articlesList');
-  if (!articles || articles.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h4>No articles found</h4><p>Upload some articles to see them here</p></div>`;
-    return;
-  }
-  container.innerHTML = `<div class="article-grid">` + articles.map(a => {
-    const date    = new Date(a.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-    const excerpt = (a.content||'').substring(0,90)+'...';
-    const hasImg  = a.image && a.image.startsWith('http');
-    const cat     = (a.category||'').toLowerCase();
-    let catBadge  = `<span class="badge badge-teal">${escHtml(a.category||'General')}</span>`;
-    if (cat === '60sec')          catBadge = `<span class="badge badge-orange">⚡ 60 Sec Digest</span>`;
-    if (cat === 'currentaffairs') catBadge = `<span class="badge badge-red">🔴 Current Affairs</span>`;
-    return `
-      <div class="article-card">
-        <div class="article-thumb">${hasImg ? `<img src="${a.image}" onerror="this.parentElement.innerHTML='📄'" />` : (cat === '60sec' ? '⚡' : cat === 'currentaffairs' ? '🔴' : '📄')}</div>
-        <div class="article-info">
-          <div class="article-title">${escHtml(a.title)}</div>
-          <div class="article-meta">
-            ${escHtml(a.source||'Unknown')} • ${date}
-            ${catBadge}
-            <span class="badge ${a.status==='published'?'badge-green':'badge-red'}" style="margin-left:4px;">${a.status}</span>
-          </div>
-          <div class="article-excerpt">${escHtml(excerpt)}</div>
-        </div>
-        <div class="article-actions">
-          <button class="btn btn-danger btn-sm" onclick="openDeleteSingle('${a._id}','${escHtml(a.title).replace(/'/g,"\\'")}')">🗑️</button>
-        </div>
-      </div>`;
-  }).join('') + `</div>`;
-}
-
-// ── GNEWS ─────────────────────────────────────
-async function loadGNewsPanel() {
-  try {
-    const data = await api('/api/admin/cache-status');
-    const lastFetch = data.lastFetchTime ? new Date(data.lastFetchTime).toLocaleString() : 'Never';
-    document.getElementById('gnewsStatus').innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
-        <div><div style="color:var(--muted);font-size:12px;margin-bottom:4px;font-family:'DM Mono',monospace;">CACHED</div><div style="font-size:24px;font-family:'Syne',sans-serif;font-weight:800;">${data.articlesInCache}</div></div>
-        <div><div style="color:var(--muted);font-size:12px;margin-bottom:4px;font-family:'DM Mono',monospace;">LAST FETCH</div><div style="font-size:13px;">${lastFetch}</div></div>
-        <div><div style="color:var(--muted);font-size:12px;margin-bottom:4px;font-family:'DM Mono',monospace;">CACHE DURATION</div><div style="font-size:13px;">${data.cacheDurationMinutes} min</div></div>
-      </div>
-      <div style="display:flex;gap:12px;align-items:center;">
-        <span class="badge ${data.cacheStatus?.isStale?'badge-red':'badge-green'}">${data.cacheStatus?.isStale?'⚠️ Stale':'✅ Fresh'}</span>
-        <span style="color:var(--muted);font-size:13px;">API: ${data.gnewsConfigured?'✅ Configured':'❌ Not configured'}</span>
-      </div>`;
-    const articles = await api('/api/articles');
-    const gnews    = (articles.articles||[]).filter(a => !a.isManual);
-    if (gnews.length === 0) { document.getElementById('gnewsList').innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><h4>No GNews cached</h4><p>Click Force Refresh to fetch</p></div>'; return; }
-    document.getElementById('gnewsList').innerHTML = `<div class="article-grid">` + gnews.map(a => {
-      const date = a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : 'Recent';
-      return `<div class="article-card">
-        <div class="article-thumb">${a.image?`<img src="${a.image}" onerror="this.parentElement.innerHTML='🌐'" />`:'🌐'}</div>
-        <div class="article-info">
-          <div class="article-title">${escHtml(a.title)}</div>
-          <div class="article-meta">${escHtml(a.source)} • ${date}</div>
-          <div class="article-excerpt">${escHtml((a.content||'').substring(0,90)+'...')}</div>
-        </div>
-        ${a.originalLink?`<div class="article-actions"><a href="${a.originalLink}" target="_blank" class="btn btn-ghost btn-sm">🔗</a></div>`:''}
-      </div>`;
-    }).join('') + `</div>`;
-  } catch(e) { document.getElementById('gnewsStatus').innerHTML = `<p style="color:var(--danger)">Failed: ${e.message}</p>`; }
-}
-
-async function refreshGNews() {
-  showToast('Refreshing GNews...', '');
-  try {
-    const data = await apiAuth('/api/admin/refresh-gnews', 'POST');
-    if (data.success) { showToast(`✅ ${data.count} articles cached`, 'success'); if (document.getElementById('panel-gnews').classList.contains('active')) loadGNewsPanel(); loadDashboard(); }
-    else showToast(data.error || 'Refresh failed', 'error');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-}
-
-// ── SCHEDULER ─────────────────────────────────
-async function loadSchedulerStatus() {
-  try {
-    const data = await api('/api/admin/auto-delete-status');
-    const ad   = data.autoDelete;
-    const html = `
-      <div>⏰ <strong style="color:var(--text)">Scheduled:</strong> ${ad.scheduledTime}</div>
-      <div>🕐 <strong style="color:var(--text)">Current Time:</strong> ${ad.currentTimeInZone}</div>
-      <div>✅ <strong style="color:var(--text)">Last Run:</strong> ${ad.lastRun ? new Date(ad.lastRun).toLocaleString() : 'Never'}</div>
-      <div>🗑️ <strong style="color:var(--text)">Last Deleted:</strong> ${ad.lastDeletedCount}</div>
-      <div>🔁 <strong style="color:var(--text)">Total Runs:</strong> ${ad.totalRuns}</div>
-      ${ad.lastError?`<div style="color:var(--danger)">❌ ${ad.lastError}</div>`:''}`;
-    document.getElementById('schedulerStatusFull').innerHTML = html;
-    document.getElementById('schedulerStatusDash').innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;">${html}</div>`;
-  } catch(e) { document.getElementById('schedulerStatusFull').innerHTML = '<p style="color:var(--danger)">Failed to load</p>'; }
-}
-
-async function triggerAutoDelete() {
-  if (!confirm('⚠️ DELETE ALL manual articles RIGHT NOW?')) return;
-  showToast('Running auto-delete...', '');
-  try {
-    const data = await apiAuth('/api/admin/trigger-auto-delete', 'POST');
-    if (data.success) { showToast(`✅ Deleted ${data.deletedCount} articles`, 'success'); loadSchedulerStatus(); loadDashboard(); }
-    else showToast(data.error || 'Failed', 'error');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-}
-
-// ── DELETE ────────────────────────────────────
-function openDeleteAllModal()  { document.getElementById('deleteAllModal').classList.add('open'); }
-function closeDeleteAllModal() { document.getElementById('deleteAllModal').classList.remove('open'); }
-
-async function deleteAllNews() {
-  closeDeleteAllModal();
-  showToast('Deleting all articles...', '');
-  try {
-    const data = await apiAuth('/api/admin/delete-all-news', 'DELETE');
-    if (data.success) { showToast('✅ All articles deleted', 'success'); loadDashboard(); if (document.getElementById('panel-articles').classList.contains('active')) loadArticles(); }
-    else showToast(data.error || 'Failed', 'error');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-}
-
-function openDeleteSingle(id, title) {
-  deleteTargetId = id;
-  document.getElementById('deleteSingleMsg').textContent = `Delete "${title}"?`;
-  document.getElementById('deleteSingleModal').classList.add('open');
-}
-
-async function confirmDeleteSingle() {
-  document.getElementById('deleteSingleModal').classList.remove('open');
-  if (!deleteTargetId) return;
-  try {
-    const r = await fetch(`${API_BASE}/api/articles/${deleteTargetId}`, { method:'DELETE', headers:{'Authorization':`Bearer ${authToken}`} });
-    const data = await r.json();
-    if (data.success) { showToast('✅ Article deleted', 'success'); loadArticles(); loadDashboard(); }
-    else showToast(data.error || 'Delete failed', 'error');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-  deleteTargetId = null;
-}
-
-// ── API ───────────────────────────────────────
-async function api(path, method='GET', body=null) {
-  const opts = { method, headers:{'Content-Type':'application/json'} };
-  if (body) opts.body = JSON.stringify(body);
-  const response = await fetch(API_BASE + path, opts);
-  const text = await response.text();
-  let data;
-  try { data = JSON.parse(text); } catch(e) { data = { error: text.substring(0,200) || 'Server returned non-JSON response' }; }
-  if (!response.ok && !data.error) data.error = `HTTP ${response.status}: ${response.statusText}`;
-  return data;
-}
-
-async function apiAuth(path, method='GET', body=null) {
-  const opts = { method, headers:{'Content-Type':'application/json','Authorization':`Bearer ${authToken}`} };
-  if (body) opts.body = JSON.stringify(body);
-  const response = await fetch(API_BASE + path, opts);
-  const text = await response.text();
-  let data;
-  try { data = JSON.parse(text); } catch(e) { data = { error: text.substring(0,200) || 'Server returned non-JSON response' }; }
-  if (!response.ok && !data.error) data.error = `HTTP ${response.status}: ${response.statusText}`;
-  return data;
-}
-
-// ── TOAST ─────────────────────────────────────
-let toastTimer;
-function showToast(msg, type='') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'show ' + type;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.className = '', 3500);
-}
-
-// ── UTILS ─────────────────────────────────────
-function escHtml(str) {
-  if (!str) return '';
-  const d = document.createElement('div');
-  d.textContent = String(str);
-  return d.innerHTML;
-}
-
-// ── DRAG & DROP ───────────────────────────────
-['aid','ca'].forEach(prefix => {
-  window.addEventListener('load', () => {
-    const drop = document.getElementById(`${prefix}-imageDrop`);
-    if (!drop) return;
-    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
-    drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
-    drop.addEventListener('drop', e => {
-      e.preventDefault(); drop.classList.remove('dragover');
-      const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) {
-        const input = document.getElementById(`${prefix}-image`);
-        const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
-        previewImage(input, prefix);
-      }
-    });
-  });
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// ── LIVE PREVIEW LISTENER FOR 60 SEC ──────────
-window.addEventListener('load', () => {
-  const textarea = document.getElementById('60sec-content');
-  if (textarea) textarea.addEventListener('input', update60SecPreview);
+const storage = new CloudinaryStorage({
+    cloudinary,
+    params: async (req, file) => ({
+        folder: "centrinsic-npt", format: "jpg",
+        transformation: [{ width: 1000, crop: "limit", quality: "auto" }]
+    })
 });
+const upload = multer({ storage });
 
-// ── BULK PASTE PARSER ─────────────────────────
-function parseBulkPaste() {
-  const raw = document.getElementById('aid-bulkPaste')?.value || '';
-  if (!raw.trim()) return;
+// ============================================
+// BREVO OTP
+// ============================================
+const brevo = require('@getbrevo/brevo');
+const emailApi = new brevo.TransactionalEmailsApi();
+emailApi.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
 
-  const feedback = document.getElementById('aid-parseFeedback');
-  const lines = raw.split('
-');
-  let currentField = null;
-  const fields = { source: '', category: '', link: '', title: '', content: '' };
-  const fieldMap = {
-    'source': 'source', 'src': 'source',
-    'category': 'category', 'cat': 'category', 'subcategory': 'category', 'sub-category': 'category',
-    'original link': 'link', 'link': 'link', 'url': 'link', 'original url': 'link',
-    'title': 'title', 'headline': 'title',
-    'content': 'content', 'body': 'content', 'article': 'content', 'text': 'content'
-  };
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const colonIdx = line.indexOf(':');
-    if (colonIdx > 0) {
-      const keyRaw = line.substring(0, colonIdx).trim().toLowerCase();
-      const key = fieldMap[keyRaw];
-      if (key) {
-        currentField = key;
-        const val = line.substring(colonIdx + 1).trim();
-        fields[key] = val;
-        continue;
-      }
+async function sendOTPEmail(toEmail, otp) {
+    try {
+        const sendSmtpEmail = new brevo.SendSmtpEmail();
+        sendSmtpEmail.sender = { email: "centrinsicnpt@gmail.com", name: "Centrinsic NPT" };
+        sendSmtpEmail.to = [{ email: toEmail }];
+        sendSmtpEmail.subject = "Your Centrinsic NPT Login Code";
+        sendSmtpEmail.htmlContent = `
+            <div style="font-family:Arial;padding:20px">
+                <h2>Centrinsic NPT Verification</h2>
+                <p>Your OTP:</p>
+                <h1 style="letter-spacing:6px">${otp}</h1>
+                <p>Expires in 5 minutes</p>
+            </div>`;
+        await emailApi.sendTransacEmail(sendSmtpEmail);
+        console.log("✅ OTP SENT:", toEmail);
+        return true;
+    } catch (error) {
+        console.error("❌ BREVO ERROR:", error.response?.text || error.message);
+        return false;
     }
-    if (currentField && line.trim()) {
-      fields[currentField] += '
-' + line.trim();
-    }
-  }
-
-  // Trim all
-  Object.keys(fields).forEach(k => fields[k] = fields[k].trim());
-
-  // Fill form fields
-  if (fields.title)   document.getElementById('aid-title').value   = fields.title;
-  if (fields.content) document.getElementById('aid-content').value = fields.content;
-  if (fields.source)  document.getElementById('aid-source').value  = fields.source;
-  if (fields.link)    document.getElementById('aid-link').value    = fields.link;
-
-  // Try to match category to select options
-  if (fields.category) {
-    const select = document.getElementById('aid-subcategory');
-    const opts = Array.from(select.options);
-    const match = opts.find(o => o.value.toLowerCase() === fields.category.toLowerCase());
-    if (match) {
-      select.value = match.value;
-    } else {
-      // If no exact match, try partial
-      const partial = opts.find(o => fields.category.toLowerCase().includes(o.value.toLowerCase()) || o.value.toLowerCase().includes(fields.category.toLowerCase()));
-      if (partial) select.value = partial.value;
-    }
-  }
-
-  // Show feedback
-  const filled = [];
-  if (fields.title)   filled.push('Title');
-  if (fields.content) filled.push('Content');
-  if (fields.source)  filled.push('Source');
-  if (fields.link)    filled.push('Link');
-  if (fields.category)filled.push('Category');
-
-  if (filled.length > 0) {
-    feedback.style.display = 'block';
-    feedback.innerHTML = `✅ Auto-filled: <strong>${filled.join(', ')}</strong>`;
-    showToast(`Parsed ${filled.length} fields`, 'success');
-  } else {
-    feedback.style.display = 'block';
-    feedback.innerHTML = `⚠️ No recognized fields found. Use format: <code>Title: ...</code>`;
-    feedback.style.color = 'var(--danger)';
-  }
 }
 
-</script>
-</body>
-</html>
+// ============================================
+// SCHEMAS
+// ============================================
+const userSchema = new mongoose.Schema({
+    name: String,
+    email: { type: String, unique: true, required: true },
+    password: String,
+    created_at: { type: Date, default: Date.now }
+});
+
+const articleSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    content: { type: String, required: true },
+    image: String,
+    source: { type: String, default: 'Centrinsic NPT' },
+    category: { type: String, default: 'General' },
+    originalLink: { type: String, default: '' },
+    isManual: { type: Boolean, default: true },
+    status: { type: String, enum: ['draft', 'published'], default: 'published' },
+    expiresAt: { type: Date },
+    author_id: mongoose.Schema.Types.ObjectId,
+    author_name: String
+}, { timestamps: true });
+
+const bookmarkSchema = new mongoose.Schema({
+    user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    article_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Article' },
+    created_at: { type: Date, default: Date.now }
+});
+
+const userEmailSchema = new mongoose.Schema({
+    email: { type: String, unique: true, required: true },
+    device: String,
+    created_at: { type: Date, default: Date.now }
+});
+
+const User = mongoose.model('User', userSchema);
+const Article = mongoose.model('Article', articleSchema);
+const Bookmark = mongoose.model('Bookmark', bookmarkSchema);
+const UserEmail = mongoose.model('UserEmail', userEmailSchema);
+
+// ============================================
+// MIDDLEWARE
+// ============================================
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-admin-password'],
+    credentials: true
+}));
+
+app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, x-admin-password');
+        return res.sendStatus(204);
+    }
+    next();
+});
+
+app.use((req, res, next) => {
+    const type = req.headers['content-type'] || '';
+    if (type.includes('multipart/form-data')) return next();
+    express.json({ limit: '10mb' })(req, res, next);
+});
+
+app.use((req, res, next) => {
+    const type = req.headers['content-type'] || '';
+    if (type.includes('multipart/form-data')) return next();
+    express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+});
+
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} | ${req.method} ${req.path}`);
+    next();
+});
+
+app.use(express.static(path.join(__dirname, 'front-end')));
+
+// ============================================
+// AUTH MIDDLEWARES
+// ============================================
+
+// Standard OTP/JWT middleware
+const authMiddleware = async (req, res, next) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) return res.status(401).json({ error: 'No token provided' });
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.userId = decoded.userId;
+        req.userName = decoded.name;
+        next();
+    } catch (err) {
+        res.status(401).json({ error: 'Invalid token' });
+    }
+};
+
+// Admin password check (standalone)
+const checkAdminPassword = (passwordInput) => {
+    if (!ADMIN_PASSWORD || !passwordInput) return false;
+    try {
+        const provided = crypto.createHash('sha256').update(Buffer.from(String(passwordInput))).digest();
+        const expected = crypto.createHash('sha256').update(Buffer.from(ADMIN_PASSWORD)).digest();
+        return crypto.timingSafeEqual(provided, expected);
+    } catch { return false; }
+};
+
+// ✅ COMBINED: Password OR OTP — Admin can use either one
+const adminAuthMiddleware = async (req, res, next) => {
+    const adminPassword = req.headers['x-admin-password'] || req.query.admin_password;
+
+    // 1) Try admin password first (no OTP needed)
+    if (adminPassword && checkAdminPassword(adminPassword)) {
+        // For password-only access, attach a mock admin user so downstream code works
+        const adminUser = await User.findOne({ email: "dheerajexperiment8@gmail.com" });
+        req.userId = adminUser ? adminUser._id.toString() : null;
+        req.userName = adminUser ? adminUser.name : 'Admin';
+        req.isAdminPassword = true; // flag to know which auth was used
+        return next();
+    }
+
+    // 2) Fall back to OTP/JWT
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({
+                error: 'Admin access denied. Provide either: (1) x-admin-password header / admin_password query param, or (2) valid OTP Bearer token.'
+            });
+        }
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = await User.findById(decoded.userId);
+        if (!user || user.email !== "dheerajexperiment8@gmail.com") {
+            return res.status(403).json({ error: 'Only admin allowed via OTP' });
+        }
+        req.userId = decoded.userId;
+        req.userName = decoded.name;
+        req.isAdminPassword = false;
+        next();
+    } catch (err) {
+        res.status(401).json({ error: 'Invalid or expired token. Use admin password or login with OTP.' });
+    }
+};
+
+// ============================================
+// GNEWS FETCH
+// ============================================
+async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
+    const now = Date.now();
+    if (gnewsCache.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
+        const age = Math.round((now - lastFetchTime) / 60000);
+        console.log(`📦 Cached GNews (${age}m old), ${gnewsCache.length} articles`);
+        cacheStatus.isStale = false;
+        return gnewsCache.slice(0, targetLimit);
+    }
+    if (!GNEWS_API_KEY) {
+        cacheStatus.lastError = 'API key not configured';
+        return gnewsCache.length > 0 ? gnewsCache.slice(0, targetLimit) : [];
+    }
+    try {
+        console.log('🌐 Fetching GNews...');
+        const response = await axios.get(`${GNEWS_BASE_URL}/top-headlines`, {
+            params: { token: GNEWS_API_KEY, lang: 'en', country: 'us', max: MAX_GNEWS_PER_REQUEST },
+            timeout: 10000
+        });
+        const articles = (response.data?.articles || []).map((a, i) => ({
+            _id: `gnews_${Date.now()}_${i}`,
+            title: a.title,
+            content: a.content || a.description || 'No content available',
+            description: a.description,
+            image: a.image || null,
+            url: a.url,
+            source: a.source?.name || 'GNews',
+            category: 'General',
+            publishedAt: a.publishedAt,
+            createdAt: a.publishedAt,
+            isManual: false,
+            originalLink: a.url,
+            fetchedAt: new Date().toISOString()
+        }));
+        gnewsCache = articles;
+        lastFetchTime = now;
+        cacheStatus = { lastSuccessfulFetch: new Date().toISOString(), lastError: null, totalFetches: cacheStatus.totalFetches + 1, isStale: false };
+        console.log(`✅ GNews fetched: ${articles.length} articles`);
+        return articles.slice(0, targetLimit);
+    } catch (error) {
+        console.error('❌ GNews error:', error.message);
+        cacheStatus.lastError = error.response?.status ? `HTTP ${error.response.status}` : error.message;
+        cacheStatus.isStale = true;
+        return gnewsCache.length > 0 ? gnewsCache.slice(0, targetLimit) : [];
+    }
+}
+
+// ============================================
+// ROUTES
+// ============================================
+
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'OK', timestamp: new Date().toISOString(),
+        dbConnected: mongoose.connection.readyState === 1,
+        gnewsConfigured: !!GNEWS_API_KEY,
+        cache: {
+            lastFetch: cacheStatus.lastSuccessfulFetch,
+            articlesCached: gnewsCache.length,
+            isStale: cacheStatus.isStale,
+            cacheDurationMinutes: CACHE_DURATION / 60000
+        }
+    });
+});
+
+app.get('/api/articles', async (req, res) => {
+    try {
+        let manualQuery = Article.find({
+            status: 'published',
+            $or: [{ expiresAt: { $gt: new Date() } }, { expiresAt: { $exists: false } }]
+        }).sort({ createdAt: -1 });
+        if (MANUAL_ARTICLES_LIMIT > 0) manualQuery = manualQuery.limit(MANUAL_ARTICLES_LIMIT);
+
+        const manualArticles = await manualQuery;
+        const formattedManual = manualArticles.map(a => ({
+            _id: a._id.toString(), title: a.title, content: a.content, image: a.image,
+            source: a.source || 'Centrinsic NPT', category: a.category || 'General',
+            originalLink: a.originalLink || '', createdAt: a.createdAt, updatedAt: a.updatedAt,
+            isManual: true, author_name: a.author_name
+        }));
+
+        const gnews = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
+        const all = [...formattedManual, ...gnews];
+        const lastUpdated = cacheStatus.lastSuccessfulFetch || new Date().toISOString();
+        const cacheAge = lastFetchTime ? Math.round((Date.now() - lastFetchTime) / 60000) : 0;
+
+        res.json({
+            success: true, articles: all,
+            meta: {
+                total: all.length, manualCount: formattedManual.length, gnewsCount: gnews.length,
+                lastUpdated, cacheAgeMinutes: cacheAge,
+                isCached: cacheAge < (CACHE_DURATION / 60000)
+            }
+        });
+    } catch (err) {
+        console.error('❌ Get articles error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ============================================
+// ADMIN ROUTES — Password OR OTP
+// ============================================
+
+app.post('/api/admin/refresh-gnews', adminAuthMiddleware, async (req, res) => {
+    try {
+        lastFetchTime = 0; gnewsCache = [];
+        const fresh = await fetchGNewsArticles(GNEWS_ARTICLES_LIMIT);
+        res.json({ success: true, count: fresh.length, lastUpdated: cacheStatus.lastSuccessfulFetch, message: 'Cache refreshed' });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/admin/cache-status', adminAuthMiddleware, async (req, res) => {
+    res.json({
+        cacheStatus,
+        lastFetchTime: lastFetchTime ? new Date(lastFetchTime).toISOString() : null,
+        cacheDurationMinutes: CACHE_DURATION / 60000,
+        articlesInCache: gnewsCache.length,
+        gnewsConfigured: !!GNEWS_API_KEY,
+        limits: {
+            manualLimit: MANUAL_ARTICLES_LIMIT === 0 ? 'Unlimited' : MANUAL_ARTICLES_LIMIT,
+            gnewsTarget: GNEWS_ARTICLES_LIMIT,
+            gnewsPerRequest: MAX_GNEWS_PER_REQUEST
+        }
+    });
+});
+
+app.delete('/api/admin/delete-all-news', adminAuthMiddleware, async (req, res) => {
+    try {
+        const articles = await Article.find();
+        for (const article of articles) {
+            if (article.image && article.image.includes('cloudinary')) {
+                try {
+                    const uploadIndex = article.image.indexOf('/upload/');
+                    if (uploadIndex !== -1) {
+                        let afterUpload = article.image.substring(uploadIndex + 8);
+                        afterUpload = afterUpload.replace(/^v\d+\//, '');
+                        const publicId = afterUpload.replace(/\.[^/.]+$/, '');
+                        await cloudinary.uploader.destroy(publicId);
+                    }
+                } catch (err) {
+                    console.log('Image delete failed:', err?.message || err);
+                }
+            }
+        }
+        await Article.deleteMany({});
+        await Bookmark.deleteMany({});
+        res.json({ success: true, message: "All manual news deleted" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/admin/articles', adminAuthMiddleware, async (req, res) => {
+    try {
+        const articles = await Article.find().sort({ createdAt: -1 });
+        res.json({ success: true, count: articles.length, articles });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================
+// OTP ENDPOINTS
+// ============================================
+const otpStore = new Map();
+function generateOTP() { return Math.floor(100000 + Math.random() * 900000).toString(); }
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [email, data] of otpStore.entries()) {
+        if (data.expiresAt < now) { otpStore.delete(email); console.log("Expired OTP removed:", email); }
+    }
+}, 5 * 60 * 1000);
+
+app.post('/api/auth/send-otp', async (req, res) => {
+    const { email } = req.body;
+    if (!email || !email.includes('@')) return res.status(400).json({ success: false, message: 'Valid email required' });
+    try {
+        const otp = generateOTP();
+        const expiresAt = Date.now() + (5 * 60 * 1000);
+        otpStore.set(email, { otp, expiresAt });
+        const sent = await sendOTPEmail(email, otp);
+        if (!sent) return res.status(500).json({ success: false, message: 'Failed to send email' });
+        res.json({ success: true, message: 'OTP sent successfully' });
+    } catch (err) {
+        console.error('Send OTP error:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+app.post('/api/auth/verify-otp', async (req, res) => {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and OTP required' });
+    try {
+        const stored = otpStore.get(email);
+        if (!stored) return res.status(400).json({ success: false, message: 'OTP expired or not requested' });
+        if (stored.expiresAt < Date.now()) { otpStore.delete(email); return res.status(400).json({ success: false, message: 'OTP expired' }); }
+        if (stored.otp !== otp) return res.status(400).json({ success: false, message: 'Invalid OTP' });
+        otpStore.delete(email);
+
+        let user = await User.findOne({ email: email.toLowerCase().trim() });
+        let isNewUser = false;
+        if (!user) {
+            const userName = email.split('@')[0];
+            const randomPassword = Math.random().toString(36).slice(-8);
+            const hashedPassword = await bcrypt.hash(randomPassword, 10);
+            user = new User({ name: userName, email: email.toLowerCase().trim(), password: hashedPassword, created_at: new Date() });
+            await user.save();
+            isNewUser = true;
+        }
+        await UserEmail.findOneAndUpdate(
+            { email: user.email },
+            { email: user.email, device: req.headers['user-agent'] || 'unknown', created_at: new Date() },
+            { upsert: true, new: true }
+        );
+        const token = jwt.sign({ userId: user._id, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ success: true, message: 'Login successful', token, user: { id: user._id, name: user.name, email: user.email }, isNewUser });
+    } catch (err) {
+        console.error('Verify OTP error:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+app.post('/api/save-email', async (req, res) => {
+    const { email, name, password } = req.body;
+    if (!email || !email.includes('@')) return res.status(400).json({ success: false, message: 'Invalid email' });
+    try {
+        if (mongoose.connection.readyState !== 1) return res.status(500).json({ success: false, message: 'Database not connected' });
+        const cleanEmail = email.toLowerCase().trim();
+        const userName = name || cleanEmail.split('@')[0];
+        const userPassword = password || Math.random().toString(36).slice(-8);
+
+        await UserEmail.findOneAndUpdate(
+            { email: cleanEmail },
+            { email: cleanEmail, device: req.headers['user-agent'] || 'unknown', created_at: new Date() },
+            { upsert: true, new: true }
+        );
+        let user = await User.findOne({ email: cleanEmail });
+        let isNewUser = false;
+        if (!user) {
+            const hashedPassword = await bcrypt.hash(userPassword, 10);
+            user = new User({ name: userName, email: cleanEmail, password: hashedPassword, created_at: new Date() });
+            await user.save();
+            isNewUser = true;
+        }
+        const token = jwt.sign({ userId: user._id, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ success: true, message: 'Email saved', email: cleanEmail, isNew: isNewUser, userId: user._id, token });
+    } catch (err) {
+        console.error('❌ SAVE EMAIL ERROR:', err);
+        res.status(500).json({ success: false, message: 'Database error', error: err.message });
+    }
+});
+
+app.post('/api/auth/register', async (req, res) => {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: 'All fields required' });
+    try {
+        const existing = await User.findOne({ email });
+        if (existing) return res.status(400).json({ error: 'Email already exists' });
+        const hashed = await bcrypt.hash(password, 10);
+        const user = new User({ name, email, password: hashed });
+        await user.save();
+        const token = jwt.sign({ userId: user._id, name }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ success: true, token, user: { id: user._id, name, email } });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        const user = await User.findOne({ email });
+        if (!user) return res.status(400).json({ error: 'User not found' });
+        const valid = await bcrypt.compare(password, user.password);
+        if (!valid) return res.status(400).json({ error: 'Invalid password' });
+        const token = jwt.sign({ userId: user._id, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email } });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// ARTICLES (USER)
+// ============================================
+app.post('/api/articles', authMiddleware, upload.single('image'), async (req, res) => {
+    const { title, content, source, category, originalLink, expiresAt } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
+    try {
+        const imageUrl = req.file ? req.file.path : '';
+        const article = await Article.create({
+            title, content, image: imageUrl,
+            source: source || 'Centrinsic NPT', category: category || 'General',
+            originalLink: originalLink || req.body['original link'] || '',
+            isManual: true, status: 'published',
+            expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+            author_id: req.userId, author_name: req.userName || 'Anonymous'
+        });
+        res.json({ success: true, articleId: article._id, image: imageUrl, article });
+    } catch (err) {
+        console.error('Create article error:', err);
+        res.status(500).json({ error: 'Upload failed', details: err.message });
+    }
+});
+
+app.put('/api/articles/:id', authMiddleware, upload.single('image'), async (req, res) => {
+    try {
+        const { title, content, source, category, originalLink, status, expiresAt } = req.body;
+        const article = await Article.findById(req.params.id);
+        if (!article) return res.status(404).json({ error: 'Article not found' });
+        if (article.author_id.toString() !== req.userId) return res.status(403).json({ error: 'Not authorized' });
+        article.title = title || article.title;
+        article.content = content || article.content;
+        article.source = source || article.source;
+        article.category = category || article.category;
+        article.originalLink = originalLink || req.body['original link'] || article.originalLink;
+        article.status = status || article.status;
+        article.expiresAt = expiresAt ? new Date(expiresAt) : article.expiresAt;
+        if (req.file) article.image = req.file.path;
+        await article.save();
+        res.json({ success: true, article });
+    } catch (err) {
+        console.error('Update article error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/articles/:id', authMiddleware, async (req, res) => {
+    try {
+        const article = await Article.findById(req.params.id);
+        if (!article) return res.status(404).json({ error: 'Article not found' });
+        if (article.author_id.toString() !== req.userId) return res.status(403).json({ error: 'Not allowed' });
+        if (article.image && article.image.includes('cloudinary')) {
+            try {
+                const uploadIndex = article.image.indexOf('/upload/');
+                if (uploadIndex !== -1) {
+                    let afterUpload = article.image.substring(uploadIndex + 8);
+                    afterUpload = afterUpload.replace(/^v\d+\//, '');
+                    const publicId = afterUpload.replace(/\.[^/.]+$/, '');
+                    await cloudinary.uploader.destroy(publicId);
+                    console.log('🗑 Cloudinary image deleted:', publicId);
+                }
+            } catch (err) { console.log('Cloudinary delete failed:', err?.message || err); }
+        }
+        await Article.findByIdAndDelete(req.params.id);
+        res.json({ success: true, message: 'Article + image deleted' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// BOOKMARKS
+// ============================================
+app.get('/api/bookmarks', authMiddleware, async (req, res) => {
+    try {
+        const bookmarks = await Bookmark.find({ user_id: req.userId }).populate('article_id').sort({ created_at: -1 });
+        res.json(bookmarks);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/bookmarks', authMiddleware, async (req, res) => {
+    try {
+        const { articleId } = req.body;
+        const bookmark = new Bookmark({ user_id: req.userId, article_id: articleId });
+        await bookmark.save();
+        res.json({ success: true, message: 'Bookmark added' });
+    } catch (err) {
+        if (err.code === 11000) return res.status(409).json({ error: 'Already bookmarked' });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/user-emails', async (req, res) => {
+    try {
+        const emails = await UserEmail.find().sort({ created_at: -1 });
+        res.json({ success: true, count: emails.length, emails });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// DEBUG ROUTES — Password OR OTP
+// ============================================
+if (DEBUG) {
+    app.get('/api/debug/db-status', adminAuthMiddleware, async (req, res) => {
+        try {
+            const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+            res.json({
+                mongoConnection: states[mongoose.connection.readyState] || 'unknown',
+                databaseName: mongoose.connection.name,
+                gnewsConfigured: !!GNEWS_API_KEY,
+                cache: {
+                    lastFetch: cacheStatus.lastSuccessfulFetch,
+                    articlesCached: gnewsCache.length,
+                    isStale: cacheStatus.isStale,
+                    cacheDurationMinutes: CACHE_DURATION / 60000
+                },
+                collections: {
+                    users: await User.countDocuments(),
+                    useremails: await UserEmail.countDocuments(),
+                    articles: await Article.countDocuments(),
+                    bookmarks: await Bookmark.countDocuments()
+                }
+            });
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    app.get('/api/debug/list-users', adminAuthMiddleware, async (req, res) => {
+        try {
+            const users = await User.find().select('-password');
+            const emails = await UserEmail.find();
+            res.json({ usersCollection: users, userEmailsCollection: emails, totalUsers: users.length, totalEmails: emails.length });
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    // ✅ Admin dashboard — works with ?admin_password=xxx in browser
+    app.get('/admin', adminAuthMiddleware, (req, res) => {
+        const cacheAge = lastFetchTime ? Math.round((Date.now() - lastFetchTime) / 60000) : 'Never';
+        const pw = req.query.admin_password ? `?admin_password=${encodeURIComponent(req.query.admin_password)}` : '';
+        const pwHeader = req.query.admin_password || '';
+        res.send(`
+            <!DOCTYPE html><html><head><title>Centrinsic Admin</title>
+            <style>
+                body{font-family:Arial;padding:20px;background:#f5f5f5}
+                .card{background:white;padding:20px;margin:10px 0;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+                button{padding:10px 20px;margin:5px;cursor:pointer;background:#007aff;color:white;border:none;border-radius:5px}
+                button:hover{background:#0056b3}
+                .info-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee}
+                .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold}
+                .badge-green{background:#4CAF50;color:white}
+            </style></head><body>
+            <h1>📊 Centrinsic Admin Dashboard</h1>
+            <div class="card">
+                <h3>🔐 Auth Status</h3>
+                <div class="info-row"><span>Access Method:</span><strong class="badge badge-green">${req.isAdminPassword ? 'Admin Password' : 'OTP (JWT)'}</strong></div>
+            </div>
+            <div class="card">
+                <h3>Cache Status</h3>
+                <div class="info-row"><span>Last Updated:</span><strong>${cacheStatus.lastSuccessfulFetch || 'Never'}</strong></div>
+                <div class="info-row"><span>Cache Age:</span><strong>${cacheAge} minutes</strong></div>
+                <div class="info-row"><span>Articles Cached:</span><strong>${gnewsCache.length}</strong></div>
+                <div class="info-row"><span>Cache Duration:</span><strong>${CACHE_DURATION / 60000} minutes</strong></div>
+                <div class="info-row"><span>Status:</span><strong style="color:${cacheStatus.isStale ? '#f44336' : '#4CAF50'}">${cacheStatus.isStale ? '⚠️ Stale' : '✅ Fresh'}</strong></div>
+                <br><button onclick="fetch('/api/admin/refresh-gnews${pw}',{method:'POST',headers:{'x-admin-password':'${pwHeader}'}}).then(()=>location.reload())">🔄 Force Refresh GNews</button>
+            </div>
+            <div class="card">
+                <h3>Quick Actions</h3>
+                <button onclick="location.href='/api/debug/db-status${pw}'">Check DB Status</button>
+                <button onclick="location.href='/api/debug/list-users${pw}'">List All Users</button>
+                <button onclick="location.href='/api/admin/articles${pw}'">List Manual Articles</button>
+                <button onclick="location.href='/api/articles'">View Combined Feed</button>
+                <button onclick="location.href='/api/admin/cache-status${pw}'">Cache Details</button>
+                <button onclick="location.href='/api/admin/auto-delete-status${pw}'">Auto-Delete Status</button>
+                <button onclick="location.href='/api/admin/keep-alive-status${pw}'">Keep-Alive Status</button>
+            </div>
+            <div class="card">
+                <h3>News Sources</h3>
+                <p>✅ GNews API: ${GNEWS_API_KEY ? 'Configured' : 'Not Configured'}</p>
+                <p>✅ Manual Articles: MongoDB (Unlimited)</p>
+                <p>📦 Cache Duration: ${CACHE_DURATION / 60000} minutes</p>
+                <p>🔁 GNews: Single request per cache window</p>
+            </div>
+            </body></html>
+        `);
+    });
+}
+
+// ============================================
+// ERROR HANDLING
+// ============================================
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api')) return res.status(404).json({ error: 'API endpoint not found', path: req.path });
+    res.sendFile(path.join(__dirname, 'front-end', 'index.html'), (err) => {
+        if (err) { console.error('Error serving index.html:', err); res.status(500).send('Error loading application'); }
+    });
+});
+
+app.use((err, req, res, next) => {
+    console.error('Error:', err);
+    if (err instanceof multer.MulterError) return res.status(400).json({ error: 'File upload error: ' + err.message });
+    res.status(500).json({ error: err.message || 'Internal server error' });
+});
+
+// ============================================
+// AUTO-DELETE AT 11:57 PM IST
+// ============================================
+const DELETE_HOUR = 23, DELETE_MINUTE = 57;
+const DELETE_TIMEZONE = process.env.DELETE_TIMEZONE || 'Asia/Kolkata';
+let autoDeleteLog = { lastRun: null, lastDeletedCount: 0, lastError: null, totalRuns: 0 };
+
+async function deleteAllManualNews() {
+    console.log('\n🗑️ ========== AUTO-DELETE STARTED ==========');
+    try {
+        if (mongoose.connection.readyState !== 1) { autoDeleteLog.lastError = 'MongoDB not connected'; return; }
+        const articles = await Article.find({ isManual: true });
+        console.log(`   Found ${articles.length} manual articles`);
+        if (articles.length === 0) {
+            autoDeleteLog.lastRun = new Date().toISOString();
+            autoDeleteLog.lastDeletedCount = 0;
+            autoDeleteLog.totalRuns++;
+            return;
+        }
+        let imgCount = 0;
+        for (const a of articles) {
+            if (a.image && a.image.includes('cloudinary')) {
+                try {
+                    const idx = a.image.indexOf('/upload/');
+                    if (idx === -1) continue;
+                    let after = a.image.substring(idx + 8).replace(/^v\d+\//, '');
+                    const publicId = after.replace(/\.[^/.]+$/, '');
+                    const r = await cloudinary.uploader.destroy(publicId);
+                    if (r.result === 'ok') { imgCount++; console.log(`   ✅ Image deleted: ${publicId}`); }
+                } catch (e) { console.log(`   ⚠️ Image delete failed:`, e?.message); }
+            }
+        }
+        const result = await Article.deleteMany({ isManual: true });
+        await Bookmark.deleteMany({});
+        autoDeleteLog = { lastRun: new Date().toISOString(), lastDeletedCount: result.deletedCount, lastError: null, totalRuns: autoDeleteLog.totalRuns + 1 };
+        console.log(`   ✅ Deleted ${result.deletedCount} articles, ${imgCount} images`);
+    } catch (err) { console.error('❌ Auto-delete error:', err.message); autoDeleteLog.lastError = err.message; }
+}
+
+setInterval(() => {
+    const now = new Date();
+    const local = new Intl.DateTimeFormat('en-US', { timeZone: DELETE_TIMEZONE, hour: 'numeric', minute: 'numeric', hour12: false }).format(now);
+    const [h, m] = local.split(':').map(Number);
+    if (h === DELETE_HOUR && m === DELETE_MINUTE) {
+        const today = now.toISOString().split('T')[0];
+        const last = autoDeleteLog.lastRun ? new Date(autoDeleteLog.lastRun).toISOString().split('T')[0] : null;
+        if (last === today) return;
+        console.log(`⏰ Auto-delete triggered at ${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE}`);
+        deleteAllManualNews();
+    }
+}, 60 * 1000);
+
+app.get('/api/admin/auto-delete-status', adminAuthMiddleware, async (req, res) => {
+    const now = new Date();
+    const localTime = new Intl.DateTimeFormat('en-US', {
+        timeZone: DELETE_TIMEZONE, hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(now);
+    res.json({
+        autoDelete: {
+            scheduledTime: `${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE}`,
+            currentTimeInZone: localTime,
+            lastRun: autoDeleteLog.lastRun, lastDeletedCount: autoDeleteLog.lastDeletedCount,
+            lastError: autoDeleteLog.lastError, totalRuns: autoDeleteLog.totalRuns
+        }
+    });
+});
+
+app.post('/api/admin/trigger-auto-delete', adminAuthMiddleware, async (req, res) => {
+    try {
+        console.log('🔧 Manual auto-delete triggered');
+        await deleteAllManualNews();
+        res.json({ success: true, message: 'Auto-delete triggered', deletedCount: autoDeleteLog.lastDeletedCount, lastRun: autoDeleteLog.lastRun });
+    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// ============================================
+// KEEP-ALIVE
+// ============================================
+const RENDER_URL = process.env.RENDER_URL || 'https://centrinsicnpt.com';
+let keepAliveLog = { totalPings: 0, lastPing: null, lastError: null };
+
+setTimeout(() => {
+    setInterval(async () => {
+        try {
+            await axios.get(`${RENDER_URL}/api/health`, { timeout: 10000 });
+            keepAliveLog = { totalPings: keepAliveLog.totalPings + 1, lastPing: new Date().toISOString(), lastError: null };
+            console.log(`💓 Keep-alive #${keepAliveLog.totalPings} ✅`);
+        } catch (err) { keepAliveLog.lastError = err.message; console.log(`💔 Keep-alive failed: ${err.message}`); }
+    }, 14 * 60 * 1000);
+    console.log('💓 Keep-alive started (14 min interval)');
+}, 30 * 1000);
+
+app.get('/api/admin/keep-alive-status', adminAuthMiddleware, (req, res) => {
+    res.json({
+        keepAlive: {
+            enabled: true, intervalMin: 14, pingUrl: `${RENDER_URL}/api/health`,
+            totalPings: keepAliveLog.totalPings, lastPing: keepAliveLog.lastPing, lastError: keepAliveLog.lastError
+        }
+    });
+});
+
+// ============================================
+// START
+// ============================================
+app.listen(PORT, () => {
+    console.log('========================================');
+    console.log('🚀 CENTRINSIC NPT SERVER STARTED');
+    console.log(`Port:             ${PORT}`);
+    console.log(`GNews API:        ${GNEWS_API_KEY ? '✅' : '❌'}`);
+    console.log(`Manual Articles:  ♾️  Unlimited`);
+    console.log(`GNews Articles:   ${GNEWS_ARTICLES_LIMIT} per fetch`);
+    console.log(`Cache Duration:   ${CACHE_DURATION / 60000} min`);
+    console.log(`Auto-delete:      ${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE}`);
+    console.log(`Keep-alive:       ✅ 14 min`);
+    console.log(`Admin Password:   ${ADMIN_PASSWORD ? '✅ Configured' : '❌ NOT SET — add ADMIN_PASSWORD to .env!'}`);
+    console.log('========================================');
+});
