@@ -197,27 +197,53 @@
     <div style="font-size:32px;margin-bottom:12px;">⚡</div>
     <h2>Admin Login</h2>
     <p>Centrinsic NPT — Control Panel</p>
-    <div class="form-group">
-      <label>Email Address</label>
-      <input type="email" id="loginEmail" placeholder="admin@email.com" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="email" />
+    
+    <!-- AUTH METHOD TABS -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;">
+      <button id="tab-password" class="btn btn-sm" style="background:var(--accent);color:#fff;border:none;flex:1;" onclick="switchAuthMethod('password')">🔐 Password</button>
+      <button id="tab-otp" class="btn btn-sm btn-ghost" style="flex:1;" onclick="switchAuthMethod('otp')">📧 OTP</button>
     </div>
-    <button id="loginBtn" class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In →</button>
-    <div id="loginError" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;line-height:1.5;"></div>
-    <div id="loginSuccess" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(46,213,115,0.12);border:1px solid rgba(46,213,115,0.3);border-radius:10px;color:var(--green);font-size:13px;line-height:1.5;"></div>
-    <p style="margin-top:14px;font-size:12px;text-align:center;color:var(--muted);">📧 OTP login — enter your email and we will send a 6-digit code</p>
-    <div id="otpSection" style="display:none;margin-top:16px;">
-      <div class="divider"></div>
+    
+    <!-- PASSWORD LOGIN -->
+    <div id="passwordSection" style="display:block;">
       <div class="form-group">
-        <label>Enter OTP sent to your email</label>
-        <input type="text" id="otpInput" placeholder="6-digit OTP" maxlength="6" style="letter-spacing:8px;font-size:22px;text-align:center;font-family:'DM Mono',monospace;" onkeydown="if(event.key==='Enter')doVerifyOTP()" autocomplete="one-time-code" inputmode="numeric" />
+        <label>Email Address</label>
+        <input type="email" id="loginEmail" placeholder="admin@email.com" onkeydown="if(event.key==='Enter')doLoginPassword()" autocomplete="email" />
       </div>
-      <button id="verifyOtpBtn" class="btn btn-success" style="width:100%;justify-content:center;" onclick="doVerifyOTP()">Verify OTP →</button>
-      <div id="otpError" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;"></div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter your password" onkeydown="if(event.key==='Enter')doLoginPassword()" autocomplete="current-password" />
+      </div>
+      <button id="loginBtn" class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLoginPassword()">Sign In →</button>
+      <div id="passwordError" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;line-height:1.5;"></div>
     </div>
+    
+    <!-- OTP LOGIN -->
+    <div id="otpLoginSection" style="display:none;">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="otpEmail" placeholder="admin@email.com" onkeydown="if(event.key==='Enter')doLoginOTP()" autocomplete="email" />
+      </div>
+      <button id="sendOtpBtn" class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLoginOTP()">Send OTP →</button>
+      <div id="otpLoginError" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;line-height:1.5;"></div>
+      <div id="otpLoginSuccess" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(46,213,115,0.12);border:1px solid rgba(46,213,115,0.3);border-radius:10px;color:var(--green);font-size:13px;line-height:1.5;"></div>
+      
+      <!-- OTP VERIFICATION SECTION -->
+      <div id="otpVerifySection" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <div class="form-group">
+          <label>Enter 6-digit OTP</label>
+          <input type="text" id="otpCode" placeholder="000000" maxlength="6" style="letter-spacing:8px;font-size:22px;text-align:center;font-family:'DM Mono',monospace;" onkeydown="if(event.key==='Enter')doVerifyOTP()" autocomplete="one-time-code" inputmode="numeric" />
+        </div>
+        <button id="verifyOtpBtn" class="btn btn-success" style="width:100%;justify-content:center;" onclick="doVerifyOTP()">Verify OTP →</button>
+        <div id="otpVerifyError" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;"></div>
+      </div>
+    </div>
+    
+    <!-- FOOTER TOOLS -->
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:center;">
-      <button class="btn btn-ghost btn-sm" onclick="testServerConnection()" style="font-size:12px;">🔌 Test Server Connection</button>
+      <button class="btn btn-ghost btn-sm" onclick="testServerConnection()" style="font-size:12px;">🔌 Test Server</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleDebugLog()" style="font-size:12px;margin-left:6px;">🔍 Debug Log</button>
       <div id="connStatus" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
-      <button class="btn btn-ghost btn-sm" onclick="toggleDebugLog()" style="font-size:12px;margin-top:8px;">🔍 Toggle Debug Log</button>
       <div id="debugLog" class="debug-box" style="display:none;margin-top:8px;"></div>
     </div>
   </div>
@@ -369,6 +395,16 @@
                 <option value="draft">Draft</option>
               </select>
             </div>
+          </div>
+          <div class="form-group">
+            <label>Article Image</label>
+            <div class="image-drop" id="aid-imageDrop">
+              <input type="file" id="aid-image" accept="image/*" onchange="previewImage(this,'aid')" />
+              <div class="drop-icon">🖼️</div>
+              <div class="drop-text">Click to upload image</div>
+              <div class="drop-sub">JPG, PNG, WEBP — max 10MB</div>
+            </div>
+            <img id="aid-imagePreview" class="image-preview" alt="Preview" />
           </div>
           <div style="display:flex;gap:12px;margin-top:8px;">
             <button class="btn btn-primary" id="aid-uploadBtn" onclick="uploadArticle('aid')" style="flex:1;justify-content:center;">🔵 Publish AI-D Article</button>
@@ -579,65 +615,81 @@ window.onload = () => {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// AUTHENTICATION
+// AUTHENTICATION - PASSWORD & OTP
 // ═══════════════════════════════════════════════════════════════════
-async function doLogin() {
+
+function switchAuthMethod(method) {
+  log(`Switching to ${method} authentication`, 'info');
+  
+  // Update tabs
+  document.getElementById('tab-password').style.background = method === 'password' ? 'var(--accent)' : 'transparent';
+  document.getElementById('tab-password').style.color = method === 'password' ? '#fff' : 'var(--muted)';
+  document.getElementById('tab-password').style.border = method === 'password' ? 'none' : '1px solid var(--border)';
+  
+  document.getElementById('tab-otp').style.background = method === 'otp' ? 'var(--accent)' : 'transparent';
+  document.getElementById('tab-otp').style.color = method === 'otp' ? '#fff' : 'var(--muted)';
+  document.getElementById('tab-otp').style.border = method === 'otp' ? 'none' : '1px solid var(--border)';
+  
+  // Show/hide sections
+  document.getElementById('passwordSection').style.display = method === 'password' ? 'block' : 'none';
+  document.getElementById('otpLoginSection').style.display = method === 'otp' ? 'block' : 'none';
+  
+  // Clear errors
+  document.getElementById('passwordError').style.display = 'none';
+  document.getElementById('otpLoginError').style.display = 'none';
+  document.getElementById('otpVerifyError').style.display = 'none';
+}
+
+// ─────────────────────── PASSWORD LOGIN ────────────────────────
+async function doLoginPassword() {
   const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
   const btn = document.getElementById('loginBtn');
-  const errBox = document.getElementById('loginError');
-  const succBox = document.getElementById('loginSuccess');
+  const errBox = document.getElementById('passwordError');
   
   errBox.style.display = 'none';
   errBox.textContent = '';
-  succBox.style.display = 'none';
-  succBox.textContent = '';
   
-  if (!email) {
-    const msg = 'Please enter your email address';
+  if (!email || !password) {
     errBox.style.display = 'block';
-    errBox.textContent = msg;
-    log(msg, 'error');
+    errBox.textContent = 'Please enter both email and password';
+    log('Password login: Missing email or password', 'error');
     return;
   }
   
-  log(`Attempting login for: ${email}`, 'info');
+  log(`Password login attempt for: ${email}`, 'info');
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Sending OTP...';
+  btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Signing in...';
   
   try {
-    log('Calling /api/auth/send-otp endpoint', 'info');
-    const response = await fetch(`${API_BASE}/api/auth/send-otp`, {
+    log('Calling /api/auth/login endpoint', 'info');
+    const response = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email })
+      body: JSON.stringify({ email: email, password: password })
     });
     
-    log(`Response status: ${response.status} ${response.statusText}`, 'info');
+    log(`Response status: ${response.status}`, 'info');
     
     const text = await response.text();
-    log(`Response body: ${text.substring(0, 200)}`, 'info');
-    
     let data;
     try {
       data = JSON.parse(text);
     } catch (e) {
-      log(`Failed to parse JSON: ${e.message}`, 'error');
-      throw new Error('Server returned invalid response: ' + text.substring(0, 100));
+      log(`Failed to parse response: ${e.message}`, 'error');
+      throw new Error('Invalid server response');
     }
     
-    if (response.ok && data.success) {
-      log('OTP sent successfully', 'success');
-      document.getElementById('otpSection').style.display = 'block';
-      localStorage.setItem('admin_temp_email', email);
-      succBox.style.display = 'block';
-      succBox.textContent = 'OTP sent! Check your email inbox.';
-      showToast('OTP sent!', 'success');
-      setTimeout(() => {
-        const otpInput = document.getElementById('otpInput');
-        if (otpInput) otpInput.focus();
-      }, 300);
+    if (response.ok && data.success && data.token) {
+      log('Password login successful', 'success');
+      authToken = data.token;
+      localStorage.setItem('admin_token', authToken);
+      localStorage.setItem('admin_email', email);
+      showMainLayout();
+      loadDashboard();
+      showToast('Logged in successfully!', 'success');
     } else {
-      const msg = data.message || data.error || 'Failed to send OTP. Please try again.';
+      const msg = data.message || data.error || 'Login failed. Check credentials.';
       log(`Login failed: ${msg}`, 'error');
       errBox.style.display = 'block';
       errBox.textContent = msg;
@@ -655,28 +707,97 @@ async function doLogin() {
   }
 }
 
+// ─────────────────────── OTP LOGIN ────────────────────────
+async function doLoginOTP() {
+  const email = document.getElementById('otpEmail').value.trim();
+  const btn = document.getElementById('sendOtpBtn');
+  const errBox = document.getElementById('otpLoginError');
+  const succBox = document.getElementById('otpLoginSuccess');
+  
+  errBox.style.display = 'none';
+  succBox.style.display = 'none';
+  errBox.textContent = '';
+  succBox.textContent = '';
+  
+  if (!email) {
+    errBox.style.display = 'block';
+    errBox.textContent = 'Please enter your email address';
+    log('OTP: Missing email', 'error');
+    return;
+  }
+  
+  log(`OTP sent request for: ${email}`, 'info');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Sending OTP...';
+  
+  try {
+    log('Calling /api/auth/send-otp endpoint', 'info');
+    const response = await fetch(`${API_BASE}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    
+    log(`Response status: ${response.status}`, 'info');
+    
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      log(`Failed to parse response: ${e.message}`, 'error');
+      throw new Error('Invalid server response');
+    }
+    
+    if (response.ok && data.success) {
+      log('OTP sent successfully', 'success');
+      localStorage.setItem('admin_temp_email', email);
+      document.getElementById('otpVerifySection').style.display = 'block';
+      succBox.style.display = 'block';
+      succBox.textContent = '✅ OTP sent! Check your email inbox.';
+      showToast('OTP sent!', 'success');
+      setTimeout(() => {
+        const otpInput = document.getElementById('otpCode');
+        if (otpInput) otpInput.focus();
+      }, 300);
+    } else {
+      const msg = data.message || data.error || 'Failed to send OTP';
+      log(`Send OTP failed: ${msg}`, 'error');
+      errBox.style.display = 'block';
+      errBox.textContent = msg;
+      showToast(msg, 'error');
+    }
+  } catch (e) {
+    const msg = `Network error: ${e.message}`;
+    log(msg, 'error');
+    errBox.style.display = 'block';
+    errBox.textContent = msg;
+    showToast(msg, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Send OTP →';
+  }
+}
+
+// ─────────────────────── OTP VERIFICATION ────────────────────────
 async function doVerifyOTP() {
   const email = localStorage.getItem('admin_temp_email');
-  const otp = document.getElementById('otpInput').value.trim();
+  const otp = document.getElementById('otpCode').value.trim();
   const btn = document.getElementById('verifyOtpBtn');
-  const errBox = document.getElementById('otpError');
+  const errBox = document.getElementById('otpVerifyError');
   
   errBox.style.display = 'none';
   errBox.textContent = '';
   
   if (!otp) {
-    const msg = 'Please enter the OTP';
     errBox.style.display = 'block';
-    errBox.textContent = msg;
-    log(msg, 'error');
+    errBox.textContent = 'Please enter the OTP';
     return;
   }
   
-  if (otp.length !== 6) {
-    const msg = 'OTP must be exactly 6 digits';
+  if (otp.length !== 6 || !/^\d+$/.test(otp)) {
     errBox.style.display = 'block';
-    errBox.textContent = msg;
-    log(msg, 'error');
+    errBox.textContent = 'OTP must be 6 digits';
     return;
   }
   
@@ -708,12 +829,11 @@ async function doVerifyOTP() {
       authToken = data.token;
       localStorage.setItem('admin_token', authToken);
       localStorage.setItem('admin_email', email);
-      log(`Token saved: ${authToken.substring(0, 20)}...`, 'success');
       showMainLayout();
       loadDashboard();
       showToast('Logged in successfully!', 'success');
     } else {
-      const msg = data.message || data.error || 'Invalid OTP. Please try again.';
+      const msg = data.message || data.error || 'Invalid OTP';
       log(`OTP verification failed: ${msg}`, 'error');
       errBox.style.display = 'block';
       errBox.textContent = msg;
@@ -967,6 +1087,17 @@ function resetForm(prefix) {
   });
   const status = document.getElementById(`${prefix}-status`);
   if (status) status.value = 'published';
+  
+  // Reset image
+  const img = document.getElementById(`${prefix}-image`);
+  if (img) img.value = '';
+  const preview = document.getElementById(`${prefix}-imagePreview`);
+  if (preview) preview.style.display = 'none';
+  const drop = document.getElementById(`${prefix}-imageDrop`);
+  if (drop) {
+    drop.querySelector('.drop-icon').textContent = '🖼️';
+    drop.querySelector('.drop-text').textContent = 'Click to upload image';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1084,6 +1215,68 @@ async function loadSchedulerStatus() {
     log(`Failed to load scheduler: ${e.message}`, 'error');
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// IMAGE UPLOAD HANDLING
+// ═══════════════════════════════════════════════════════════════════
+function previewImage(input, prefix) {
+  const file = input.files[0];
+  const preview = document.getElementById(`${prefix}-imagePreview`);
+  const drop = document.getElementById(`${prefix}-imageDrop`);
+  
+  if (file) {
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('File too large! Max 10MB', 'error');
+      input.value = '';
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = e => {
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+      drop.querySelector('.drop-icon').textContent = '✅';
+      drop.querySelector('.drop-text').textContent = file.name;
+      log(`Image preview loaded: ${file.name}`, 'success');
+    };
+    reader.onerror = e => {
+      log(`Failed to read file: ${e}`, 'error');
+      showToast('Failed to read image', 'error');
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// Setup drag & drop for image uploads
+window.addEventListener('load', () => {
+  ['aid', 'ca'].forEach(prefix => {
+    const drop = document.getElementById(`${prefix}-imageDrop`);
+    if (!drop) return;
+    
+    drop.addEventListener('dragover', e => {
+      e.preventDefault();
+      drop.classList.add('dragover');
+    });
+    
+    drop.addEventListener('dragleave', () => {
+      drop.classList.remove('dragover');
+    });
+    
+    drop.addEventListener('drop', e => {
+      e.preventDefault();
+      drop.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        const input = document.getElementById(`${prefix}-image`);
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        previewImage(input, prefix);
+        log(`Image dropped: ${file.name}`, 'info');
+      }
+    });
+  });
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // BULK PASTE PARSER FOR AI-D - IMPROVED
