@@ -308,6 +308,22 @@
               <div style="font-size:13px;color:var(--muted);">Full detailed articles with image shown in AI-D tab.</div>
             </div>
           </div>
+          
+          <!-- BULK PASTE PARSER -->
+          <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+            <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📝 Bulk Paste Parser</div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+              Paste the full article block here — the system will auto-extract <strong>Source</strong>, <strong>Category</strong>, <strong>Original Link</strong>, <strong>Title</strong> and <strong>Content</strong> into the form below.
+            </div>
+            <textarea id="aid-bulkPaste" placeholder="Paste full block here... Source: ... Category: ... Original Link: ... Title: ... Content: ..."
+              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px 14px;font-size:13px;font-family:'DM Mono',monospace;min-height:120px;resize:vertical;outline:none;"></textarea>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="parseAIDArticle()">🔍 Parse & Fill Fields</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('aid-bulkPaste').value=''">Clear</button>
+            </div>
+            <div id="aid-parseFeedback" style="margin-top:8px;font-size:12px;color:var(--accent2);display:none;"></div>
+          </div>
+          
           <div class="form-group">
             <label>Article Title *</label>
             <input type="text" id="aid-title" placeholder="Enter a clear, descriptive headline..." />
@@ -1066,6 +1082,175 @@ async function loadSchedulerStatus() {
     log('Scheduler status loaded', 'success');
   } catch (e) {
     log(`Failed to load scheduler: ${e.message}`, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BULK PASTE PARSER FOR AI-D
+// ═══════════════════════════════════════════════════════════════════
+function parseAIDArticle() {
+  const rawText = document.getElementById('aid-bulkPaste').value.trim();
+  const feedback = document.getElementById('aid-parseFeedback');
+  
+  if (!rawText) {
+    feedback.style.display = 'block';
+    feedback.style.color = 'var(--danger)';
+    feedback.textContent = '❌ Please paste some text first';
+    return;
+  }
+  
+  log('Parsing AI-D article from bulk paste', 'info');
+  
+  // Initialize fields object
+  const fields = {
+    source: '',
+    category: '',
+    link: '',
+    title: '',
+    content: ''
+  };
+  
+  // Split into lines
+  const lines = rawText.split('\n');
+  let currentSection = null;
+  
+  // Pattern matching for different field types
+  const sourcePatterns = /^[\*\-]?\s*Source\s*:?\s*(.*?)$/im;
+  const categoryPatterns = /^[\*\-]?\s*Category\s*:?\s*(.*?)$/im;
+  const linkPatterns = /^[\*\-]?\s*Original\s*Link\s*:?\s*\[?([^\]]*)\]?\s*(?:\(([^)]+)\))?$/im;
+  const titlePatterns = /^[\*\-]?\s*Title\s*:?\s*(.*?)$/im;
+  const contentPatterns = /^[\*\-]?\s*Content\s*:?\s*(.*?)$/im;
+  
+  // Parse each line
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Try to match Source
+    let match = sourcePatterns.exec(line);
+    if (match) {
+      fields.source = match[1].trim();
+      currentSection = null;
+      continue;
+    }
+    
+    // Try to match Category
+    match = categoryPatterns.exec(line);
+    if (match) {
+      fields.category = match[1].trim();
+      currentSection = null;
+      continue;
+    }
+    
+    // Try to match Original Link
+    match = linkPatterns.exec(line);
+    if (match) {
+      if (match[2]) {
+        fields.link = match[2].trim();
+      } else {
+        fields.link = match[1].trim();
+      }
+      currentSection = null;
+      continue;
+    }
+    
+    // Try to match Title
+    match = titlePatterns.exec(line);
+    if (match) {
+      fields.title = match[1].trim();
+      currentSection = null;
+      continue;
+    }
+    
+    // Try to match Content
+    match = contentPatterns.exec(line);
+    if (match) {
+      fields.content = match[1].trim();
+      currentSection = 'content';
+      continue;
+    }
+    
+    // If we're in content section, continue appending
+    if (currentSection === 'content') {
+      if (fields.content) fields.content += '\n' + line;
+      else fields.content = line;
+    }
+  }
+  
+  // Clean up content
+  fields.content = fields.content.trim();
+  
+  // Fill form fields
+  let filledCount = 0;
+  
+  if (fields.title) {
+    document.getElementById('aid-title').value = fields.title;
+    filledCount++;
+  }
+  
+  if (fields.content) {
+    document.getElementById('aid-content').value = fields.content;
+    filledCount++;
+  }
+  
+  if (fields.source) {
+    document.getElementById('aid-source').value = fields.source;
+    filledCount++;
+  }
+  
+  if (fields.link) {
+    document.getElementById('aid-link').value = fields.link;
+    filledCount++;
+  }
+  
+  // Try to match category
+  if (fields.category) {
+    const categorySelect = document.getElementById('aid-subcategory');
+    const rawCategory = fields.category.toLowerCase();
+    
+    // Category mapping
+    const categoryMap = {
+      'cricket': 'Sports',
+      'sports': 'Sports',
+      'tech': 'Technology',
+      'technology': 'Technology',
+      'business': 'Business',
+      'science': 'Science',
+      'entertainment': 'Entertainment',
+      'health': 'Health',
+      'politics': 'Politics',
+      'world': 'World',
+      'india': 'India'
+    };
+    
+    // Find match
+    let foundMatch = null;
+    for (const [key, value] of Object.entries(categoryMap)) {
+      if (rawCategory.includes(key)) {
+        foundMatch = value;
+        break;
+      }
+    }
+    
+    if (foundMatch) {
+      categorySelect.value = foundMatch;
+      log(`Category matched: "${fields.category}" → "${foundMatch}"`, 'info');
+      filledCount++;
+    }
+  }
+  
+  // Show feedback
+  if (filledCount > 0) {
+    feedback.style.display = 'block';
+    feedback.style.color = 'var(--green)';
+    feedback.innerHTML = `✅ Successfully parsed <strong>${filledCount} fields</strong>`;
+    log(`Parsed ${filledCount} fields`, 'success');
+    showToast(`Parsed ${filledCount} fields!`, 'success');
+  } else {
+    feedback.style.display = 'block';
+    feedback.style.color = 'var(--danger)';
+    feedback.innerHTML = '❌ No recognized fields found';
+    log('No fields could be parsed', 'error');
   }
 }
 
