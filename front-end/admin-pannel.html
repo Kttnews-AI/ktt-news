@@ -1086,7 +1086,7 @@ async function loadSchedulerStatus() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// BULK PASTE PARSER FOR AI-D
+// BULK PASTE PARSER FOR AI-D - IMPROVED
 // ═══════════════════════════════════════════════════════════════════
 function parseAIDArticle() {
   const rawText = document.getElementById('aid-bulkPaste').value.trim();
@@ -1101,7 +1101,7 @@ function parseAIDArticle() {
   
   log('Parsing AI-D article from bulk paste', 'info');
   
-  // Initialize fields object
+  // Initialize fields
   const fields = {
     source: '',
     category: '',
@@ -1111,119 +1111,148 @@ function parseAIDArticle() {
   };
   
   // Split into lines
-  const lines = rawText.split('\n');
-  let currentSection = null;
+  const lines = rawText.split('\n').map(l => l.trim());
   
-  // Pattern matching for different field types
-  const sourcePatterns = /^[\*\-]?\s*Source\s*:?\s*(.*?)$/im;
-  const categoryPatterns = /^[\*\-]?\s*Category\s*:?\s*(.*?)$/im;
-  const linkPatterns = /^[\*\-]?\s*Original\s*Link\s*:?\s*\[?([^\]]*)\]?\s*(?:\(([^)]+)\))?$/im;
-  const titlePatterns = /^[\*\-]?\s*Title\s*:?\s*(.*?)$/im;
-  const contentPatterns = /^[\*\-]?\s*Content\s*:?\s*(.*?)$/im;
-  
-  // Parse each line
+  // More flexible patterns that handle various formats
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
+    const line = lines[i];
     
-    // Try to match Source
-    let match = sourcePatterns.exec(line);
-    if (match) {
-      fields.source = match[1].trim();
-      currentSection = null;
+    // SOURCE EXTRACTION
+    if (/^[\*\-]?\s*source\s*:/i.test(line)) {
+      const match = line.match(/source\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
+      if (match) {
+        fields.source = match[1].trim();
+        log(`Extracted source: "${fields.source}"`, 'info');
+      }
       continue;
     }
     
-    // Try to match Category
-    match = categoryPatterns.exec(line);
-    if (match) {
-      fields.category = match[1].trim();
-      currentSection = null;
+    // CATEGORY EXTRACTION
+    if (/^[\*\-]?\s*category\s*:/i.test(line)) {
+      const match = line.match(/category\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
+      if (match) {
+        fields.category = match[1].trim();
+        log(`Extracted category: "${fields.category}"`, 'info');
+      }
       continue;
     }
     
-    // Try to match Original Link
-    match = linkPatterns.exec(line);
-    if (match) {
-      if (match[2]) {
+    // ORIGINAL LINK EXTRACTION - Handle markdown and plain URLs
+    if (/^[\*\-]?\s*original\s+link\s*:/i.test(line)) {
+      // Try markdown format first [text](url)
+      let match = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match) {
         fields.link = match[2].trim();
       } else {
-        fields.link = match[1].trim();
+        // Try plain URL or text after colon
+        match = line.match(/original\s+link\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
+        if (match) {
+          const linkText = match[1].trim();
+          // Extract URL if it's a markdown-like format
+          if (linkText.includes('(') && linkText.includes(')')) {
+            const urlMatch = linkText.match(/\(([^)]+)\)/);
+            fields.link = urlMatch ? urlMatch[1].trim() : linkText;
+          } else {
+            fields.link = linkText;
+          }
+        }
       }
-      currentSection = null;
+      log(`Extracted link: "${fields.link}"`, 'info');
       continue;
     }
     
-    // Try to match Title
-    match = titlePatterns.exec(line);
-    if (match) {
-      fields.title = match[1].trim();
-      currentSection = null;
+    // TITLE EXTRACTION
+    if (/^[\*\-]?\s*title\s*:/i.test(line)) {
+      const match = line.match(/title\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
+      if (match) {
+        fields.title = match[1].trim();
+        log(`Extracted title: "${fields.title}"`, 'info');
+      }
       continue;
     }
     
-    // Try to match Content
-    match = contentPatterns.exec(line);
-    if (match) {
-      fields.content = match[1].trim();
-      currentSection = 'content';
-      continue;
-    }
-    
-    // If we're in content section, continue appending
-    if (currentSection === 'content') {
-      if (fields.content) fields.content += '\n' + line;
-      else fields.content = line;
+    // CONTENT EXTRACTION - Everything after "Content:"
+    if (/^[\*\-]?\s*content\s*:/i.test(line)) {
+      const contentStart = line.match(/content\s*:\s*(.+?)$/i);
+      if (contentStart && contentStart[1].trim()) {
+        fields.content = contentStart[1].trim();
+      }
+      
+      // Get remaining lines as content
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j] && !lines[j].match(/^[\*\-]?\s*(source|category|link|title|content)\s*:/i)) {
+          if (fields.content) fields.content += '\n' + lines[j];
+          else fields.content = lines[j];
+        }
+      }
+      
+      log(`Extracted content: ${fields.content.length} characters`, 'info');
+      break;
     }
   }
   
-  // Clean up content
-  fields.content = fields.content.trim();
+  // Clean up whitespace
+  Object.keys(fields).forEach(key => {
+    fields[key] = fields[key].trim();
+  });
   
-  // Fill form fields
+  // FILL FORM FIELDS
   let filledCount = 0;
   
   if (fields.title) {
     document.getElementById('aid-title').value = fields.title;
     filledCount++;
+    log('✓ Filled Title', 'success');
   }
   
   if (fields.content) {
     document.getElementById('aid-content').value = fields.content;
     filledCount++;
+    log('✓ Filled Content', 'success');
   }
   
   if (fields.source) {
     document.getElementById('aid-source').value = fields.source;
     filledCount++;
+    log('✓ Filled Source', 'success');
   }
   
   if (fields.link) {
     document.getElementById('aid-link').value = fields.link;
     filledCount++;
+    log('✓ Filled Link', 'success');
   }
   
-  // Try to match category
+  // AUTO-MATCH CATEGORY TO DROPDOWN
   if (fields.category) {
     const categorySelect = document.getElementById('aid-subcategory');
     const rawCategory = fields.category.toLowerCase();
     
-    // Category mapping
+    // Expanded category mapping
     const categoryMap = {
       'cricket': 'Sports',
+      'ipl': 'Sports',
       'sports': 'Sports',
       'tech': 'Technology',
       'technology': 'Technology',
+      'ai': 'Technology',
       'business': 'Business',
+      'finance': 'Business',
       'science': 'Science',
       'entertainment': 'Entertainment',
+      'movie': 'Entertainment',
+      'film': 'Entertainment',
       'health': 'Health',
+      'medical': 'Health',
       'politics': 'Politics',
+      'government': 'Politics',
       'world': 'World',
-      'india': 'India'
+      'international': 'World',
+      'india': 'India',
+      'indian': 'India'
     };
     
-    // Find match
+    // Find best match
     let foundMatch = null;
     for (const [key, value] of Object.entries(categoryMap)) {
       if (rawCategory.includes(key)) {
@@ -1234,23 +1263,25 @@ function parseAIDArticle() {
     
     if (foundMatch) {
       categorySelect.value = foundMatch;
-      log(`Category matched: "${fields.category}" → "${foundMatch}"`, 'info');
+      log(`Category matched: "${fields.category}" → "${foundMatch}"`, 'success');
       filledCount++;
+    } else {
+      log(`Category not matched: "${fields.category}" (keeping default)`, 'info');
     }
   }
   
-  // Show feedback
+  // SHOW FEEDBACK
+  feedback.style.display = 'block';
+  
   if (filledCount > 0) {
-    feedback.style.display = 'block';
     feedback.style.color = 'var(--green)';
-    feedback.innerHTML = `✅ Successfully parsed <strong>${filledCount} fields</strong>`;
-    log(`Parsed ${filledCount} fields`, 'success');
-    showToast(`Parsed ${filledCount} fields!`, 'success');
+    feedback.innerHTML = `✅ <strong>${filledCount} fields</strong> parsed and filled!`;
+    log(`Successfully parsed ${filledCount} fields`, 'success');
+    showToast(`✅ Parsed ${filledCount} fields!`, 'success');
   } else {
-    feedback.style.display = 'block';
     feedback.style.color = 'var(--danger)';
-    feedback.innerHTML = '❌ No recognized fields found';
-    log('No fields could be parsed', 'error');
+    feedback.innerHTML = '❌ Could not parse any fields. Check format.';
+    log('Failed to parse any fields', 'error');
   }
 }
 
