@@ -142,6 +142,10 @@
   #toast.success { border-color: var(--green); }
   #toast.error   { border-color: var(--danger); }
 
+  /* DEBUG BOX */
+  .debug-box { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.2); border-radius: 10px; padding: 12px 14px; margin-top: 12px; font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; line-height: 1.6; max-height: 200px; overflow-y: auto; }
+  .debug-box.error { background: rgba(255,71,87,0.08); border-color: rgba(255,71,87,0.2); color: var(--danger); }
+
   /* MISC */
   .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .section-header h3 { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; }
@@ -198,15 +202,9 @@
       <input type="email" id="loginEmail" placeholder="admin@email.com" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="email" />
     </div>
     <button id="loginBtn" class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In →</button>
-
-    <!-- Inline error display -->
     <div id="loginError" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;line-height:1.5;"></div>
-
-    <!-- Inline success display -->
     <div id="loginSuccess" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(46,213,115,0.12);border:1px solid rgba(46,213,115,0.3);border-radius:10px;color:var(--green);font-size:13px;line-height:1.5;"></div>
-
-    <p style="margin-top:14px;font-size:12px;text-align:center;color:var(--muted);">📧 OTP login — enter your email and we'll send a 6-digit code</p>
-
+    <p style="margin-top:14px;font-size:12px;text-align:center;color:var(--muted);">📧 OTP login — enter your email and we will send a 6-digit code</p>
     <div id="otpSection" style="display:none;margin-top:16px;">
       <div class="divider"></div>
       <div class="form-group">
@@ -216,10 +214,11 @@
       <button id="verifyOtpBtn" class="btn btn-success" style="width:100%;justify-content:center;" onclick="doVerifyOTP()">Verify OTP →</button>
       <div id="otpError" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;"></div>
     </div>
-
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:center;">
       <button class="btn btn-ghost btn-sm" onclick="testServerConnection()" style="font-size:12px;">🔌 Test Server Connection</button>
       <div id="connStatus" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
+      <button class="btn btn-ghost btn-sm" onclick="toggleDebugLog()" style="font-size:12px;margin-top:8px;">🔍 Toggle Debug Log</button>
+      <div id="debugLog" class="debug-box" style="display:none;margin-top:8px;"></div>
     </div>
   </div>
 </div>
@@ -309,29 +308,6 @@
               <div style="font-size:13px;color:var(--muted);">Full detailed articles with image shown in AI-D tab.</div>
             </div>
           </div>
-
-          <!-- BULK PASTE PARSER -->
-          <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
-            <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📝 Bulk Paste Parser</div>
-            <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
-              Paste the full article block here — the system will auto-extract <strong>Source</strong>, <strong>Category</strong>, <strong>Original Link</strong>, <strong>Title</strong> and <strong>Content</strong> into the form below.
-            </div>
-            <textarea id="aid-bulkPaste" placeholder="Paste full block here...
-
-Source: ...
-Category: ...
-Original Link: ...
-Title: ...
-Content: ..."
-              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px 14px;font-size:13px;font-family:'DM Mono',monospace;min-height:120px;resize:vertical;outline:none;"
-              onpaste="setTimeout(()=>parseBulkPaste(),50)"></textarea>
-            <div style="display:flex;gap:10px;margin-top:10px;">
-              <button type="button" class="btn btn-primary btn-sm" onclick="parseBulkPaste()">🔍 Parse & Fill Fields</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('aid-bulkPaste').value=''">Clear</button>
-            </div>
-            <div id="aid-parseFeedback" style="margin-top:8px;font-size:12px;color:var(--accent2);display:none;"></div>
-          </div>
-
           <div class="form-group">
             <label>Article Title *</label>
             <input type="text" id="aid-title" placeholder="Enter a clear, descriptive headline..." />
@@ -378,16 +354,6 @@ Content: ..."
               </select>
             </div>
           </div>
-          <div class="form-group">
-            <label>Article Image</label>
-            <div class="image-drop" id="aid-imageDrop">
-              <input type="file" id="aid-image" accept="image/*" onchange="previewImage(this,'aid')" />
-              <div class="drop-icon">🖼️</div>
-              <div class="drop-text">Click to upload image</div>
-              <div class="drop-sub">JPG, PNG, WEBP — max 10MB</div>
-            </div>
-            <img id="aid-imagePreview" class="image-preview" alt="Preview" />
-          </div>
           <div style="display:flex;gap:12px;margin-top:8px;">
             <button class="btn btn-primary" id="aid-uploadBtn" onclick="uploadArticle('aid')" style="flex:1;justify-content:center;">🔵 Publish AI-D Article</button>
             <button class="btn btn-ghost" onclick="resetForm('aid')">Cancel</button>
@@ -406,58 +372,17 @@ Content: ..."
             <div class="upload-card-icon orange">⚡</div>
             <div>
               <div style="font-weight:700;font-size:16px;color:var(--orange);">Daily News Bulletin Digest</div>
-              <div style="font-size:13px;color:var(--muted);">Paste the entire bulletin — sections auto-parse with colored headers. One upload per day.</div>
+              <div style="font-size:13px;color:var(--muted);">Paste the entire bulletin — sections auto-parse with colored headers.</div>
             </div>
           </div>
-
-          <!-- FORMAT GUIDE -->
-          <div style="background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
-            <div style="font-size:12px;font-weight:800;color:var(--orange);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📋 Paste Format Guide</div>
-            <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);line-height:1.8;background:var(--surface2);padding:12px;border-radius:8px;">
-              <span style="color:#FF9800;font-weight:700;">Global Conflict &amp; Middle East</span><br>
-              1. Iran Threatens Infrastructure: Tehran warns...<br>
-              2. Strait of Hormuz: Iran's blockade continues...<br>
-              <br>
-              <span style="color:#4CAF50;font-weight:700;">India National News</span><br>
-              1. PM Modi's Meet: Prime Minister held...<br>
-              2. Petrol Price Hike: Premium prices hiked...<br>
-            </div>
-            <div style="margin-top:10px;font-size:12px;color:var(--muted);">
-              ✅ Section name on its own line → becomes a colored header<br>
-              ✅ <code style="color:var(--accent2);">1. Bold Title: Content here</code> → numbered point with bold title<br>
-              ✅ Each section auto-gets a unique color automatically
-            </div>
-          </div>
-
           <div class="form-group">
             <label>Digest Title * <span style="color:var(--muted);font-size:12px;">e.g. "Daily Digest — 23 March 2026"</span></label>
             <input type="text" id="60sec-title" placeholder="Daily Digest — 23 March 2026" />
           </div>
-
           <div class="form-group">
-            <label>Full Bulletin Content * <span style="color:var(--orange);font-size:12px;">— paste entire bulletin here</span></label>
-            <textarea id="60sec-content"
-              placeholder="Global Conflict &amp; Middle East Crisis
-1. Iran Threatens Infrastructure: Tehran warns it will target all U.S. facilities.
-2. Strait of Hormuz Blockade: Iran's blockade cutting off 20% of global oil.
-
-India National News
-1. Shaheed Diwas: India observes Martyrs' Day today.
-2. PM Modi's Meet: Prime Minister held a meeting on West Asia."
-              style="min-height:380px;font-family:'DM Mono',monospace;font-size:13px;line-height:1.7;"></textarea>
+            <label>Full Bulletin Content *</label>
+            <textarea id="60sec-content" placeholder="Global Conflict & Middle East Crisis..." style="min-height:280px;font-family:'DM Mono',monospace;font-size:13px;"></textarea>
           </div>
-
-          <!-- Live preview count -->
-          <div id="60sec-parsePreview" style="background:var(--surface2);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted);display:none;">
-            📊 Detected: <span id="60sec-sectionCount" style="color:var(--orange);font-weight:700;">0</span> sections,
-            <span id="60sec-pointCount" style="color:var(--accent2);font-weight:700;">0</span> total points
-          </div>
-
-          <!-- IMPORTANT NOTE — category is auto-set to '60sec' -->
-          <div style="background:rgba(255,152,0,0.12);border:1px solid rgba(255,152,0,0.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;">
-            ✅ <strong style="color:var(--orange);">Category is automatically set to "60sec"</strong> — no need to select anything. This ensures the article always appears in the ⚡ 60 Sec tab.
-          </div>
-
           <div class="form-row">
             <div class="form-group">
               <label>Source / Edition</label>
@@ -475,7 +400,6 @@ India National News
               <option value="draft">Draft</option>
             </select>
           </div>
-
           <div style="display:flex;gap:12px;margin-top:8px;">
             <button class="btn btn-orange" id="60sec-uploadBtn" onclick="uploadArticle('60sec')" style="flex:1;justify-content:center;">⚡ Publish 60 Sec Digest</button>
             <button class="btn btn-ghost" onclick="resetForm('60sec')">Cancel</button>
@@ -497,16 +421,13 @@ India National News
               <div style="font-size:13px;color:var(--muted);">Exam-relevant content, government policies, major events.</div>
             </div>
           </div>
-          <div style="background:rgba(229,57,53,0.08);border:1px solid rgba(229,57,53,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--red);">
-            💡 <strong>Best for:</strong> Exam-relevant current affairs, government schemes, major national/international events, policy changes.
-          </div>
           <div class="form-group">
             <label>Article Title *</label>
             <input type="text" id="ca-title" placeholder="Current affairs headline..." />
           </div>
           <div class="form-group">
             <label>Content / Body *</label>
-            <textarea id="ca-content" placeholder="Detailed current affairs content. Include key facts, dates, important names, and context..." style="min-height:200px;"></textarea>
+            <textarea id="ca-content" placeholder="Detailed current affairs content..." style="min-height:200px;"></textarea>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -520,11 +441,7 @@ India National News
                 <option value="currentaffairs">Economy</option>
                 <option value="currentaffairs">Defence</option>
                 <option value="currentaffairs">International</option>
-                <option value="currentaffairs">Science &amp; Tech</option>
-                <option value="currentaffairs">Environment</option>
-                <option value="currentaffairs">Sports</option>
-                <option value="currentaffairs">Awards</option>
-                <option value="currentaffairs">Government Schemes</option>
+                <option value="currentaffairs">Science & Tech</option>
               </select>
             </div>
           </div>
@@ -545,16 +462,6 @@ India National News
               </select>
             </div>
           </div>
-          <div class="form-group">
-            <label>Article Image</label>
-            <div class="image-drop" id="ca-imageDrop">
-              <input type="file" id="ca-image" accept="image/*" onchange="previewImage(this,'ca')" />
-              <div class="drop-icon">🖼️</div>
-              <div class="drop-text">Click to upload image</div>
-              <div class="drop-sub">JPG, PNG, WEBP — max 10MB</div>
-            </div>
-            <img id="ca-imagePreview" class="image-preview" alt="Preview" />
-          </div>
           <div style="display:flex;gap:12px;margin-top:8px;">
             <button class="btn btn-red" id="ca-uploadBtn" onclick="uploadArticle('ca')" style="flex:1;justify-content:center;">🔴 Publish Current Affairs</button>
             <button class="btn btn-ghost" onclick="resetForm('ca')">Cancel</button>
@@ -566,21 +473,7 @@ India National News
       <div class="panel" id="panel-articles">
         <div class="section-header">
           <h3>All Manual Articles</h3>
-          <div style="display:flex;gap:10px;align-items:center;">
-            <span class="badge badge-purple" id="articleCountBadge">0 articles</span>
-            <button class="btn btn-ghost btn-sm" onclick="loadArticles()">🔄 Refresh</button>
-            <button class="btn btn-danger btn-sm" onclick="openDeleteAllModal()">🗑️ Delete All</button>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-          <button class="btn btn-sm" id="filter-all"   onclick="filterByCategory('all')"    style="background:var(--accent);color:#fff;border:none;">All</button>
-          <button class="btn btn-sm btn-ghost" id="filter-aid"   onclick="filterByCategory('aid')">🔵 AI-D</button>
-          <button class="btn btn-sm btn-ghost" id="filter-60sec" onclick="filterByCategory('60sec')">⚡ 60 Sec</button>
-          <button class="btn btn-sm btn-ghost" id="filter-ca"    onclick="filterByCategory('ca')">🔴 Current Affairs</button>
-        </div>
-        <div class="search-bar">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="searchInput" placeholder="Search articles by title..." oninput="applyArticleFilters()" />
+          <button class="btn btn-ghost btn-sm" onclick="loadArticles()">🔄 Refresh</button>
         </div>
         <div id="articlesList"><div class="loading-row"><div class="spinner"></div> Loading articles...</div></div>
       </div>
@@ -598,23 +491,9 @@ India National News
       <!-- ══ SCHEDULER ══ -->
       <div class="panel" id="panel-scheduler">
         <div class="section-header"><h3>Auto-Delete Scheduler</h3></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
-            <h4 style="font-family:'Syne',sans-serif;margin-bottom:16px;">Scheduler Status</h4>
-            <div id="schedulerStatusFull" style="color:var(--muted);font-size:14px;line-height:2;">Loading...</div>
-            <div class="divider"></div>
-            <button class="btn btn-danger" onclick="triggerAutoDelete()">🗑️ Run Delete Now (Test)</button>
-          </div>
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
-            <h4 style="font-family:'Syne',sans-serif;margin-bottom:12px;">About Auto-Delete</h4>
-            <div style="color:var(--muted);font-size:14px;line-height:1.8;">
-              <p>🕐 Runs daily at <strong style="color:var(--text);">11:57 PM IST</strong></p>
-              <p style="margin-top:8px;">🗑️ Deletes <strong style="color:var(--text);">all manual articles</strong> + Cloudinary images</p>
-              <p style="margin-top:8px;">🔖 Also clears <strong style="color:var(--text);">all bookmarks</strong></p>
-              <p style="margin-top:8px;">⚡ GNews cache is <strong style="color:var(--text);">not affected</strong></p>
-              <p style="margin-top:16px;padding:10px;background:rgba(255,71,87,0.1);border-radius:8px;border:1px solid rgba(255,71,87,0.2);color:var(--danger);">⚠️ "Run Delete Now" immediately deletes all manual articles!</p>
-            </div>
-          </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
+          <h4 style="font-family:'Syne',sans-serif;margin-bottom:16px;">Scheduler Status</h4>
+          <div id="schedulerStatusFull" style="color:var(--muted);font-size:14px;line-height:2;">Loading...</div>
         </div>
       </div>
 
@@ -622,163 +501,327 @@ India National News
   </main>
 </div>
 
-<!-- MODALS -->
-<div class="modal-overlay" id="deleteAllModal">
-  <div class="modal">
-    <h3>⚠️ Delete All Manual News?</h3>
-    <p>This permanently deletes all AI-D + 60 Sec + Current Affairs articles and Cloudinary images.</p>
-    <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="closeDeleteAllModal()">Cancel</button>
-      <button class="btn btn-danger" onclick="deleteAllNews()">Yes, Delete All</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="deleteSingleModal">
-  <div class="modal">
-    <h3>Delete Article?</h3>
-    <p id="deleteSingleMsg">Are you sure?</p>
-    <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="document.getElementById('deleteSingleModal').classList.remove('open')">Cancel</button>
-      <button class="btn btn-danger" onclick="confirmDeleteSingle()">Delete</button>
-    </div>
-  </div>
-</div>
-
 <div id="toast"></div>
 
 <script>
+// ═══════════════════════════════════════════════════════════════════
+// DEBUG & LOGGING SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+let debugMode = false;
+let debugLogs = [];
+
+function log(message, type = 'info') {
+  const timestamp = new Date().toLocaleTimeString();
+  const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+  debugLogs.push(logEntry);
+  console.log(logEntry);
+  updateDebugUI();
+}
+
+function updateDebugUI() {
+  const debugBox = document.getElementById('debugLog');
+  if (debugBox && debugMode) {
+    debugBox.innerHTML = debugLogs.map((l, i) => {
+      if (l.includes('ERROR')) return `<div style="color:var(--danger);">${escHtml(l)}</div>`;
+      if (l.includes('SUCCESS')) return `<div style="color:var(--green);">${escHtml(l)}</div>`;
+      return `<div>${escHtml(l)}</div>`;
+    }).join('');
+    debugBox.scrollTop = debugBox.scrollHeight;
+  }
+}
+
+function toggleDebugLog() {
+  debugMode = !debugMode;
+  const debugBox = document.getElementById('debugLog');
+  if (debugBox) {
+    debugBox.style.display = debugMode ? 'block' : 'none';
+    updateDebugUI();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONFIGURATION & GLOBALS
+// ═══════════════════════════════════════════════════════════════════
 const API_BASE = 'https://centrinsicnpt.com';
-let authToken             = localStorage.getItem('admin_token') || '';
-let allArticlesData       = [];
+let authToken = localStorage.getItem('admin_token') || '';
+let allArticlesData = [];
 let currentCategoryFilter = 'all';
-let deleteTargetId        = null;
+let deleteTargetId = null;
+
+log('Admin Panel initialized', 'info');
+log(`API Base: ${API_BASE}`, 'info');
 
 window.onload = () => {
-  if (authToken) { showMainLayout(); loadDashboard(); }
+  log('Page loaded, checking for existing token', 'info');
+  if (authToken) {
+    log('Token found in localStorage, loading main layout', 'success');
+    showMainLayout();
+    loadDashboard();
+  } else {
+    log('No token found, showing login screen', 'info');
+  }
 };
 
-// ── AUTH ──────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// AUTHENTICATION
+// ═══════════════════════════════════════════════════════════════════
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const btn = document.getElementById('loginBtn');
   const errBox = document.getElementById('loginError');
   const succBox = document.getElementById('loginSuccess');
-
-  // Reset messages
-  if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
-  if (succBox) { succBox.style.display = 'none'; succBox.textContent = ''; }
-
+  
+  errBox.style.display = 'none';
+  errBox.textContent = '';
+  succBox.style.display = 'none';
+  succBox.textContent = '';
+  
   if (!email) {
-    if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ Please enter your email address'; }
+    const msg = 'Please enter your email address';
+    errBox.style.display = 'block';
+    errBox.textContent = msg;
+    log(msg, 'error');
     return;
   }
-
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Sending OTP...'; }
-
-  console.log('[Login] Sending OTP to:', email);
-
+  
+  log(`Attempting login for: ${email}`, 'info');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Sending OTP...';
+  
   try {
-    const r = await api('/api/auth/send-otp', 'POST', { email });
-    console.log('[Login] Response:', r);
-
-    if (r.success) {
+    log('Calling /api/auth/send-otp endpoint', 'info');
+    const response = await fetch(`${API_BASE}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    
+    log(`Response status: ${response.status} ${response.statusText}`, 'info');
+    
+    const text = await response.text();
+    log(`Response body: ${text.substring(0, 200)}`, 'info');
+    
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      log(`Failed to parse JSON: ${e.message}`, 'error');
+      throw new Error('Server returned invalid response: ' + text.substring(0, 100));
+    }
+    
+    if (response.ok && data.success) {
+      log('OTP sent successfully', 'success');
       document.getElementById('otpSection').style.display = 'block';
       localStorage.setItem('admin_temp_email', email);
-      if (succBox) { succBox.style.display = 'block'; succBox.textContent = '✅ OTP sent! Check your email inbox.'; }
-      showToast('📧 OTP sent!', 'success');
-      setTimeout(() => { const el = document.getElementById('otpInput'); if (el) el.focus(); }, 300);
+      succBox.style.display = 'block';
+      succBox.textContent = 'OTP sent! Check your email inbox.';
+      showToast('OTP sent!', 'success');
+      setTimeout(() => {
+        const otpInput = document.getElementById('otpInput');
+        if (otpInput) otpInput.focus();
+      }, 300);
     } else {
-      const msg = r.message || r.error || 'Failed to send OTP. Please try again.';
-      console.error('[Login] Server error:', msg);
-      if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ ' + msg; }
+      const msg = data.message || data.error || 'Failed to send OTP. Please try again.';
+      log(`Login failed: ${msg}`, 'error');
+      errBox.style.display = 'block';
+      errBox.textContent = msg;
       showToast(msg, 'error');
     }
-  } catch(e) {
-    console.error('[Login] Network/exception error:', e);
-    const msg = 'Network error: ' + (e.message || 'Cannot reach server. Check your internet connection or try the Test Connection button below.');
-    if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ ' + msg; }
+  } catch (e) {
+    const msg = `Network error: ${e.message}`;
+    log(msg, 'error');
+    errBox.style.display = 'block';
+    errBox.textContent = msg;
     showToast(msg, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In →'; }
+    btn.disabled = false;
+    btn.innerHTML = 'Sign In →';
   }
 }
 
 async function doVerifyOTP() {
   const email = localStorage.getItem('admin_temp_email');
-  const otp   = document.getElementById('otpInput').value.trim();
-  const btn   = document.getElementById('verifyOtpBtn');
+  const otp = document.getElementById('otpInput').value.trim();
+  const btn = document.getElementById('verifyOtpBtn');
   const errBox = document.getElementById('otpError');
-
-  if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
-
+  
+  errBox.style.display = 'none';
+  errBox.textContent = '';
+  
   if (!otp) {
-    if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ Please enter the OTP'; }
+    const msg = 'Please enter the OTP';
+    errBox.style.display = 'block';
+    errBox.textContent = msg;
+    log(msg, 'error');
     return;
   }
+  
   if (otp.length !== 6) {
-    if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ OTP must be exactly 6 digits'; }
+    const msg = 'OTP must be exactly 6 digits';
+    errBox.style.display = 'block';
+    errBox.textContent = msg;
+    log(msg, 'error');
     return;
   }
-
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Verifying...'; }
-
-  console.log('[Verify] Checking OTP for:', email);
-
+  
+  log(`Verifying OTP for: ${email}`, 'info');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Verifying...';
+  
   try {
-    const r = await api('/api/auth/verify-otp', 'POST', { email, otp });
-    console.log('[Verify] Response:', r);
-
-    if (r.success && r.token) {
-      authToken = r.token;
+    log('Calling /api/auth/verify-otp endpoint', 'info');
+    const response = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, otp: otp })
+    });
+    
+    log(`Response status: ${response.status}`, 'info');
+    
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      log(`Failed to parse response: ${e.message}`, 'error');
+      throw new Error('Invalid server response');
+    }
+    
+    if (response.ok && data.success && data.token) {
+      log('OTP verified successfully', 'success');
+      authToken = data.token;
       localStorage.setItem('admin_token', authToken);
       localStorage.setItem('admin_email', email);
-      showMainLayout(); loadDashboard();
-      showToast('✅ Logged in successfully!', 'success');
+      log(`Token saved: ${authToken.substring(0, 20)}...`, 'success');
+      showMainLayout();
+      loadDashboard();
+      showToast('Logged in successfully!', 'success');
     } else {
-      const msg = r.message || r.error || 'Invalid OTP. Please try again.';
-      console.error('[Verify] Server error:', msg);
-      if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ ' + msg; }
+      const msg = data.message || data.error || 'Invalid OTP. Please try again.';
+      log(`OTP verification failed: ${msg}`, 'error');
+      errBox.style.display = 'block';
+      errBox.textContent = msg;
       showToast(msg, 'error');
     }
-  } catch(e) {
-    console.error('[Verify] Network/exception error:', e);
-    const msg = 'Network error: ' + (e.message || 'Cannot reach server');
-    if (errBox) { errBox.style.display = 'block'; errBox.textContent = '❌ ' + msg; }
+  } catch (e) {
+    const msg = `Network error: ${e.message}`;
+    log(msg, 'error');
+    errBox.style.display = 'block';
+    errBox.textContent = msg;
     showToast(msg, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = 'Verify OTP →'; }
+    btn.disabled = false;
+    btn.innerHTML = 'Verify OTP →';
   }
 }
 
 function showMainLayout() {
+  log('Showing main layout', 'info');
   document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('mainLayout').style.display  = 'flex';
+  document.getElementById('mainLayout').style.display = 'flex';
   const email = localStorage.getItem('admin_email') || 'Admin';
-  const name  = email.split('@')[0];
-  document.getElementById('adminName').textContent   = name;
+  const name = email.split('@')[0];
+  document.getElementById('adminName').textContent = name;
   document.getElementById('adminAvatar').textContent = name[0].toUpperCase();
 }
 
 function doLogout() {
+  log('Logging out', 'info');
   authToken = '';
   localStorage.removeItem('admin_token');
   localStorage.removeItem('admin_email');
   location.reload();
 }
 
-// ── NAVIGATION ────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// API HELPERS
+// ═══════════════════════════════════════════════════════════════════
+async function api(path, method = 'GET', body = null) {
+  const opts = {
+    method: method,
+    headers: { 'Content-Type': 'application/json' }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  
+  try {
+    log(`API Call: ${method} ${path}`, 'info');
+    const response = await fetch(API_BASE + path, opts);
+    log(`API Response: ${response.status}`, 'info');
+    
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = { error: text.substring(0, 200) || 'Server returned non-JSON response' };
+    }
+    
+    if (!response.ok && !data.error) {
+      data.error = `HTTP ${response.status}: ${response.statusText}`;
+    }
+    
+    return data;
+  } catch (e) {
+    log(`API Error on ${path}: ${e.message}`, 'error');
+    throw e;
+  }
+}
+
+async function apiAuth(path, method = 'GET', body = null) {
+  const opts = {
+    method: method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  
+  try {
+    log(`API Call (Auth): ${method} ${path}`, 'info');
+    const response = await fetch(API_BASE + path, opts);
+    log(`API Response: ${response.status}`, 'info');
+    
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = { error: text.substring(0, 200) };
+    }
+    
+    if (!response.ok && !data.error) {
+      data.error = `HTTP ${response.status}: ${response.statusText}`;
+    }
+    
+    return data;
+  } catch (e) {
+    log(`API Error on ${path}: ${e.message}`, 'error');
+    throw e;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UI & NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
 const panelTitles = {
-  'dashboard': 'Dashboard', 'upload-aid': '🔵 Upload AI-D Article',
-  'upload-60sec': '⚡ Upload 60 Sec Digest', 'upload-ca': '🔴 Upload Current Affairs',
-  'articles': 'All Articles', 'gnews': 'GNews Cache (AI-S)', 'scheduler': 'Scheduler'
+  'dashboard': 'Dashboard',
+  'upload-aid': '🔵 Upload AI-D Article',
+  'upload-60sec': '⚡ Upload 60 Sec Digest',
+  'upload-ca': '🔴 Upload Current Affairs',
+  'articles': 'All Articles',
+  'gnews': 'GNews Cache (AI-S)',
+  'scheduler': 'Scheduler'
 };
 
 function showPanel(name) {
+  log(`Switching to panel: ${name}`, 'info');
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active','active-orange','active-red'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active', 'active-orange', 'active-red'));
+  
   const panel = document.getElementById('panel-' + name);
   if (panel) panel.classList.add('active');
+  
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick')?.includes(`'${name}'`)) {
       if (name === 'upload-60sec') n.classList.add('active-orange');
@@ -786,378 +829,249 @@ function showPanel(name) {
       else n.classList.add('active');
     }
   });
+  
   document.getElementById('topbarTitle').textContent = panelTitles[name] || name;
-  if (name === 'articles')  loadArticles();
-  if (name === 'gnews')     loadGNewsPanel();
+  
+  if (name === 'articles') loadArticles();
+  if (name === 'gnews') loadGNewsPanel();
   if (name === 'scheduler') loadSchedulerStatus();
   if (name === 'dashboard') loadDashboard();
 }
 
-// ── DASHBOARD ─────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
 async function loadDashboard() {
+  log('Loading dashboard', 'info');
   try {
-    const [dbStatus, cacheStatus, autoStatus, articlesData] = await Promise.all([
-      api('/api/debug/db-status'), api('/api/admin/cache-status'),
-      api('/api/admin/auto-delete-status'), api('/api/articles')
-    ]);
+    const [articlesData] = await Promise.all([api('/api/articles')]);
     const articles = articlesData.articles || [];
-    document.getElementById('statManual').textContent    = articles.filter(a => a.isManual && !['60sec','currentaffairs'].includes((a.category||'').toLowerCase())).length;
-    document.getElementById('stat60sec').textContent     = articles.filter(a => a.isManual && (a.category||'').toLowerCase() === '60sec').length;
-    document.getElementById('statCA').textContent        = articles.filter(a => a.isManual && (a.category||'').toLowerCase() === 'currentaffairs').length;
-    document.getElementById('statGnews').textContent     = cacheStatus.articlesInCache ?? '—';
-    document.getElementById('statUsers').textContent     = dbStatus.collections?.users ?? '—';
-    document.getElementById('statBookmarks').textContent = dbStatus.collections?.bookmarks ?? '—';
-    document.getElementById('dbStatus').textContent      = dbStatus.mongoConnection === 'connected' ? 'Connected' : 'Disconnected';
-    const ad = autoStatus.autoDelete;
-    document.getElementById('schedulerStatusDash').innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;">
-        <div>⏰ <strong>Scheduled:</strong> ${ad.scheduledTime}</div>
-        <div>✅ <strong>Last Run:</strong> ${ad.lastRun ? new Date(ad.lastRun).toLocaleString() : 'Never'}</div>
-        <div>🗑️ <strong>Last Deleted:</strong> ${ad.lastDeletedCount} articles</div>
-        ${ad.lastError ? `<div style="color:var(--danger);">❌ ${ad.lastError}</div>` : ''}
-      </div>`;
-  } catch(e) { showToast('Failed to load dashboard', 'error'); }
-}
-
-// ── LIVE PARSE PREVIEW FOR 60 SEC ─────────────
-function update60SecPreview() {
-  const content   = document.getElementById('60sec-content')?.value || '';
-  const preview   = document.getElementById('60sec-parsePreview');
-  const secCount  = document.getElementById('60sec-sectionCount');
-  const ptCount   = document.getElementById('60sec-pointCount');
-  if (!preview) return;
-
-  const lines     = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  let sections    = 0;
-  let points      = 0;
-
-  for (const line of lines) {
-    const isNumbered = /^\d+[\.\)]\s/.test(line);
-    const isBullet   = /^[-•*]\s/.test(line);
-    if (!isNumbered && !isBullet && line.length > 3) sections++;
-    else if (isNumbered || isBullet) points++;
-  }
-
-  if (content.trim().length > 10) {
-    preview.style.display = 'block';
-    if (secCount) secCount.textContent = sections;
-    if (ptCount)  ptCount.textContent  = points;
-  } else {
-    preview.style.display = 'none';
+    
+    document.getElementById('statManual').textContent = articles.filter(a => a.isManual && !['60sec', 'currentaffairs'].includes((a.category || '').toLowerCase())).length;
+    document.getElementById('stat60sec').textContent = articles.filter(a => a.isManual && (a.category || '').toLowerCase() === '60sec').length;
+    document.getElementById('statCA').textContent = articles.filter(a => a.isManual && (a.category || '').toLowerCase() === 'currentaffairs').length;
+    
+    log('Dashboard loaded successfully', 'success');
+  } catch (e) {
+    log(`Failed to load dashboard: ${e.message}`, 'error');
+    showToast('Failed to load dashboard', 'error');
   }
 }
 
-// ── UPLOAD ────────────────────────────────────
-function previewImage(input, prefix) {
-  const file    = input.files[0];
-  const preview = document.getElementById(`${prefix}-imagePreview`);
-  const drop    = document.getElementById(`${prefix}-imageDrop`);
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      preview.src = e.target.result; preview.style.display = 'block';
-      drop.querySelector('.drop-icon').textContent = '✅';
-      drop.querySelector('.drop-text').textContent = file.name;
-    };
-    reader.readAsDataURL(file);
-  }
-}
-
+// ═══════════════════════════════════════════════════════════════════
+// UPLOAD
+// ═══════════════════════════════════════════════════════════════════
 async function uploadArticle(prefix) {
-  const title   = document.getElementById(`${prefix}-title`).value.trim();
+  const title = document.getElementById(`${prefix}-title`).value.trim();
   const content = document.getElementById(`${prefix}-content`).value.trim();
-  if (!title)   return showToast('Title is required', 'error');
-  if (!content) return showToast('Content is required', 'error');
-
-  // 60sec: validate has some content
-  if (prefix === '60sec' && content.length < 20) return showToast('Please add bulletin content', 'error');
-
+  
+  if (!title) {
+    showToast('Title is required', 'error');
+    return;
+  }
+  if (!content) {
+    showToast('Content is required', 'error');
+    return;
+  }
+  
   const btn = document.getElementById(`${prefix}-uploadBtn`);
-  btn.disabled  = true;
+  btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Uploading...';
-
+  
+  log(`Uploading article: ${prefix}`, 'info');
+  
   const formData = new FormData();
-  formData.append('title',   title);
+  formData.append('title', title);
   formData.append('content', content);
-  formData.append('source',  document.getElementById(`${prefix}-source`)?.value.trim() || 'Centrinsic NPT');
-  formData.append('status',  document.getElementById(`${prefix}-status`)?.value || 'published');
-
-  // Category — explicit per type, never falls through
+  formData.append('source', document.getElementById(`${prefix}-source`)?.value.trim() || 'Centrinsic NPT');
+  formData.append('status', document.getElementById(`${prefix}-status`)?.value || 'published');
+  
   let category;
   if (prefix === 'aid') {
     category = document.getElementById('aid-subcategory')?.value || 'General';
   } else if (prefix === '60sec') {
-    category = '60sec'; // hardcoded — always goes to 60sec tab
+    category = '60sec';
   } else if (prefix === 'ca') {
     category = 'currentaffairs';
   } else {
     category = 'General';
   }
-  // Safety check: 60sec must always be category="60sec"
-  console.log("[Admin Upload] prefix=" + prefix + " category=" + category);
-  if (prefix === "60sec" && category !== "60sec") {
-    showToast("ERROR: Wrong category! Got: " + category, "error");
-    btn.disabled = false;
-    btn.innerHTML = "Publish 60 Sec Digest";
-    return;
-  }
+  
   formData.append('category', category);
-
+  log(`Category set to: ${category}`, 'info');
+  
   const linkEl = document.getElementById(`${prefix}-link`);
-  const link   = linkEl ? linkEl.value.trim() : '';
+  const link = linkEl ? linkEl.value.trim() : '';
   if (link) formData.append('originalLink', link);
-
+  
   const expiry = document.getElementById(`${prefix}-expiry`)?.value;
   if (expiry) formData.append('expiresAt', new Date(expiry).toISOString());
-
-  const imageFile = document.getElementById(`${prefix}-image`)?.files[0];
-  if (imageFile) formData.append('image', imageFile);
-
+  
   try {
+    log(`POST /api/articles with category: ${category}`, 'info');
     const response = await fetch(`${API_BASE}/api/articles`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authToken}` },
       body: formData
     });
-    const data = await response.json();
+    
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = { error: text.substring(0, 200) };
+    }
+    
     if (data.success || data.articleId) {
       const labels = { aid: '🔵 AI-D', '60sec': '⚡ 60 Sec Digest', ca: '🔴 Current Affairs' };
+      log(`Article uploaded successfully: ${labels[prefix]}`, 'success');
       showToast(`✅ ${labels[prefix]} published!`, 'success');
       resetForm(prefix);
       loadDashboard();
     } else {
-      showToast(data.error || 'Upload failed', 'error');
+      const msg = data.error || 'Upload failed';
+      log(`Upload failed: ${msg}`, 'error');
+      showToast(msg, 'error');
     }
-  } catch(e) {
+  } catch (e) {
+    log(`Upload error: ${e.message}`, 'error');
     showToast('Network error: ' + e.message, 'error');
   } finally {
-    btn.disabled  = false;
+    btn.disabled = false;
     const btnLabels = { aid: '🔵 Publish AI-D Article', '60sec': '⚡ Publish 60 Sec Digest', ca: '🔴 Publish Current Affairs' };
     btn.innerHTML = btnLabels[prefix];
   }
 }
 
 function resetForm(prefix) {
-  ['title','content','source','link','expiry'].forEach(f => {
+  ['title', 'content', 'source', 'link', 'expiry'].forEach(f => {
     const el = document.getElementById(`${prefix}-${f}`);
     if (el) el.value = '';
   });
   const status = document.getElementById(`${prefix}-status`);
   if (status) status.value = 'published';
-  const img = document.getElementById(`${prefix}-image`);
-  if (img) img.value = '';
-  const preview = document.getElementById(`${prefix}-imagePreview`);
-  if (preview) preview.style.display = 'none';
-  const drop = document.getElementById(`${prefix}-imageDrop`);
-  if (drop) { drop.querySelector('.drop-icon').textContent = '🖼️'; drop.querySelector('.drop-text').textContent = 'Click to upload image'; }
-  if (prefix === '60sec') { const p = document.getElementById('60sec-parsePreview'); if (p) p.style.display = 'none'; }
 }
 
-// ── ALL ARTICLES ──────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// ARTICLES
+// ═══════════════════════════════════════════════════════════════════
 async function loadArticles() {
+  log('Loading articles', 'info');
   document.getElementById('articlesList').innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading...</div>';
   try {
     const data = await apiAuth('/api/admin/articles');
     allArticlesData = data.articles || [];
-    document.getElementById('articleCountBadge').textContent = `${allArticlesData.length} articles`;
-    applyArticleFilters();
-  } catch(e) {
+    log(`Loaded ${allArticlesData.length} articles`, 'success');
+    renderArticles(allArticlesData);
+  } catch (e) {
+    log(`Failed to load articles: ${e.message}`, 'error');
     document.getElementById('articlesList').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><h4>Failed to load</h4><p>${e.message}</p></div>`;
   }
-}
-
-function filterByCategory(cat) {
-  currentCategoryFilter = cat;
-  document.querySelectorAll('[id^="filter-"]').forEach(btn => {
-    btn.style.background = 'transparent'; btn.style.color = 'var(--muted)'; btn.style.border = '1px solid var(--border)';
-  });
-  const active = document.getElementById(`filter-${cat}`);
-  if (active) {
-    const colors = { all: 'var(--accent)', aid: 'var(--accent)', '60sec': 'var(--orange)', ca: 'var(--red)' };
-    active.style.background = colors[cat] || 'var(--accent)';
-    active.style.color      = '#fff';
-    active.style.border     = 'none';
-  }
-  applyArticleFilters();
-}
-
-function applyArticleFilters() {
-  const query = document.getElementById('searchInput')?.value.toLowerCase() || '';
-  let filtered = allArticlesData;
-  if (currentCategoryFilter === 'aid')   filtered = filtered.filter(a => !['60sec','currentaffairs'].includes((a.category||'').toLowerCase()));
-  if (currentCategoryFilter === '60sec') filtered = filtered.filter(a => (a.category||'').toLowerCase() === '60sec');
-  if (currentCategoryFilter === 'ca')    filtered = filtered.filter(a => (a.category||'').toLowerCase() === 'currentaffairs');
-  if (query) filtered = filtered.filter(a => a.title.toLowerCase().includes(query) || (a.source||'').toLowerCase().includes(query));
-  renderArticles(filtered);
 }
 
 function renderArticles(articles) {
   const container = document.getElementById('articlesList');
   if (!articles || articles.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h4>No articles found</h4><p>Upload some articles to see them here</p></div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h4>No articles found</h4></div>`;
     return;
   }
+  
   container.innerHTML = `<div class="article-grid">` + articles.map(a => {
-    const date    = new Date(a.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-    const excerpt = (a.content||'').substring(0,90)+'...';
-    const hasImg  = a.image && a.image.startsWith('http');
-    const cat     = (a.category||'').toLowerCase();
-    let catBadge  = `<span class="badge badge-teal">${escHtml(a.category||'General')}</span>`;
-    if (cat === '60sec')          catBadge = `<span class="badge badge-orange">⚡ 60 Sec Digest</span>`;
+    const date = new Date(a.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const excerpt = (a.content || '').substring(0, 90) + '...';
+    const cat = (a.category || '').toLowerCase();
+    let catBadge = `<span class="badge badge-teal">${escHtml(a.category || 'General')}</span>`;
+    if (cat === '60sec') catBadge = `<span class="badge badge-orange">⚡ 60 Sec Digest</span>`;
     if (cat === 'currentaffairs') catBadge = `<span class="badge badge-red">🔴 Current Affairs</span>`;
+    
     return `
       <div class="article-card">
-        <div class="article-thumb">${hasImg ? `<img src="${a.image}" onerror="this.parentElement.innerHTML='📄'" />` : (cat === '60sec' ? '⚡' : cat === 'currentaffairs' ? '🔴' : '📄')}</div>
         <div class="article-info">
           <div class="article-title">${escHtml(a.title)}</div>
           <div class="article-meta">
-            ${escHtml(a.source||'Unknown')} • ${date}
+            ${escHtml(a.source || 'Unknown')} • ${date}
             ${catBadge}
-            <span class="badge ${a.status==='published'?'badge-green':'badge-red'}" style="margin-left:4px;">${a.status}</span>
+            <span class="badge ${a.status === 'published' ? 'badge-green' : 'badge-red'}" style="margin-left:4px;">${a.status}</span>
           </div>
           <div class="article-excerpt">${escHtml(excerpt)}</div>
-        </div>
-        <div class="article-actions">
-          <button class="btn btn-danger btn-sm" onclick="openDeleteSingle('${a._id}','${escHtml(a.title).replace(/'/g,"\\'")}')">🗑️</button>
         </div>
       </div>`;
   }).join('') + `</div>`;
 }
 
-// ── GNEWS ─────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// GNEWS
+// ═══════════════════════════════════════════════════════════════════
 async function loadGNewsPanel() {
+  log('Loading GNews panel', 'info');
   try {
-    const data = await api('/api/admin/cache-status');
-    const lastFetch = data.lastFetchTime ? new Date(data.lastFetchTime).toLocaleString() : 'Never';
-    document.getElementById('gnewsStatus').innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
-        <div><div style="color:var(--muted);font-size:12px;margin-bottom:4px;font-family:'DM Mono',monospace;">CACHED</div><div style="font-size:24px;font-family:'Syne',sans-serif;font-weight:800;">${data.articlesInCache}</div></div>
-        <div><div style="color:var(--muted);font-size:12px;margin-bottom:4px;font-family:'DM Mono',monospace;">LAST FETCH</div><div style="font-size:13px;">${lastFetch}</div></div>
-        <div><div style="color:var(--muted);font-size:12px;margin-bottom:4px;font-family:'DM Mono',monospace;">CACHE DURATION</div><div style="font-size:13px;">${data.cacheDurationMinutes} min</div></div>
-      </div>
-      <div style="display:flex;gap:12px;align-items:center;">
-        <span class="badge ${data.cacheStatus?.isStale?'badge-red':'badge-green'}">${data.cacheStatus?.isStale?'⚠️ Stale':'✅ Fresh'}</span>
-        <span style="color:var(--muted);font-size:13px;">API: ${data.gnewsConfigured?'✅ Configured':'❌ Not configured'}</span>
-      </div>`;
     const articles = await api('/api/articles');
-    const gnews    = (articles.articles||[]).filter(a => !a.isManual);
-    if (gnews.length === 0) { document.getElementById('gnewsList').innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><h4>No GNews cached</h4><p>Click Force Refresh to fetch</p></div>'; return; }
-    document.getElementById('gnewsList').innerHTML = `<div class="article-grid">` + gnews.map(a => {
-      const date = a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : 'Recent';
-      return `<div class="article-card">
-        <div class="article-thumb">${a.image?`<img src="${a.image}" onerror="this.parentElement.innerHTML='🌐'" />`:'🌐'}</div>
-        <div class="article-info">
-          <div class="article-title">${escHtml(a.title)}</div>
-          <div class="article-meta">${escHtml(a.source)} • ${date}</div>
-          <div class="article-excerpt">${escHtml((a.content||'').substring(0,90)+'...')}</div>
-        </div>
-        ${a.originalLink?`<div class="article-actions"><a href="${a.originalLink}" target="_blank" class="btn btn-ghost btn-sm">🔗</a></div>`:''}
-      </div>`;
-    }).join('') + `</div>`;
-  } catch(e) { document.getElementById('gnewsStatus').innerHTML = `<p style="color:var(--danger)">Failed: ${e.message}</p>`; }
+    const gnews = (articles.articles || []).filter(a => !a.isManual);
+    
+    if (gnews.length === 0) {
+      document.getElementById('gnewsList').innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><h4>No GNews cached</h4></div>';
+      return;
+    }
+    
+    document.getElementById('gnewsList').innerHTML = gnews.map(a => {
+      const date = a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent';
+      return `
+        <div class="article-card">
+          <div class="article-info">
+            <div class="article-title">${escHtml(a.title)}</div>
+            <div class="article-meta">${escHtml(a.source)} • ${date}</div>
+          </div>
+        </div>`;
+    }).join('');
+    
+    log('GNews panel loaded', 'success');
+  } catch (e) {
+    log(`Failed to load GNews: ${e.message}`, 'error');
+  }
 }
 
 async function refreshGNews() {
+  log('Refreshing GNews', 'info');
   showToast('Refreshing GNews...', '');
   try {
     const data = await apiAuth('/api/admin/refresh-gnews', 'POST');
-    if (data.success) { showToast(`✅ ${data.count} articles cached`, 'success'); if (document.getElementById('panel-gnews').classList.contains('active')) loadGNewsPanel(); loadDashboard(); }
-    else showToast(data.error || 'Refresh failed', 'error');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    if (data.success) {
+      log(`GNews refreshed: ${data.count} articles`, 'success');
+      showToast(`✅ ${data.count} articles cached`, 'success');
+      if (document.getElementById('panel-gnews').classList.contains('active')) loadGNewsPanel();
+      loadDashboard();
+    } else {
+      log(`GNews refresh failed: ${data.error}`, 'error');
+      showToast(data.error || 'Refresh failed', 'error');
+    }
+  } catch (e) {
+    log(`GNews error: ${e.message}`, 'error');
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
-// ── SCHEDULER ─────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// SCHEDULER
+// ═══════════════════════════════════════════════════════════════════
 async function loadSchedulerStatus() {
+  log('Loading scheduler status', 'info');
   try {
     const data = await api('/api/admin/auto-delete-status');
-    const ad   = data.autoDelete;
+    const ad = data.autoDelete;
     const html = `
       <div>⏰ <strong style="color:var(--text)">Scheduled:</strong> ${ad.scheduledTime}</div>
-      <div>🕐 <strong style="color:var(--text)">Current Time:</strong> ${ad.currentTimeInZone}</div>
-      <div>✅ <strong style="color:var(--text)">Last Run:</strong> ${ad.lastRun ? new Date(ad.lastRun).toLocaleString() : 'Never'}</div>
-      <div>🗑️ <strong style="color:var(--text)">Last Deleted:</strong> ${ad.lastDeletedCount}</div>
-      <div>🔁 <strong style="color:var(--text)">Total Runs:</strong> ${ad.totalRuns}</div>
-      ${ad.lastError?`<div style="color:var(--danger)">❌ ${ad.lastError}</div>`:''}`;
+      <div>✅ <strong style="color:var(--text)">Last Run:</strong> ${ad.lastRun ? new Date(ad.lastRun).toLocaleString() : 'Never'}</div>`;
     document.getElementById('schedulerStatusFull').innerHTML = html;
-    document.getElementById('schedulerStatusDash').innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;">${html}</div>`;
-  } catch(e) { document.getElementById('schedulerStatusFull').innerHTML = '<p style="color:var(--danger)">Failed to load</p>'; }
+    log('Scheduler status loaded', 'success');
+  } catch (e) {
+    log(`Failed to load scheduler: ${e.message}`, 'error');
+  }
 }
 
-async function triggerAutoDelete() {
-  if (!confirm('⚠️ DELETE ALL manual articles RIGHT NOW?')) return;
-  showToast('Running auto-delete...', '');
-  try {
-    const data = await apiAuth('/api/admin/trigger-auto-delete', 'POST');
-    if (data.success) { showToast(`✅ Deleted ${data.deletedCount} articles`, 'success'); loadSchedulerStatus(); loadDashboard(); }
-    else showToast(data.error || 'Failed', 'error');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-}
-
-// ── DELETE ────────────────────────────────────
-function openDeleteAllModal()  { document.getElementById('deleteAllModal').classList.add('open'); }
-function closeDeleteAllModal() { document.getElementById('deleteAllModal').classList.remove('open'); }
-
-async function deleteAllNews() {
-  closeDeleteAllModal();
-  showToast('Deleting all articles...', '');
-  try {
-    const data = await apiAuth('/api/admin/delete-all-news', 'DELETE');
-    if (data.success) { showToast('✅ All articles deleted', 'success'); loadDashboard(); if (document.getElementById('panel-articles').classList.contains('active')) loadArticles(); }
-    else showToast(data.error || 'Failed', 'error');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-}
-
-function openDeleteSingle(id, title) {
-  deleteTargetId = id;
-  document.getElementById('deleteSingleMsg').textContent = `Delete "${title}"?`;
-  document.getElementById('deleteSingleModal').classList.add('open');
-}
-
-async function confirmDeleteSingle() {
-  document.getElementById('deleteSingleModal').classList.remove('open');
-  if (!deleteTargetId) return;
-  try {
-    const r = await fetch(`${API_BASE}/api/articles/${deleteTargetId}`, { method:'DELETE', headers:{'Authorization':`Bearer ${authToken}`} });
-    const data = await r.json();
-    if (data.success) { showToast('✅ Article deleted', 'success'); loadArticles(); loadDashboard(); }
-    else showToast(data.error || 'Delete failed', 'error');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-  deleteTargetId = null;
-}
-
-// ── API ───────────────────────────────────────
-async function api(path, method='GET', body=null) {
-  const opts = { method, headers:{'Content-Type':'application/json'} };
-  if (body) opts.body = JSON.stringify(body);
-  const response = await fetch(API_BASE + path, opts);
-  const text = await response.text();
-  let data;
-  try { data = JSON.parse(text); } catch(e) { data = { error: text.substring(0,200) || 'Server returned non-JSON response' }; }
-  if (!response.ok && !data.error) data.error = `HTTP ${response.status}: ${response.statusText}`;
-  return data;
-}
-
-async function apiAuth(path, method='GET', body=null) {
-  const opts = { method, headers:{'Content-Type':'application/json','Authorization':`Bearer ${authToken}`} };
-  if (body) opts.body = JSON.stringify(body);
-  const response = await fetch(API_BASE + path, opts);
-  const text = await response.text();
-  let data;
-  try { data = JSON.parse(text); } catch(e) { data = { error: text.substring(0,200) || 'Server returned non-JSON response' }; }
-  if (!response.ok && !data.error) data.error = `HTTP ${response.status}: ${response.statusText}`;
-  return data;
-}
-
-// ── TOAST ─────────────────────────────────────
-let toastTimer;
-function showToast(msg, type='') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'show ' + type;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.className = '', 3500);
-}
-
-// ── UTILS ─────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════
 function escHtml(str) {
   if (!str) return '';
   const d = document.createElement('div');
@@ -1165,137 +1079,47 @@ function escHtml(str) {
   return d.innerHTML;
 }
 
-// ── DRAG & DROP ───────────────────────────────
-['aid','ca'].forEach(prefix => {
-  window.addEventListener('load', () => {
-    const drop = document.getElementById(`${prefix}-imageDrop`);
-    if (!drop) return;
-    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
-    drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
-    drop.addEventListener('drop', e => {
-      e.preventDefault(); drop.classList.remove('dragover');
-      const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) {
-        const input = document.getElementById(`${prefix}-image`);
-        const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
-        previewImage(input, prefix);
-      }
-    });
-  });
-});
-
-// ── LIVE PREVIEW LISTENER FOR 60 SEC ──────────
-window.addEventListener('load', () => {
-  const textarea = document.getElementById('60sec-content');
-  if (textarea) textarea.addEventListener('input', update60SecPreview);
-});
-
-// ── BULK PASTE PARSER ─────────────────────────
-function parseBulkPaste() {
-  const raw = document.getElementById('aid-bulkPaste')?.value || '';
-  if (!raw.trim()) return;
-
-  const feedback = document.getElementById('aid-parseFeedback');
-  const lines = raw.split('
-');
-  let currentField = null;
-  const fields = { source: '', category: '', link: '', title: '', content: '' };
-  const fieldMap = {
-    'source': 'source', 'src': 'source',
-    'category': 'category', 'cat': 'category', 'subcategory': 'category', 'sub-category': 'category',
-    'original link': 'link', 'link': 'link', 'url': 'link', 'original url': 'link',
-    'title': 'title', 'headline': 'title',
-    'content': 'content', 'body': 'content', 'article': 'content', 'text': 'content'
-  };
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const colonIdx = line.indexOf(':');
-    if (colonIdx > 0) {
-      const keyRaw = line.substring(0, colonIdx).trim().toLowerCase();
-      const key = fieldMap[keyRaw];
-      if (key) {
-        currentField = key;
-        const val = line.substring(colonIdx + 1).trim();
-        fields[key] = val;
-        continue;
-      }
-    }
-    if (currentField && line.trim()) {
-      fields[currentField] += '
-' + line.trim();
-    }
-  }
-
-  // Trim all
-  Object.keys(fields).forEach(k => fields[k] = fields[k].trim());
-
-  // Fill form fields
-  if (fields.title)   document.getElementById('aid-title').value   = fields.title;
-  if (fields.content) document.getElementById('aid-content').value = fields.content;
-  if (fields.source)  document.getElementById('aid-source').value  = fields.source;
-  if (fields.link)    document.getElementById('aid-link').value    = fields.link;
-
-  // Try to match category to select options
-  if (fields.category) {
-    const select = document.getElementById('aid-subcategory');
-    const opts = Array.from(select.options);
-    const match = opts.find(o => o.value.toLowerCase() === fields.category.toLowerCase());
-    if (match) {
-      select.value = match.value;
-    } else {
-      // If no exact match, try partial
-      const partial = opts.find(o => fields.category.toLowerCase().includes(o.value.toLowerCase()) || o.value.toLowerCase().includes(fields.category.toLowerCase()));
-      if (partial) select.value = partial.value;
-    }
-  }
-
-  // Show feedback
-  const filled = [];
-  if (fields.title)   filled.push('Title');
-  if (fields.content) filled.push('Content');
-  if (fields.source)  filled.push('Source');
-  if (fields.link)    filled.push('Link');
-  if (fields.category)filled.push('Category');
-
-  if (filled.length > 0) {
-    feedback.style.display = 'block';
-    feedback.innerHTML = `✅ Auto-filled: <strong>${filled.join(', ')}</strong>`;
-    showToast(`Parsed ${filled.length} fields`, 'success');
-  } else {
-    feedback.style.display = 'block';
-    feedback.innerHTML = `⚠️ No recognized fields found. Use format: <code>Title: ...</code>`;
-    feedback.style.color = 'var(--danger)';
-  }
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.className = ''), 3500);
 }
 
-
-// ── SERVER CONNECTION TEST ────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// SERVER CONNECTION TEST
+// ═══════════════════════════════════════════════════════════════════
 async function testServerConnection() {
   const statusEl = document.getElementById('connStatus');
-  if (statusEl) { statusEl.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px;"></div> Testing connection...'; }
-
-  console.log('[ConnTest] Testing:', API_BASE);
-
+  log('Testing server connection to: ' + API_BASE, 'info');
+  
+  if (statusEl) {
+    statusEl.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px;"></div> Testing...';
+  }
+  
   try {
-    const response = await fetch(API_BASE + '/api/health', { method: 'GET', headers: { 'Content-Type': 'application/json' } });
-    const text = await response.text();
-    let data;
-    try { data = JSON.parse(text); } catch(e) { data = { raw: text.substring(0,100) }; }
-
-    console.log('[ConnTest] Status:', response.status, data);
-
+    const response = await fetch(API_BASE + '/api/health', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    log(`Server response: ${response.status} ${response.statusText}`, 'info');
+    
     if (response.ok) {
-      if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✅ Server is online (' + response.status + ')</span>';
-      showToast('✅ Server connection OK', 'success');
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✅ Server is online</span>';
+      log('Server connection successful', 'success');
+      showToast('Server connection OK', 'success');
     } else {
-      if (statusEl) statusEl.innerHTML = '<span style="color:var(--danger)">⚠️ Server returned ' + response.status + ' ' + response.statusText + '</span>';
-      showToast('⚠️ Server error: ' + response.status, 'error');
+      if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger)">❌ Server error: ${response.status}</span>`;
+      log(`Server error: ${response.status}`, 'error');
     }
-  } catch(e) {
-    console.error('[ConnTest] Failed:', e);
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--danger)">❌ Cannot reach server. Error: ' + (e.message || 'Unknown') + '</span>';
-    showToast('❌ Server unreachable', 'error');
+  } catch (e) {
+    const msg = `Cannot reach server: ${e.message}`;
+    log(msg, 'error');
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger)">❌ ${msg}</span>`;
+    showToast('Server unreachable', 'error');
   }
 }
 
