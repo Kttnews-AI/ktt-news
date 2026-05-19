@@ -57,10 +57,16 @@ function initializeApp() {
     const savedSize = localStorage.getItem("font_size");
     if (savedSize) applyFontSize(savedSize);
     
-    // Set initial history state
-    history.replaceState({ screen: 'splash' }, '', '#splash');
+    // Set initial history state — SAFELY (file:// WebViews throw SecurityError here)
+    try {
+        history.replaceState({ screen: 'splash' }, '', '#splash');
+    } catch (e) {
+        console.warn('History API not available (file:// URL):', e);
+    }
+    
     showScreen("splash", false); // Don't push state on init
     
+    // Main transition after splash animation (2.2s to match CSS loading bar)
     setTimeout(() => {
         if (currentUser && currentUser.loggedIn) { 
             navigateTo('home'); 
@@ -69,7 +75,21 @@ function initializeApp() {
         else {
             navigateTo('about');
         }
-    }, 2000);
+    }, 2200);
+    
+    // EMERGENCY FALLBACK: if anything above crashes, force past splash after 4 seconds
+    setTimeout(() => {
+        const splash = document.getElementById('splash');
+        if (splash && splash.classList.contains('active')) {
+            console.warn('🚨 Emergency splash bypass triggered');
+            if (currentUser && currentUser.loggedIn) {
+                showScreen('home', false);
+                loadNews();
+            } else {
+                showScreen('about', false);
+            }
+        }
+    }, 4000);
     
     // Logout Button Handler
     setTimeout(() => {
@@ -140,7 +160,7 @@ function setupMobileBackButton() {
         }, false);
     }
     
-    // Android WebView back button (using history API)
+    // Android WebView back button (using history API) — SAFE for file://
     window.addEventListener('hashchange', (e) => {
         console.log("🔙 HASH CHANGE:", e.oldURL, "->", e.newURL);
         const newHash = window.location.hash.replace('#', '');
@@ -205,34 +225,52 @@ function getCurrentScreenId() {
 
 // Main navigation function - use this instead of showScreen directly
 function navigateTo(screenId) {
-    // Push state for history tracking
-    history.pushState({ screen: screenId }, '', `#${screenId}`);
-    showScreen(screenId, false); // State already pushed
+    // Push state for history tracking (safely for file:// URLs)
+    try {
+        history.pushState({ screen: screenId }, '', `#${screenId}`);
+    } catch (e) {
+        console.warn('History API not available (file:// URL):', e);
+    }
+    showScreen(screenId, false); // State already pushed (or failed safely)
 }
 
 /* ============================================
    SCREEN NAVIGATION
 ============================================ */
 function showScreen(screenId, pushState = true) {
-    // Hide all screens
+    // Hide all screens — clear inline styles and let CSS classes handle visibility
     document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.remove('active');
-        screen.style.display = 'none';
+        screen.style.display = '';        // ← clear inline display
+        screen.style.visibility = '';     // ← clear inline visibility
+        screen.style.opacity = '';        // ← clear inline opacity
     });
     
     // Show target screen
     const target = document.getElementById(screenId);
     if (!target) {
         console.error("Screen not found:", screenId);
+        // Emergency fallback: show about screen so user isn't trapped
+        const fallback = document.getElementById('about') || document.getElementById('home');
+        if (fallback) fallback.classList.add('active');
         return;
     }
     
     target.classList.add('active');
-    target.style.display = screenId === 'splash' ? 'flex' : 'block';
+    // Splash needs flex; everything else relies on CSS .screen.active { display: block }
+    if (screenId === 'splash') {
+        target.style.display = 'flex';
+    }
     
-    // Update URL if needed (but don't create duplicate history)
-    if (pushState && window.location.hash !== `#${screenId}`) {
-        history.pushState({ screen: screenId }, '', `#${screenId}`);
+    // Update URL safely (wrapped in try-catch for file:// WebViews)
+    if (pushState) {
+        try {
+            if (window.location.hash !== `#${screenId}`) {
+                history.pushState({ screen: screenId }, '', `#${screenId}`);
+            }
+        } catch (e) {
+            console.warn('History API not available (file:// URL):', e);
+        }
     }
     
     // Show/hide bottom nav
@@ -278,6 +316,9 @@ function getArticleTab(article) {
     const isCA = cat === 'currentaffairs' || cat === 'current affairs' || cat === 'current_affairs' ||
         type === 'currentaffairs' || tag === 'currentaffairs' || article.isCurrentAffairs === true;
     if (isCA) return 'currentaffairs';
+    const isStartup = cat === 'startupevents' || cat === 'startup events' || cat === 'startup_events' ||
+        type === 'startupevents' || tag === 'startupevents' || article.isStartupEvents === true;
+    if (isStartup) return 'startupevents';
     return 'manual';
 }
 
@@ -288,10 +329,10 @@ function getDynamicTabOrder(articles) {
     const manualCount = articles.filter(a => getArticleTab(a) === 'manual').length;
     if (manualCount > 0) {
         // AI-D has content → AI-D first, then AI-S, then others
-        return ['manual', 'gnews', '60sec', 'currentaffairs'];
+        return ['manual', 'gnews', '60sec', 'startupevents', 'currentaffairs'];
     }
     // Default: AI-S first
-    return ['gnews', 'manual', '60sec', 'currentaffairs'];
+    return ['gnews', 'manual', '60sec', 'startupevents', 'currentaffairs'];
 }
 
 function getDefaultTab(articles) {
@@ -713,7 +754,13 @@ const TAB_CONFIG = {
         emptyIcon: '⏱️', emptyMsg: '60-second digest coming soon',
         filter: (a) => a.filter(x => getArticleTab(x) === '60sec')
     },
-    currentaffairs: {
+    'startupevents': {
+        label: 'Startup', title: 'Startup Events', icon: '🚀',
+        color: '#9c27b0', shadow: 'rgba(156,39,176,0.35)',
+        emptyIcon: '🚀', emptyMsg: 'Startup events coming soon',
+        filter: (a) => a.filter(x => getArticleTab(x) === 'startupevents')
+    },
+    'currentaffairs': {
         label: 'Current', title: 'Current Affairs', icon: '🔴',
         color: '#e53935', shadow: 'rgba(229,57,53,0.35)',
         emptyIcon: '🗞️', emptyMsg: 'Current affairs coming soon',
@@ -776,6 +823,8 @@ function renderTabView() {
     if (activeArticles.length > 0) {
         if (currentTab === '60sec') {
             html += `<div style="padding:0 16px calc(100px + env(safe-area-inset-bottom)) 16px;">${render60SecDigest(activeArticles)}</div>`;
+        } else if (currentTab === 'startupevents') {
+            html += `<div style="padding:0 16px calc(100px + env(safe-area-inset-bottom)) 16px;">${renderStartupEvents(activeArticles)}</div>`;
         } else {
             html += `<div class="articles-list" style="padding:0 16px calc(100px + env(safe-area-inset-bottom)) 16px;">${renderArticleCards(activeArticles)}</div>`;
         }
@@ -899,7 +948,7 @@ function render60SecDigest(articles) {
                 <div style="padding:12px 16px;border-top:1px solid ${metaBorder};display:flex;align-items:center;justify-content:space-between;background:${isDark?'#0a0a0a':'#fafafa'};flex-wrap:wrap;gap:8px;">
                     <span style="color:${isDark?'#555':'#aaa'};font-size:11px;">Centrinsic NPT • 60 Sec Digest</span>
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <select id="digestTranslateSelect_${id}" onchange="translate60SecDigest('${id}', this.value)" style="background:#FF9800;color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;">
+                        <select id="digestTranslateSelect_${id}" onchange="translateDigestContent('${id}', this.value, 'digestContent_', 'digestTranslateSelect_')" style="background:#FF9800;color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;">
                             <option value="en" style="background:#333;color:#fff;">🌐 English</option>
                             <option value="hi" style="background:#333;color:#fff;">हिंदी</option>
                             <option value="te" style="background:#333;color:#fff;">తెలుగు</option>
@@ -999,6 +1048,182 @@ async function translate60SecDigest(articleId, targetLang) {
     } catch (err) {
         console.error('Translation error:', err);
         digestEl.innerHTML = original60SecContent[articleId];
+        if (selectEl) selectEl.value = 'en';
+        showToast('⚠️ Translation failed — reverted to English');
+    }
+}
+
+/* ============================================
+   🚀 STARTUP EVENTS VIEW
+============================================ */
+function renderStartupEvents(articles) {
+    const isDark     = document.body.classList.contains('dark');
+    const cardText   = isDark ? '#ccc'    : '#222';
+    const metaBg     = isDark ? '#1a1a1a' : '#fff';
+    const metaBorder = isDark ? '#2a2a2a' : '#e0e0e0';
+    const startupColor = '#9c27b0';
+
+    const sorted = [...articles].sort((a, b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
+
+    return sorted.map((item, articleIndex) => {
+        const id      = String(item._id || item.articleId || item.id || articleIndex).replace(/[^a-zA-Z0-9-]/g, '');
+        const title   = item.title   || "Startup Events";
+        const content = item.content || item.description || '';
+        const source  = item.source  || 'Centrinsic NPT';
+        const date    = item.createdAt
+            ? new Date(item.createdAt).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+            : 'Today';
+
+        const sections    = parseBulletinContent(content);
+        const totalPoints = sections.reduce((sum, s) => sum + s.points.length, 0);
+
+        let eventHTML = '';
+
+        if (sections.length > 0) {
+            sections.forEach((section, sIdx) => {
+                const color = SECTION_COLORS[sIdx % SECTION_COLORS.length];
+                eventHTML += `
+                    <div style="background:${color};padding:12px 16px;margin:${sIdx===0?'0':'20px'} -16px 14px -16px;display:flex;align-items:center;gap:10px;">
+                        <div style="width:3px;height:20px;background:rgba(255,255,255,0.5);border-radius:2px;flex-shrink:0;"></div>
+                        <span style="color:#fff;font-size:14px;font-weight:800;letter-spacing:0.3px;line-height:1.3;">${escapeHtml(section.header)}</span>
+                    </div>`;
+                section.points.forEach((point, pIdx) => {
+                    const colonIdx = point.indexOf(':');
+                    let boldPart = '', restPart = point;
+                    if (colonIdx > 0 && colonIdx < 60) {
+                        boldPart = point.substring(0, colonIdx);
+                        restPart = point.substring(colonIdx + 1).trim();
+                    }
+                    eventHTML += `
+                        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid ${isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'};">
+                            <span style="background:${color};color:white;font-size:11px;font-weight:800;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">${pIdx+1}</span>
+                            <span style="color:${cardText};font-size:14px;line-height:1.65;flex:1;">
+                                ${boldPart ? `<strong style="color:${isDark?'#fff':'#111'};">${escapeHtml(boldPart)}:</strong> ` : ''}${escapeHtml(restPart)}
+                            </span>
+                        </div>`;
+                });
+            });
+        } else {
+            eventHTML = `<p style="color:${cardText};font-size:14px;line-height:1.7;padding:8px 0;">${escapeHtml(content)}</p>`;
+        }
+
+        return `
+            <div style="background:${metaBg};border-radius:20px;margin-bottom:20px;overflow:hidden;border:1px solid ${metaBorder};box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                <div style="background:linear-gradient(135deg,${startupColor},#7b1fa2);padding:18px 20px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                        <span style="font-size:22px;">🚀</span>
+                        <div>
+                            <div style="color:#fff;font-size:17px;font-weight:800;line-height:1.3;">${escapeHtml(title)}</div>
+                            <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:2px;">${escapeHtml(date)}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">${sections.length} sections</span>
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">${totalPoints} updates</span>
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;padding:3px 10px;border-radius:12px;">📰 ${escapeHtml(source)}</span>
+                    </div>
+                </div>
+                <div style="padding:0 16px 16px 16px;" id="startupContent_${id}">${eventHTML}</div>
+                <div style="padding:12px 16px;border-top:1px solid ${metaBorder};display:flex;align-items:center;justify-content:space-between;background:${isDark?'#0a0a0a':'#fafafa'};flex-wrap:wrap;gap:8px;">
+                    <span style="color:${isDark?'#555':'#aaa'};font-size:11px;">Centrinsic NPT • Startup Events</span>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <select id="startupTranslateSelect_${id}" onchange="translateDigestContent('${id}', this.value, 'startupContent_', 'startupTranslateSelect_')" style="background:${startupColor};color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;">
+                            <option value="en" style="background:#333;color:#fff;">🌐 English</option>
+                            <option value="hi" style="background:#333;color:#fff;">हिंदी</option>
+                            <option value="te" style="background:#333;color:#fff;">తెలుగు</option>
+                            <option value="ta" style="background:#333;color:#fff;">தமிழ்</option>
+                            <option value="kn" style="background:#333;color:#fff;">ಕನ್ನಡ</option>
+                            <option value="ml" style="background:#333;color:#fff;">മലയാളം</option>
+                        </select>
+                        <button onclick="share60SecDigest('${id}')" style="background:${startupColor};border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">📤 Share</button>
+                    </div>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+/* ============================================
+   GENERIC DIGEST TRANSLATE (works for any digest type)
+=========================================== */
+async function translateDigestContent(articleId, targetLang, contentPrefix, selectPrefix) {
+    const contentEl = document.getElementById(`${contentPrefix}${articleId}`);
+    const selectEl = document.getElementById(`${selectPrefix}${articleId}`);
+    if (!contentEl || !targetLang) return;
+
+    const cacheKey = `${contentPrefix}${articleId}`;
+    if (!window._digestOriginals) window._digestOriginals = {};
+    if (!window._digestOriginals[cacheKey]) {
+        window._digestOriginals[cacheKey] = contentEl.innerHTML;
+    }
+
+    if (targetLang === 'en') {
+        contentEl.innerHTML = window._digestOriginals[cacheKey];
+        if (selectEl) selectEl.value = 'en';
+        showToast('↩ Reverted to English');
+        return;
+    }
+
+    contentEl.innerHTML = '<div style="text-align:center;color:#FF9800;padding:20px;"><span>🌐 Translating...</span></div>';
+
+    try {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = window._digestOriginals[cacheKey];
+
+        const textNodes = [];
+        const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
+        let node;
+        while (node = walker.nextNode()) {
+            const text = node.textContent.trim();
+            if (text.length > 0 && text !== '•' && !/^\d+$/.test(text)) {
+                textNodes.push({ node: node, text: text });
+            }
+        }
+
+        if (textNodes.length === 0) {
+            contentEl.innerHTML = window._digestOriginals[cacheKey];
+            showToast('⚠️ Nothing to translate');
+            return;
+        }
+
+        const uniqueTexts = [...new Set(textNodes.map(t => t.text))];
+        const translations = new Map();
+
+        const batchSize = 20;
+        for (let i = 0; i < uniqueTexts.length; i += batchSize) {
+            const batch = uniqueTexts.slice(i, i + batchSize);
+            const combinedText = batch.join('\n§§§\n');
+
+            const response = await fetch(
+                `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(combinedText)}`
+            );
+            const data = await response.json();
+
+            if (data && data[0]) {
+                let translatedCombined = '';
+                data[0].forEach(seg => { if (seg[0]) translatedCombined += seg[0]; });
+                const translatedBatch = translatedCombined.split('\n§§§\n').map(t => t.trim());
+
+                batch.forEach((original, idx) => {
+                    translations.set(original, translatedBatch[idx] || original);
+                });
+            } else {
+                batch.forEach(original => translations.set(original, original));
+            }
+        }
+
+        textNodes.forEach(({ node, text }) => {
+            const translated = translations.get(text);
+            if (translated && translated !== text) {
+                node.textContent = node.textContent.replace(text, translated);
+            }
+        });
+
+        contentEl.innerHTML = tempDiv.innerHTML;
+        showToast(`✅ Translated to ${targetLang.toUpperCase()}`);
+
+    } catch (err) {
+        console.error('Translation error:', err);
+        contentEl.innerHTML = window._digestOriginals[cacheKey];
         if (selectEl) selectEl.value = 'en';
         showToast('⚠️ Translation failed — reverted to English');
     }
