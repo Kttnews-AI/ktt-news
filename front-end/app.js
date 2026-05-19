@@ -2,7 +2,7 @@
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
 // WITH: FIXED MOBILE BACK BUTTON + HISTORY API
 // WITH: DYNAMIC TAB ORDER — AI-D first when it has content, else AI-S first
-// WITH: STARTUP EVENTS PROPER EVENT CARD VIEW
+// WITH: STARTUP EVENTS PROPER EVENT CARD VIEW + COUNTDOWN + AUTO-EXPIRE
 // ============================================
 
 const API_BASE       = "https://centrinsicnpt.com";
@@ -1056,64 +1056,89 @@ async function translate60SecDigest(articleId, targetLang) {
 }
 
 /* ============================================
-   🚀 STARTUP EVENTS — PROPER EVENT CARD VIEW
+   🚀 STARTUP EVENTS — FULL EVENT CARD VIEW
+   WITH: COUNTDOWN + AUTO-EXPIRE + ALL FIELDS
    ============================================ */
 function renderStartupEvents(articles) {
-    const isDark     = document.body.classList.contains('dark');
-    const cardText   = isDark ? '#e0e0e0' : '#222';
-    const metaBg     = isDark ? '#1a1a1a' : '#fff';
-    const metaBorder = isDark ? '#2a2a2a' : '#e0e0e0';
-    const startupColor = '#9c27b0';
-    const accentColor  = '#7b1fa2';
-
-    const sorted = [...articles].sort((a, b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
-
-    return sorted.map((item, articleIndex) => {
-        const id      = String(item._id || item.articleId || item.id || articleIndex).replace(/[^a-zA-Z0-9-]/g, '');
-        const title   = item.title   || "Startup Event";
+    const isDark = document.body.classList.contains('dark');
+    const now = new Date();
+    
+    // ── AUTO-EXPIRE: Filter out events whose expireDate has passed ──
+    const activeEvents = articles.filter(item => {
+        const expireDate = item.expireDate || item.autoExpire || item.expiryDate || item.registrationDeadline;
+        if (expireDate) {
+            const exp = new Date(expireDate);
+            if (!isNaN(exp.getTime()) && exp < now) return false; // HIDE expired
+        }
+        return true;
+    }).sort((a, b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
+    
+    if (activeEvents.length === 0) {
+        return `<div style="text-align:center;padding:60px 20px calc(100px + env(safe-area-inset-bottom)) 20px;">
+            <div style="font-size:48px;margin-bottom:16px;">🚀</div>
+            <h3 style="color:${isDark?'#fff':'#111'};margin-bottom:8px;">No upcoming events</h3>
+            <p style="color:${isDark?'#666':'#999'};">Check back later for new startup events</p>
+        </div>`;
+    }
+    
+    return activeEvents.map((item, index) => {
+        const id = String(item._id || item.articleId || item.id || index).replace(/[^a-zA-Z0-9-]/g, '');
         
-        // ── Event-specific fields (with fallbacks for any API shape) ──
-        const eventDate = item.eventDate || item.event_date || item.eventTime || item.date || item.startDate || item.createdAt;
-        const venue     = item.venue || item.location || item.venueOrOnline || item.eventLocation || '';
-        const regLink   = item.registrationLink || item.registration_url || item.signupUrl || item.externalLink || item.url || '';
-        const eventType = item.eventType || item.event_type || item.type || '';
-        const organizer = item.source || item.organizer || item.startupName || 'Centrinsic NPT';
-        const content   = item.content || item.description || '';
-        const imageUrl  = getImageUrl(item.image);
+        // ── Extract all fields with multiple fallbacks ──
+        const title       = item.title       || "Startup Event";
+        const organizer   = item.source      || item.organizer    || item.startupName || 'Centrinsic NPT';
+        const eventType   = item.eventType   || item.event_type   || item.type || '';
+        const eventDate   = item.eventDate   || item.event_date   || item.date || item.startDate || item.createdAt;
+        const venue       = item.venue       || item.location     || item.venueOrOnline || '';
+        const regLink     = item.registrationLink || item.registration_url || item.signupUrl || item.externalLink || '';
+        const website     = item.eventWebsite|| item.website       || item.url || '';
+        const content     = item.content     || item.description  || '';
+        const imageUrl    = getImageUrl(item.image);
+        const expireDate  = item.expireDate  || item.autoExpire   || item.expiryDate || item.registrationDeadline;
 
-        // ── Format event date ──
-        let formattedEventDate = 'Date TBA';
+        // ── Format Event Date & Time ──
+        let formattedDate = 'Date TBA';
+        let timeStr = '';
         if (eventDate) {
             try {
                 const d = new Date(eventDate);
                 if (!isNaN(d.getTime())) {
-                    formattedEventDate = d.toLocaleDateString('en-GB', {
+                    formattedDate = d.toLocaleDateString('en-GB', {
                         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
                     });
+                    const t = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    if (t !== '12:00 AM') timeStr = t;
                 }
             } catch(e) {}
         }
 
-        // ── Build description (plain paragraphs, NOT bulletin sections) ──
-        let descriptionHTML = '';
-        if (content) {
-            const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-            if (paragraphs.length > 1) {
-                descriptionHTML = paragraphs.map(p => 
-                    `<p style="color:${cardText};font-size:14px;line-height:1.7;margin:0 0 12px 0;">${escapeHtml(p.trim())}</p>`
-                ).join('');
+        // ── Countdown Timer Logic ──
+        let countdownBadge = '';
+        let regStatus = 'open';
+        if (expireDate) {
+            const exp = new Date(expireDate);
+            const diff = exp - now;
+            if (diff > 0) {
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                if (days > 0) {
+                    countdownBadge = `<span style="background:rgba(255,255,255,0.35);color:#fff;font-size:11px;font-weight:800;padding:4px 12px;border-radius:12px;">⏰ ${days} day${days>1?'s':''} left</span>`;
+                } else if (hours > 0) {
+                    countdownBadge = `<span style="background:#ff9800;color:#fff;font-size:11px;font-weight:800;padding:4px 12px;border-radius:12px;">⏰ ${hours}h ${mins}m left</span>`;
+                } else {
+                    countdownBadge = `<span style="background:#ff1744;color:#fff;font-size:11px;font-weight:800;padding:4px 12px;border-radius:12px;">⏰ Closing in ${mins}m</span>`;
+                }
             } else {
-                descriptionHTML = `<p style="color:${cardText};font-size:14px;line-height:1.7;margin:0;">${escapeHtml(content.trim())}</p>`;
+                regStatus = 'closed';
+                countdownBadge = `<span style="background:#ff1744;color:#fff;font-size:11px;font-weight:800;padding:4px 12px;border-radius:12px;">🔒 Registration Closed</span>`;
             }
         }
 
-        // ── Header badges ──
+        // ── Header Badges ──
         const badges = [];
-        if (eventType) {
-            badges.push(`<<span style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;">🏷️ ${escapeHtml(eventType)}</span>`);
-        }
+        if (eventType) badges.push(`<<span style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;">🏷️ ${escapeHtml(eventType)}</span>`);
         badges.push(`<<span style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;">📰 ${escapeHtml(organizer)}</span>`);
-        
         if (venue) {
             const isUrl = /^https?:\/\//.test(venue);
             if (isUrl) {
@@ -1122,8 +1147,9 @@ function renderStartupEvents(articles) {
                 badges.push(`<<span style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;">📍 ${escapeHtml(venue)}</span>`);
             }
         }
+        if (countdownBadge) badges.push(countdownBadge);
 
-        // ── Event poster image ──
+        // ── Event Poster Image ──
         let imageHTML = '';
         if (imageUrl) {
             imageHTML = `
@@ -1132,33 +1158,71 @@ function renderStartupEvents(articles) {
                 </div>`;
         }
 
-        // ── Registration CTA ──
-        let regHTML = '';
-        if (regLink && regLink !== '#') {
-            regHTML = `
+        // ── Description Block ──
+        let descHTML = '';
+        if (content) {
+            const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+            if (paragraphs.length > 0) {
+                descHTML = paragraphs.map(p => `<p style="margin:0 0 12px 0;line-height:1.7;">${escapeHtml(p.trim())}</p>`).join('');
+            } else {
+                descHTML = `<p style="margin:0;line-height:1.7;">${escapeHtml(content.trim())}</p>`;
+            }
+        }
+
+        // ── Registration Section ──
+        let regSection = '';
+        if (regLink && regStatus === 'open') {
+            regSection = `
                 <div style="background:linear-gradient(135deg,#1b5e20,#2e7d32);padding:14px 16px;margin:0 -16px 16px -16px;display:flex;align-items:center;gap:12px;">
                     <div style="width:3px;height:20px;background:rgba(255,255,255,0.5);border-radius:2px;flex-shrink:0;"></div>
                     <div style="flex:1;">
                         <div style="color:#fff;font-size:13px;font-weight:700;line-height:1.4;">🚀 Registration Open</div>
-                        <div style="color:rgba(255,255,255,0.8);font-size:12px;margin-top:2px;">External signup required</div>
+                        <div style="color:rgba(255,255,255,0.85);font-size:12px;margin-top:2px;">${expireDate ? 'Limited time remaining — register now!' : 'Click below to secure your spot'}</div>
                     </div>
                 </div>
                 <div style="padding:0 16px 20px 16px;">
-                    <a href="${escapeHtml(regLink)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:linear-gradient(135deg,${startupColor},${accentColor});color:#fff;font-size:14px;font-weight:700;padding:14px;border-radius:12px;text-decoration:none;box-shadow:0 4px 12px rgba(156,39,176,0.3);">
+                    <a href="${escapeHtml(regLink)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:linear-gradient(135deg,#9c27b0,#7b1fa2);color:#fff;font-size:15px;font-weight:700;padding:14px;border-radius:12px;text-decoration:none;box-shadow:0 4px 12px rgba(156,39,176,0.3);">
                         Register Now →
                     </a>
                 </div>`;
+        } else if (regLink && regStatus === 'closed') {
+            regSection = `
+                <div style="background:linear-gradient(135deg,#616161,#424242);padding:14px 16px;margin:0 -16px 16px -16px;display:flex;align-items:center;gap:12px;">
+                    <div style="width:3px;height:20px;background:rgba(255,255,255,0.5);border-radius:2px;flex-shrink:0;"></div>
+                    <div style="flex:1;">
+                        <div style="color:#fff;font-size:13px;font-weight:700;line-height:1.4;">🔒 Registration Closed</div>
+                        <div style="color:rgba(255,255,255,0.8);font-size:12px;margin-top:2px;">This event is no longer accepting registrations</div>
+                    </div>
+                </div>`;
         }
+
+        // ── Event Website Link ──
+        let websiteHTML = '';
+        if (website && website !== regLink) {
+            websiteHTML = `<div style="padding:0 16px 12px 16px;">
+                <a href="${escapeHtml(website)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:8px;color:#9c27b0;font-size:13px;text-decoration:none;font-weight:600;">
+                    <span>🌐</span> Visit Event Website <span style="margin-left:auto;">→</span>
+                </a>
+            </div>`;
+        }
+
+        const metaBg     = isDark ? '#1a1a1a' : '#fff';
+        const metaBorder = isDark ? '#2a2a2a' : '#e0e0e0';
+        const cardText   = isDark ? '#e0e0e0' : '#222';
+        const descBg     = isDark ? '#16213e' : '#e8eaf6';
 
         return `
             <div style="background:${metaBg};border-radius:20px;margin-bottom:20px;overflow:hidden;border:1px solid ${metaBorder};box-shadow:0 2px 12px rgba(0,0,0,0.08);">
                 <!-- Purple Gradient Header -->
-                <div style="background:linear-gradient(135deg,${startupColor},${accentColor});padding:18px 20px;">
+                <div style="background:linear-gradient(135deg,#9c27b0,#7b1fa2);padding:18px 20px;">
                     <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
                         <span style="font-size:24px;flex-shrink:0;">🚀</span>
                         <div style="flex:1;min-width:0;">
                             <div style="color:#fff;font-size:17px;font-weight:800;line-height:1.3;word-break:break-word;">${escapeHtml(title)}</div>
-                            <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:4px;">📅 ${escapeHtml(formattedEventDate)}</div>
+                            <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:4px;">
+                                📅 ${escapeHtml(formattedDate)} 
+                                ${timeStr ? `<span style="margin-left:8px;">🕐 ${escapeHtml(timeStr)}</span>` : ''}
+                            </div>
                         </div>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1168,18 +1232,19 @@ function renderStartupEvents(articles) {
 
                 ${imageHTML}
 
-                <!-- Description Block (distinct background like your screenshot) -->
-                <div id="startupContent_${id}" style="background:${isDark?'#16213e':'#e8eaf6'};padding:16px;margin:0 16px 16px 16px;border-radius:12px;">
-                    ${descriptionHTML}
+                <!-- Description Block (Dark Blue / Indigo) -->
+                <div id="startupContent_${id}" style="background:${descBg};color:${cardText};padding:16px;margin:0 16px 16px 16px;border-radius:12px;font-size:14px;">
+                    ${descHTML}
                 </div>
 
-                ${regHTML}
+                ${websiteHTML}
+                ${regSection}
 
                 <!-- Footer -->
                 <div style="padding:12px 16px;border-top:1px solid ${metaBorder};display:flex;align-items:center;justify-content:space-between;background:${isDark?'#0a0a0a':'#fafafa'};flex-wrap:wrap;gap:8px;">
                     <span style="color:${isDark?'#555':'#aaa'};font-size:11px;">Centrinsic NPT • Startup Events</span>
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <select id="startupTranslateSelect_${id}" onchange="translateDigestContent('${id}', this.value, 'startupContent_', 'startupTranslateSelect_')" style="background:${startupColor};color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;">
+                        <select id="startupTranslateSelect_${id}" onchange="translateDigestContent('${id}', this.value, 'startupContent_', 'startupTranslateSelect_')" style="background:#9c27b0;color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;">
                             <option value="en" style="background:#333;color:#fff;">🌐 English</option>
                             <option value="hi" style="background:#333;color:#fff;">हिंदी</option>
                             <option value="te" style="background:#333;color:#fff;">తెలుగు</option>
@@ -1187,7 +1252,7 @@ function renderStartupEvents(articles) {
                             <option value="kn" style="background:#333;color:#fff;">ಕನ್ನಡ</option>
                             <option value="ml" style="background:#333;color:#fff;">മലയാളം</option>
                         </select>
-                        <button onclick="shareStartupEvent('${id}')" style="background:${startupColor};border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">📤 Share</button>
+                        <button onclick="shareStartupEvent('${id}')" style="background:#9c27b0;border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">📤 Share</button>
                     </div>
                 </div>
             </div>`;
@@ -1205,8 +1270,11 @@ async function shareStartupEvent(articleId) {
     const regLink   = article.registrationLink || article.registration_url || article.signupUrl || article.url || '';
     const venue     = article.venue || article.location || 'Location TBA';
     const eventDate = article.eventDate || article.event_date || article.date || 'Upcoming';
+    const eventType = article.eventType || article.type || '';
     
-    let shareText = `🚀 ${title}\n\n📅 ${eventDate}\n📍 ${venue}`;
+    let shareText = `🚀 ${title}`;
+    if (eventType) shareText += ` | ${eventType}`;
+    shareText += `\n\n📅 ${eventDate}\n📍 ${venue}`;
     if (regLink) shareText += `\n\n✍️ Register: ${regLink}`;
     shareText += `\n\n📲 More startup events on Centrinsic NPT:\nhttps://centrinsicnpt.com`;
 
@@ -1543,7 +1611,7 @@ function displayArticleDetail() {
         const content = currentArticle.content || currentArticle.description || '';
         if (content) {
             const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-            if (paragraphs.length > 1) {
+            if (paragraphs.length > 0) {
                 bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;">`;
                 paragraphs.forEach(p => {
                     bodyContent += `<p style="margin:0 0 14px 0;">${escapeHtml(p.trim())}</p>`;
@@ -1557,6 +1625,62 @@ function displayArticleDetail() {
         }
     } else {
         bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;font-size:16px;">${escapeHtml(currentArticle.content || currentArticle.description || "No content available")}</div>`;
+    }
+
+    // ── Startup Event Countdown for Detail View ──
+    let startupCountdownHTML = '';
+    if (isStartup) {
+        const expireDate = currentArticle.expireDate || currentArticle.autoExpire || currentArticle.expiryDate || currentArticle.registrationDeadline;
+        const eventDate = currentArticle.eventDate || currentArticle.event_date || currentArticle.date;
+        const now = new Date();
+        
+        let regStatus = 'open';
+        let countdownText = '';
+        
+        if (expireDate) {
+            const exp = new Date(expireDate);
+            const diff = exp - now;
+            if (diff > 0) {
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                if (days > 0) countdownText = `${days} day${days>1?'s':''} remaining`;
+                else if (hours > 0) countdownText = `${hours} hours remaining`;
+                else countdownText = 'Closing soon';
+            } else {
+                regStatus = 'closed';
+                countdownText = 'Registration Closed';
+            }
+        }
+        
+        const regLink = currentArticle.registrationLink || currentArticle.registration_url || currentArticle.signupUrl || '';
+        const website = currentArticle.eventWebsite || currentArticle.website || '';
+        const venue = currentArticle.venue || currentArticle.location || 'TBA';
+        const eventType = currentArticle.eventType || currentArticle.type || '';
+        const eventTime = eventDate ? new Date(eventDate).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true}) : '';
+        
+        startupCountdownHTML = `
+            <div style="background:${isDark?'#16213e':'#e8eaf6'};border-radius:12px;padding:16px;margin:16px 0;border:1px solid ${detailBorder};">
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    ${eventDate ? `<div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:100px;">📅 Event Date:</span><span style="color:#9c27b0;font-size:14px;font-weight:700;">${escapeHtml(new Date(eventDate).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}))} ${eventTime ? `at ${eventTime}` : ''}</span></div>` : ''}
+                    <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:100px;">📍 Venue:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(venue)}</span></div>
+                    ${eventType ? `<div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:100px;">🏷️ Type:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(eventType)}</span></div>` : ''}
+                    ${countdownText ? `<div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:100px;">⏰ Status:</span><span style="color:${regStatus==='open'?'#4CAF50':'#ff1744'};font-size:14px;font-weight:700;">${escapeHtml(countdownText)}</span></div>` : ''}
+                </div>
+            </div>
+            ${(regStatus === 'open' && regLink) ? `
+            <div style="margin-bottom:20px;">
+                <a href="${escapeHtml(regLink)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#9c27b0,#7b1fa2);border:none;border-radius:12px;padding:16px;color:#fff;font-size:15px;font-weight:700;width:100%;cursor:pointer;text-decoration:none;box-shadow:0 4px 12px rgba(156,39,176,0.3);">
+                    <span>🚀</span><span>Register for this Event</span>
+                </a>
+            </div>` : ''}
+            ${(website && website !== regLink) ? `
+            <div style="margin-bottom:20px;">
+                <a href="${escapeHtml(website)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:${linkBg};border:1px solid ${linkBorder};border-radius:12px;padding:14px;color:${linkColor};font-size:14px;font-weight:500;width:100%;cursor:pointer;text-decoration:none;">
+                    <span>🌐</span><span>Visit Event Website</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-left:auto;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </a>
+            </div>` : ''}
+        `;
     }
 
     articleBody.innerHTML = `
@@ -1590,24 +1714,14 @@ function displayArticleDetail() {
                 </select>
             </div>` : ''}
             ${bodyContent}
+            ${startupCountdownHTML}
             <div style="background:${cardBg};border-radius:12px;padding:20px;margin:20px 0;border:1px solid ${detailBorder};">
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Source:</span><span style="color:#667eea;font-size:14px;font-weight:600;">${escapeHtml(source)}</span></div>
                     <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Category:</span><span style="background:${catColor};color:white;font-size:12px;font-weight:600;padding:3px 10px;border-radius:10px;">${escapeHtml(catLabel)}</span></div>
                     <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Published:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(date)}</span></div>
-                    ${isStartup ? `
-                    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">📅 Event Date:</span><span style="color:#9c27b0;font-size:14px;font-weight:700;">${escapeHtml(currentArticle.eventDate || currentArticle.date || 'TBA')}</span></div>
-                    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">📍 Venue:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(currentArticle.venue || currentArticle.location || 'TBA')}</span></div>
-                    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">🏷️ Type:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(currentArticle.eventType || currentArticle.type || 'Event')}</span></div>
-                    ` : ''}
                 </div>
             </div>
-            ${(isStartup && (currentArticle.registrationLink || currentArticle.registration_url || currentArticle.url)) ? `
-            <div style="margin-bottom:20px;">
-                <a href="${escapeHtml(currentArticle.registrationLink || currentArticle.registration_url || currentArticle.url)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#9c27b0,#7b1fa2);border:none;border-radius:12px;padding:16px;color:#fff;font-size:15px;font-weight:700;width:100%;cursor:pointer;text-decoration:none;box-shadow:0 4px 12px rgba(156,39,176,0.3);">
-                    <span>🚀</span><span>Register for this Event</span>
-                </a>
-            </div>` : ''}
             ${originalLink !== '#' ? `
             <div style="margin-bottom:30px;">
                 <button onclick="openExternalLink('${escapeHtml(originalLink)}')" style="display:flex;align-items:center;justify-content:center;gap:10px;background:${linkBg};border:1px solid ${linkBorder};border-radius:12px;padding:16px;color:${linkColor};font-size:15px;font-weight:500;width:100%;cursor:pointer;">
@@ -1843,4 +1957,4 @@ function bindMobileButtons() {
     }
 }
 
-console.log("✅ Centrinsic NPT — Mobile Back Button Fixed with History API + Dynamic Tab Order + Startup Events View");
+console.log("✅ Centrinsic NPT — Mobile Back Button Fixed + Dynamic Tab Order + Startup Events with Countdown & Auto-Expire");
