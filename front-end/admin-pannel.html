@@ -424,17 +424,58 @@
             <div class="upload-card-icon orange">⚡</div>
             <div>
               <div style="font-weight:700;font-size:16px;color:var(--orange);">Daily News Bulletin Digest</div>
-              <div style="font-size:13px;color:var(--muted);">Paste the entire bulletin — sections auto-parse with colored headers.</div>
+              <div style="font-size:13px;color:var(--muted);">Paste the entire bulletin — sections auto-parse with colored headers. One upload per day.</div>
             </div>
           </div>
+
+          <!-- FORMAT GUIDE -->
+          <div style="background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+            <div style="font-size:12px;font-weight:800;color:var(--orange);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📋 Paste Format Guide</div>
+            <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);line-height:1.8;background:var(--surface2);padding:12px;border-radius:8px;">
+              <span style="color:#FF9800;font-weight:700;">Global Conflict & Middle East</span><br>
+              1. Iran Threatens Infrastructure: Tehran warns...<br>
+              2. Strait of Hormuz: Iran's blockade continues...<br>
+              <br>
+              <span style="color:#4CAF50;font-weight:700;">India National News</span><br>
+              1. PM Modi's Meet: Prime Minister held...<br>
+              2. Petrol Price Hike: Premium prices hiked...<br>
+            </div>
+            <div style="margin-top:10px;font-size:12px;color:var(--muted);">
+              ✅ Section name on its own line → becomes a colored header<br>
+              ✅ <code style="color:var(--accent2);">1. Bold Title: Content here</code> → numbered point with bold title<br>
+              ✅ Each section auto-gets a unique color automatically
+            </div>
+          </div>
+
           <div class="form-group">
             <label>Digest Title * <span style="color:var(--muted);font-size:12px;">e.g. "Daily Digest — 23 March 2026"</span></label>
             <input type="text" id="60sec-title" placeholder="Daily Digest — 23 March 2026" />
           </div>
+
           <div class="form-group">
-            <label>Full Bulletin Content *</label>
-            <textarea id="60sec-content" placeholder="Global Conflict & Middle East Crisis..." style="min-height:280px;font-family:'DM Mono',monospace;font-size:13px;"></textarea>
+            <label>Full Bulletin Content * <span style="color:var(--orange);font-size:12px;">— paste entire bulletin here</span></label>
+            <textarea id="60sec-content"
+              placeholder="Global Conflict & Middle East Crisis
+1. Iran Threatens Infrastructure: Tehran warns it will target all U.S. facilities.
+2. Strait of Hormuz Blockade: Iran's blockade cutting off 20% of global oil.
+
+India National News
+1. Shaheed Diwas: India observes Martyrs' Day today.
+2. PM Modi's Meet: Prime Minister held a meeting on West Asia."
+              style="min-height:380px;font-family:'DM Mono',monospace;font-size:13px;line-height:1.7;" onchange="update60SecPreview()" oninput="update60SecPreview()"></textarea>
           </div>
+
+          <!-- Live preview count -->
+          <div id="60sec-parsePreview" style="background:var(--surface2);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted);display:none;">
+            📊 Detected: <span id="60sec-sectionCount" style="color:var(--orange);font-weight:700;">0</span> sections,
+            <span id="60sec-pointCount" style="color:var(--accent2);font-weight:700;">0</span> total points
+          </div>
+
+          <!-- IMPORTANT NOTE — category is auto-set to '60sec' -->
+          <div style="background:rgba(255,152,0,0.12);border:1px solid rgba(255,152,0,0.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;">
+            ✅ <strong style="color:var(--orange);">Category is automatically set to "60sec"</strong> — no need to select anything. This ensures the article always appears in the ⚡ 60 Sec tab.
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label>Source / Edition</label>
@@ -452,6 +493,7 @@
               <option value="draft">Draft</option>
             </select>
           </div>
+
           <div style="display:flex;gap:12px;margin-top:8px;">
             <button class="btn btn-orange" id="60sec-uploadBtn" onclick="uploadArticle('60sec')" style="flex:1;justify-content:center;">⚡ Publish 60 Sec Digest</button>
             <button class="btn btn-ghost" onclick="resetForm('60sec')">Cancel</button>
@@ -514,6 +556,16 @@
               </select>
             </div>
           </div>
+          <div class="form-group">
+            <label>Article Image</label>
+            <div class="image-drop" id="ca-imageDrop">
+              <input type="file" id="ca-image" accept="image/*" onchange="previewImage(this,'ca')" />
+              <div class="drop-icon">🖼️</div>
+              <div class="drop-text">Click to upload image</div>
+              <div class="drop-sub">JPG, PNG, WEBP — max 10MB</div>
+            </div>
+            <img id="ca-imagePreview" class="image-preview" alt="Preview" />
+          </div>
           <div style="display:flex;gap:12px;margin-top:8px;">
             <button class="btn btn-red" id="ca-uploadBtn" onclick="uploadArticle('ca')" style="flex:1;justify-content:center;">🔴 Publish Current Affairs</button>
             <button class="btn btn-ghost" onclick="resetForm('ca')">Cancel</button>
@@ -525,7 +577,21 @@
       <div class="panel" id="panel-articles">
         <div class="section-header">
           <h3>All Manual Articles</h3>
-          <button class="btn btn-ghost btn-sm" onclick="loadArticles()">🔄 Refresh</button>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <span class="badge badge-purple" id="articleCountBadge">0 articles</span>
+            <button class="btn btn-ghost btn-sm" onclick="loadArticles()">🔄 Refresh</button>
+            <button class="btn btn-danger btn-sm" onclick="openDeleteAllModal()">🗑️ Delete All</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <button class="btn btn-sm" id="filter-all"   onclick="filterByCategory('all')"    style="background:var(--accent);color:#fff;border:none;">All</button>
+          <button class="btn btn-sm btn-ghost" id="filter-aid"   onclick="filterByCategory('aid')">🔵 AI-D</button>
+          <button class="btn btn-sm btn-ghost" id="filter-60sec" onclick="filterByCategory('60sec')">⚡ 60 Sec</button>
+          <button class="btn btn-sm btn-ghost" id="filter-ca"    onclick="filterByCategory('ca')">🔴 Current Affairs</button>
+        </div>
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Search articles by title..." oninput="applyArticleFilters()" />
         </div>
         <div id="articlesList"><div class="loading-row"><div class="spinner"></div> Loading articles...</div></div>
       </div>
@@ -551,6 +617,31 @@
 
     </div>
   </main>
+</div>
+
+<div id="toast"></div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="deleteAllModal">
+  <div class="modal">
+    <h3>⚠️ Delete All Manual News?</h3>
+    <p>This permanently deletes all AI-D + 60 Sec + Current Affairs articles and Cloudinary images.</p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeDeleteAllModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="deleteAllNews()">Yes, Delete All</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteSingleModal">
+  <div class="modal">
+    <h3>Delete Article?</h3>
+    <p id="deleteSingleMsg">Are you sure?</p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('deleteSingleModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDeleteSingle()">Delete</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -1213,6 +1304,177 @@ async function loadSchedulerStatus() {
     log('Scheduler status loaded', 'success');
   } catch (e) {
     log(`Failed to load scheduler: ${e.message}`, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ARTICLE MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+async function loadArticles() {
+  log('Loading articles', 'info');
+  document.getElementById('articlesList').innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading...</div>';
+  try {
+    const data = await apiAuth('/api/admin/articles');
+    allArticlesData = data.articles || [];
+    log(`Loaded ${allArticlesData.length} articles`, 'success');
+    document.getElementById('articleCountBadge').textContent = `${allArticlesData.length} articles`;
+    applyArticleFilters();
+  } catch (e) {
+    log(`Failed to load articles: ${e.message}`, 'error');
+    document.getElementById('articlesList').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><h4>Failed to load</h4><p>${e.message}</p></div>`;
+  }
+}
+
+function filterByCategory(cat) {
+  currentCategoryFilter = cat;
+  document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+    btn.style.background = 'transparent';
+    btn.style.color = 'var(--muted)';
+    btn.style.border = '1px solid var(--border)';
+  });
+  const active = document.getElementById(`filter-${cat}`);
+  if (active) {
+    const colors = { all: 'var(--accent)', aid: 'var(--accent)', '60sec': 'var(--orange)', ca: 'var(--red)' };
+    active.style.background = colors[cat] || 'var(--accent)';
+    active.style.color = '#fff';
+    active.style.border = 'none';
+  }
+  applyArticleFilters();
+}
+
+function applyArticleFilters() {
+  const query = document.getElementById('searchInput')?.value.toLowerCase() || '';
+  let filtered = allArticlesData;
+  if (currentCategoryFilter === 'aid') filtered = filtered.filter(a => !['60sec','currentaffairs'].includes((a.category||'').toLowerCase()));
+  if (currentCategoryFilter === '60sec') filtered = filtered.filter(a => (a.category||'').toLowerCase() === '60sec');
+  if (currentCategoryFilter === 'ca') filtered = filtered.filter(a => (a.category||'').toLowerCase() === 'currentaffairs');
+  if (query) filtered = filtered.filter(a => a.title.toLowerCase().includes(query) || (a.source||'').toLowerCase().includes(query));
+  renderArticles(filtered);
+}
+
+function renderArticles(articles) {
+  const container = document.getElementById('articlesList');
+  if (!articles || articles.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h4>No articles found</h4><p>Upload some articles to see them here</p></div>`;
+    return;
+  }
+  container.innerHTML = `<div class="article-grid">` + articles.map(a => {
+    const date = new Date(a.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    const excerpt = (a.content||'').substring(0,90)+'...';
+    const hasImg = a.image && a.image.startsWith('http');
+    const cat = (a.category||'').toLowerCase();
+    let catBadge = `<span class="badge badge-teal">${escHtml(a.category||'General')}</span>`;
+    if (cat === '60sec') catBadge = `<span class="badge badge-orange">⚡ 60 Sec Digest</span>`;
+    if (cat === 'currentaffairs') catBadge = `<span class="badge badge-red">🔴 Current Affairs</span>`;
+    return `
+      <div class="article-card">
+        <div class="article-thumb">${hasImg ? `<img src="${a.image}" onerror="this.parentElement.innerHTML='📄'" />` : (cat === '60sec' ? '⚡' : cat === 'currentaffairs' ? '🔴' : '📄')}</div>
+        <div class="article-info">
+          <div class="article-title">${escHtml(a.title)}</div>
+          <div class="article-meta">
+            ${escHtml(a.source||'Unknown')} • ${date}
+            ${catBadge}
+            <span class="badge ${a.status==='published'?'badge-green':'badge-red'}" style="margin-left:4px;">${a.status}</span>
+          </div>
+          <div class="article-excerpt">${escHtml(excerpt)}</div>
+        </div>
+        <div class="article-actions">
+          <button class="btn btn-danger btn-sm" onclick="openDeleteSingle('${a._id}','${escHtml(a.title).replace(/'/g,"\\'")}')">🗑️</button>
+        </div>
+      </div>`;
+  }).join('') + `</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DELETE OPERATIONS
+// ═══════════════════════════════════════════════════════════════════
+function openDeleteAllModal() {
+  document.getElementById('deleteAllModal').classList.add('open');
+}
+
+function closeDeleteAllModal() {
+  document.getElementById('deleteAllModal').classList.remove('open');
+}
+
+async function deleteAllNews() {
+  closeDeleteAllModal();
+  showToast('Deleting all articles...', '');
+  try {
+    const data = await apiAuth('/api/admin/delete-all-news', 'DELETE');
+    if (data.success) {
+      log('All articles deleted', 'success');
+      showToast('✅ All articles deleted', 'success');
+      loadDashboard();
+      if (document.getElementById('panel-articles').classList.contains('active')) loadArticles();
+    } else {
+      log(`Delete failed: ${data.error}`, 'error');
+      showToast(data.error || 'Failed', 'error');
+    }
+  } catch(e) {
+    log(`Delete error: ${e.message}`, 'error');
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+function openDeleteSingle(id, title) {
+  deleteTargetId = id;
+  document.getElementById('deleteSingleMsg').textContent = `Delete "${title}"?`;
+  document.getElementById('deleteSingleModal').classList.add('open');
+}
+
+async function confirmDeleteSingle() {
+  document.getElementById('deleteSingleModal').classList.remove('open');
+  if (!deleteTargetId) return;
+  try {
+    const r = await fetch(`${API_BASE}/api/articles/${deleteTargetId}`, {
+      method:'DELETE',
+      headers:{'Authorization':`Bearer ${authToken}`}
+    });
+    const data = await r.json();
+    if (data.success) {
+      log('Article deleted', 'success');
+      showToast('✅ Article deleted', 'success');
+      loadArticles();
+      loadDashboard();
+    } else {
+      log(`Delete failed: ${data.error}`, 'error');
+      showToast(data.error || 'Delete failed', 'error');
+    }
+  } catch(e) {
+    log(`Delete error: ${e.message}`, 'error');
+    showToast('Error: ' + e.message, 'error');
+  }
+  deleteTargetId = null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LIVE PREVIEW FOR 60 SEC DIGEST
+// ═══════════════════════════════════════════════════════════════════
+function update60SecPreview() {
+  const content = document.getElementById('60sec-content')?.value || '';
+  const preview = document.getElementById('60sec-parsePreview');
+  const secCount = document.getElementById('60sec-sectionCount');
+  const ptCount = document.getElementById('60sec-pointCount');
+  
+  if (!preview) return;
+
+  const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  let sections = 0;
+  let points = 0;
+
+  for (const line of lines) {
+    const isNumbered = /^\d+[\.\)]\s/.test(line);
+    const isBullet = /^[-•*]\s/.test(line);
+    if (!isNumbered && !isBullet && line.length > 3) sections++;
+    else if (isNumbered || isBullet) points++;
+  }
+
+  if (content.trim().length > 10) {
+    preview.style.display = 'block';
+    if (secCount) secCount.textContent = sections;
+    if (ptCount) ptCount.textContent = points;
+  } else {
+    preview.style.display = 'none';
   }
 }
 
