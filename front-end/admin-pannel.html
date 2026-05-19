@@ -402,7 +402,7 @@
               <input type="file" id="aid-image" accept="image/*" onchange="previewImage(this,'aid')" />
               <div class="drop-icon">🖼️</div>
               <div class="drop-text">Click to upload image</div>
-              <div class="drop-sub">JPG, PNG, WEBP — max 10MB</div>
+              <div class="drop-sub">JPG, PNG, WEBP — max 5MB</div>
             </div>
             <img id="aid-imagePreview" class="image-preview" alt="Preview" />
           </div>
@@ -562,7 +562,7 @@ India National News
               <input type="file" id="ca-image" accept="image/*" onchange="previewImage(this,'ca')" />
               <div class="drop-icon">🖼️</div>
               <div class="drop-text">Click to upload image</div>
-              <div class="drop-sub">JPG, PNG, WEBP — max 10MB</div>
+              <div class="drop-sub">JPG, PNG, WEBP — max 5MB</div>
             </div>
             <img id="ca-imagePreview" class="image-preview" alt="Preview" />
           </div>
@@ -1134,6 +1134,24 @@ async function uploadArticle(prefix) {
   const expiry = document.getElementById(`${prefix}-expiry`)?.value;
   if (expiry) formData.append('expiresAt', new Date(expiry).toISOString());
   
+  // ADD IMAGE FILE IF PRESENT
+  const imageFile = document.getElementById(`${prefix}-image`)?.files[0];
+  if (imageFile) {
+    // Validate file size (5MB max for better performance)
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+    if (imageFile.size > maxSizeBytes) {
+      log(`Image too large: ${(imageFile.size / 1024 / 1024).toFixed(2)}MB (max 5MB)`, 'error');
+      showToast(`Image too large! Max 5MB. Your file: ${(imageFile.size / 1024 / 1024).toFixed(2)}MB`, 'error');
+      btn.disabled = false;
+      btn.innerHTML = prefix === 'aid' ? '🔵 Publish AI-D Article' : prefix === '60sec' ? '⚡ Publish 60 Sec Digest' : '🔴 Publish Current Affairs';
+      return;
+    }
+    formData.append('image', imageFile);
+    log(`Image attached: ${imageFile.name} (${(imageFile.size / 1024).toFixed(2)}KB)`, 'info');
+  } else {
+    log('No image provided', 'info');
+  }
+  
   try {
     log(`POST /api/articles with category: ${category}`, 'info');
     const response = await fetch(`${API_BASE}/api/articles`, {
@@ -1150,14 +1168,14 @@ async function uploadArticle(prefix) {
       data = { error: text.substring(0, 200) };
     }
     
-    if (data.success || data.articleId) {
+    if (response.ok && (data.success || data.articleId)) {
       const labels = { aid: '🔵 AI-D', '60sec': '⚡ 60 Sec Digest', ca: '🔴 Current Affairs' };
       log(`Article uploaded successfully: ${labels[prefix]}`, 'success');
       showToast(`✅ ${labels[prefix]} published!`, 'success');
       resetForm(prefix);
       loadDashboard();
     } else {
-      const msg = data.error || 'Upload failed';
+      const msg = data.error || data.message || 'Upload failed';
       log(`Upload failed: ${msg}`, 'error');
       showToast(msg, 'error');
     }
@@ -1172,22 +1190,52 @@ async function uploadArticle(prefix) {
 }
 
 function resetForm(prefix) {
+  // Clear text fields
   ['title', 'content', 'source', 'link', 'expiry'].forEach(f => {
     const el = document.getElementById(`${prefix}-${f}`);
     if (el) el.value = '';
   });
+  
+  // Reset status
   const status = document.getElementById(`${prefix}-status`);
   if (status) status.value = 'published';
   
-  // Reset image
+  // Reset category for AI-D if it exists
+  if (prefix === 'aid') {
+    const subcategory = document.getElementById('aid-subcategory');
+    if (subcategory) subcategory.value = 'General';
+  }
+  
+  // Clear image
   const img = document.getElementById(`${prefix}-image`);
   if (img) img.value = '';
+  
+  // Hide preview
   const preview = document.getElementById(`${prefix}-imagePreview`);
-  if (preview) preview.style.display = 'none';
+  if (preview) {
+    preview.style.display = 'none';
+    preview.src = '';
+  }
+  
+  // Reset drop zone
   const drop = document.getElementById(`${prefix}-imageDrop`);
   if (drop) {
     drop.querySelector('.drop-icon').textContent = '🖼️';
     drop.querySelector('.drop-text').textContent = 'Click to upload image';
+  }
+  
+  // Clear bulk paste parser if AI-D
+  if (prefix === 'aid') {
+    const bulkPaste = document.getElementById('aid-bulkPaste');
+    if (bulkPaste) bulkPaste.value = '';
+    const feedback = document.getElementById('aid-parseFeedback');
+    if (feedback) feedback.style.display = 'none';
+  }
+  
+  // Clear 60 sec preview if applicable
+  if (prefix === '60sec') {
+    const preview = document.getElementById('60sec-parsePreview');
+    if (preview) preview.style.display = 'none';
   }
 }
 
@@ -1487,9 +1535,23 @@ function previewImage(input, prefix) {
   const drop = document.getElementById(`${prefix}-imageDrop`);
   
   if (file) {
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('File too large! Max 10MB', 'error');
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file (JPG, PNG, WEBP)', 'error');
       input.value = '';
+      return;
+    }
+    
+    // Validate file size (5MB max)
+    const maxSizeBytes = 5 * 1024 * 1024;
+    const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+    
+    if (file.size > maxSizeBytes) {
+      log(`Image too large: ${fileSizeMB}MB (max 5MB)`, 'error');
+      showToast(`❌ Image too large!\nMax: 5MB\nYour file: ${fileSizeMB}MB`, 'error');
+      input.value = '';
+      drop.querySelector('.drop-icon').textContent = '🖼️';
+      drop.querySelector('.drop-text').textContent = 'Click to upload image';
       return;
     }
     
@@ -1498,13 +1560,16 @@ function previewImage(input, prefix) {
       preview.src = e.target.result;
       preview.style.display = 'block';
       drop.querySelector('.drop-icon').textContent = '✅';
-      drop.querySelector('.drop-text').textContent = file.name;
-      log(`Image preview loaded: ${file.name}`, 'success');
+      drop.querySelector('.drop-text').textContent = `${file.name} (${fileSizeMB}MB)`;
+      log(`Image preview loaded: ${file.name} (${fileSizeMB}MB)`, 'success');
     };
+    
     reader.onerror = e => {
       log(`Failed to read file: ${e}`, 'error');
-      showToast('Failed to read image', 'error');
+      showToast('❌ Failed to read image', 'error');
+      input.value = '';
     };
+    
     reader.readAsDataURL(file);
   }
 }
