@@ -19,6 +19,7 @@
     --green: #2ed573;
     --orange: #FF9800;
     --red: #e53935;
+    --startup: #fbbf24;
     --radius: 14px;
   }
 
@@ -38,6 +39,7 @@
   .nav-item.active { background: var(--accent); color: #fff; }
   .nav-item.active-orange { background: var(--orange); color: #fff; }
   .nav-item.active-red    { background: var(--red);    color: #fff; }
+  .nav-item.active-startup { background: var(--startup); color: #000; }
   .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
   .sidebar-footer { padding: 16px 12px; border-top: 1px solid var(--border); }
   .admin-badge { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface2); border-radius: 10px; }
@@ -81,6 +83,8 @@
   .btn-orange:hover { background: #ffad33; transform: translateY(-1px); }
   .btn-red { background: var(--red); color: #fff; }
   .btn-red:hover { background: #ef5350; transform: translateY(-1px); }
+  .btn-startup { background: var(--startup); color: #000; }
+  .btn-startup:hover { background: #fcd34d; transform: translateY(-1px); }
   .btn-danger { background: var(--danger); color: #fff; }
   .btn-danger:hover { background: #ff6b7a; }
   .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
@@ -94,11 +98,13 @@
   .upload-card.blue::before   { background: var(--accent); }
   .upload-card.orange::before { background: var(--orange); }
   .upload-card.red::before    { background: var(--red); }
+  .upload-card.startup::before { background: var(--startup); }
   .upload-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
   .upload-card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
   .upload-card-icon.blue   { background: rgba(108,99,255,0.15); }
   .upload-card-icon.orange { background: rgba(255,152,0,0.15); }
   .upload-card-icon.red    { background: rgba(229,57,53,0.15); }
+  .upload-card-icon.startup { background: rgba(251,191,36,0.15); }
 
   /* STATS */
   .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
@@ -110,6 +116,7 @@
   .stat-card.red-b::before  { background: var(--danger); }
   .stat-card.orange::before { background: var(--orange); }
   .stat-card.dark-red::before { background: var(--red); }
+  .stat-card.startup::before { background: var(--startup); }
   .stat-label { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
   .stat-value { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; line-height: 1; }
   .stat-sub   { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -166,6 +173,7 @@
   .badge-green  { background: rgba(46,213,115,0.15); color: var(--green); }
   .badge-red    { background: rgba(255,71,87,0.15);  color: var(--danger); }
   .badge-orange { background: rgba(255,152,0,0.15);  color: var(--orange); }
+  .badge-startup { background: rgba(251,191,36,0.15); color: var(--startup); }
 
   /* MODALS */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(4px); }
@@ -264,6 +272,7 @@
       <button class="nav-item" onclick="showPanel('upload-aid')"><span class="icon">🔵</span><span>AI-D Upload</span></button>
       <button class="nav-item" onclick="showPanel('upload-60sec')"><span class="icon">⚡</span><span>60 Sec Digest</span></button>
       <button class="nav-item" onclick="showPanel('upload-ca')"><span class="icon">🔴</span><span>Current Affairs</span></button>
+      <button class="nav-item" onclick="showPanel('upload-startup')"><span class="icon">🚀</span><span>Startup Events</span></button>
       <div class="nav-section-label">Manage</div>
       <button class="nav-item" onclick="showPanel('articles')"><span class="icon">📰</span><span>All Articles</span></button>
       <button class="nav-item" onclick="showPanel('gnews')"><span class="icon">🌐</span><span>GNews Cache</span></button>
@@ -298,6 +307,7 @@
           <div class="stat-card purple"><div class="stat-label">AI-D Articles</div><div class="stat-value" id="statManual">—</div><div class="stat-sub">Detailed cards</div></div>
           <div class="stat-card orange"><div class="stat-label">60 Sec Digests</div><div class="stat-value" id="stat60sec">—</div><div class="stat-sub">Daily bulletins</div></div>
           <div class="stat-card dark-red"><div class="stat-label">Current Affairs</div><div class="stat-value" id="statCA">—</div><div class="stat-sub">Current affairs</div></div>
+          <div class="stat-card startup"><div class="stat-label">Startup Events</div><div class="stat-value" id="statStartup">—</div><div class="stat-sub">Events listed</div></div>
           <div class="stat-card teal"><div class="stat-label">GNews Cached</div><div class="stat-value" id="statGnews">—</div><div class="stat-sub">AI-S cards</div></div>
           <div class="stat-card green"><div class="stat-label">Total Users</div><div class="stat-value" id="statUsers">—</div><div class="stat-sub">Registered</div></div>
           <div class="stat-card red-b"><div class="stat-label">Bookmarks</div><div class="stat-value" id="statBookmarks">—</div><div class="stat-sub">Saved by users</div></div>
@@ -309,6 +319,7 @@
               <button class="btn btn-primary" onclick="showPanel('upload-aid')">🔵 Upload AI-D Article</button>
               <button class="btn btn-orange"  onclick="showPanel('upload-60sec')">⚡ Upload 60 Sec Digest</button>
               <button class="btn btn-red"     onclick="showPanel('upload-ca')">🔴 Upload Current Affairs</button>
+              <button class="btn btn-startup" onclick="showPanel('upload-startup')">🚀 Upload Startup Event</button>
               <div class="divider" style="margin:4px 0;"></div>
               <button class="btn btn-ghost"   onclick="refreshGNews()">🔄 Refresh GNews Cache</button>
               <button class="btn btn-danger"  onclick="openDeleteAllModal()">🗑️ Delete All Manual News</button>
@@ -465,12 +476,12 @@
             <div style="font-size:12px;font-weight:800;color:var(--orange);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📋 Paste Format Guide</div>
             <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);line-height:1.8;background:var(--surface2);padding:12px;border-radius:8px;">
               <span style="color:#FF9800;font-weight:700;">Global Conflict & Middle East</span><br>
-              1. Iran Threatens Infrastructure: Tehran warns...<br>
-              2. Strait of Hormuz: Iran's blockade continues...<br>
+              1. Iran Threatens Infrastructure: Tehran warns...<<br>
+              2. Strait of Hormuz: Iran's blockade continues...<<br>
               <br>
               <span style="color:#4CAF50;font-weight:700;">India National News</span><br>
-              1. PM Modi's Meet: Prime Minister held...<br>
-              2. Petrol Price Hike: Premium prices hiked...<br>
+              1. PM Modi's Meet: Prime Minister held...<<br>
+              2. Petrol Price Hike: Premium prices hiked...<<br>
             </div>
             <div style="margin-top:10px;font-size:12px;color:var(--muted);">
               ✅ Section name on its own line → becomes a colored header<br>
@@ -621,6 +632,105 @@ India National News
         </div>
       </div>
 
+      <!-- ══ UPLOAD STARTUP EVENTS ══ -->
+      <div class="panel" id="panel-upload-startup">
+        <div class="section-header">
+          <h3>🚀 Upload Startup Event</h3>
+          <button class="btn btn-ghost btn-sm" onclick="resetForm('startup')">🔁 Reset</button>
+        </div>
+        <div class="upload-card startup">
+          <div class="upload-card-header">
+            <div class="upload-card-icon startup">🚀</div>
+            <div>
+              <div style="font-weight:700;font-size:16px;color:var(--startup);">Startup Event Listing</div>
+              <div style="font-size:13px;color:var(--muted);">Pitch days, workshops, conferences, hackathons & networking events.</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Event Title *</label>
+            <input type="text" id="startup-title" placeholder="Enter event headline..." />
+          </div>
+          <div class="form-group">
+            <label>Event Details / Description *</label>
+            <textarea id="startup-content" placeholder="Agenda, speakers, what to expect, target audience..." style="min-height:200px;"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Organizer / Startup Name *</label>
+              <input type="text" id="startup-source" placeholder="e.g. Y Combinator, TechCrunch, IIT Bombay..." />
+            </div>
+            <div class="form-group">
+              <label>Event Type *</label>
+              <select id="startup-eventType">
+                <option value="Pitch">Pitch Competition</option>
+                <option value="Workshop">Workshop</option>
+                <option value="Conference">Conference</option>
+                <option value="Hackathon">Hackathon</option>
+                <option value="Networking">Networking</option>
+                <option value="Webinar">Webinar</option>
+                <option value="Demo Day">Demo Day</option>
+                <option value="Panel Discussion">Panel Discussion</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Event Date & Time *</label>
+              <input type="datetime-local" id="startup-eventDate" />
+            </div>
+            <div class="form-group">
+              <label>Location / Venue *</label>
+              <input type="text" id="startup-location" placeholder="e.g. Bangalore, Online (Zoom), Delhi..." />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Registration / Signup Link</label>
+              <input type="url" id="startup-regLink" placeholder="https://..." />
+            </div>
+            <div class="form-group">
+              <label>Event Website (optional)</label>
+              <input type="url" id="startup-link" placeholder="https://..." />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Auto-Expire Date (optional)</label>
+              <input type="datetime-local" id="startup-expiry" />
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select id="startup-status">
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- CATEGORY NOTE -->
+          <div style="background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;">
+            ✅ <strong style="color:var(--startup);">Category is automatically set to "startupevents"</strong> — no need to select anything. This ensures the event always appears in the 🚀 Startup tab.
+          </div>
+
+          <div class="form-group">
+            <label>Event Logo / Poster</label>
+            <div class="image-drop" id="startup-imageDrop">
+              <input type="file" id="startup-image" accept="image/*" onchange="previewImage(this,'startup')" />
+              <div class="drop-icon">🖼️</div>
+              <div class="drop-text">Click to upload logo or poster</div>
+              <div class="drop-sub">JPG, PNG, WEBP — max 5MB</div>
+            </div>
+            <img id="startup-imagePreview" class="image-preview" alt="Preview" />
+          </div>
+          <div style="display:flex;gap:12px;margin-top:8px;">
+            <button class="btn btn-startup" id="startup-uploadBtn" onclick="uploadArticle('startup')" style="flex:1;justify-content:center;">🚀 Publish Startup Event</button>
+            <button class="btn btn-ghost" onclick="resetForm('startup')">Cancel</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ══ ALL ARTICLES ══ -->
       <div class="panel" id="panel-articles">
         <div class="section-header">
@@ -636,6 +746,7 @@ India National News
           <button class="btn btn-sm btn-ghost" id="filter-aid"   onclick="filterByCategory('aid')">🔵 AI-D</button>
           <button class="btn btn-sm btn-ghost" id="filter-60sec" onclick="filterByCategory('60sec')">⚡ 60 Sec</button>
           <button class="btn btn-sm btn-ghost" id="filter-ca"    onclick="filterByCategory('ca')">🔴 Current Affairs</button>
+          <button class="btn btn-sm btn-ghost" id="filter-startup" onclick="filterByCategory('startup')">🚀 Startup</button>
         </div>
         <div class="search-bar">
           <span class="search-icon">🔍</span>
@@ -673,7 +784,7 @@ India National News
 <div class="modal-overlay" id="deleteAllModal">
   <div class="modal">
     <h3>⚠️ Delete All Manual News?</h3>
-    <p>This permanently deletes all AI-D + 60 Sec + Current Affairs articles and Cloudinary images.</p>
+    <p>This permanently deletes all AI-D + 60 Sec + Current Affairs + Startup Events articles and Cloudinary images.</p>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeDeleteAllModal()">Cancel</button>
       <button class="btn btn-danger" onclick="deleteAllNews()">Yes, Delete All</button>
@@ -1086,6 +1197,7 @@ const panelTitles = {
   'upload-aid': '🔵 Upload AI-D Article',
   'upload-60sec': '⚡ Upload 60 Sec Digest',
   'upload-ca': '🔴 Upload Current Affairs',
+  'upload-startup': '🚀 Upload Startup Event',
   'articles': 'All Articles',
   'gnews': 'GNews Cache (AI-S)',
   'scheduler': 'Scheduler'
@@ -1094,7 +1206,7 @@ const panelTitles = {
 function showPanel(name) {
   log(`Switching to panel: ${name}`, 'info');
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active', 'active-orange', 'active-red'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active', 'active-orange', 'active-red', 'active-startup'));
   
   const panel = document.getElementById('panel-' + name);
   if (panel) panel.classList.add('active');
@@ -1103,6 +1215,7 @@ function showPanel(name) {
     if (n.getAttribute('onclick')?.includes(`'${name}'`)) {
       if (name === 'upload-60sec') n.classList.add('active-orange');
       else if (name === 'upload-ca') n.classList.add('active-red');
+      else if (name === 'upload-startup') n.classList.add('active-startup');
       else n.classList.add('active');
     }
   });
@@ -1127,9 +1240,10 @@ async function loadDashboard() {
     ]);
     const articles = articlesData.articles || [];
 
-    document.getElementById('statManual').textContent = articles.filter(a => a.isManual && !['60sec', 'currentaffairs'].includes((a.category || '').toLowerCase())).length;
+    document.getElementById('statManual').textContent = articles.filter(a => a.isManual && !['60sec', 'currentaffairs', 'startupevents'].includes((a.category || '').toLowerCase())).length;
     document.getElementById('stat60sec').textContent = articles.filter(a => a.isManual && (a.category || '').toLowerCase() === '60sec').length;
     document.getElementById('statCA').textContent = articles.filter(a => a.isManual && (a.category || '').toLowerCase() === 'currentaffairs').length;
+    document.getElementById('statStartup').textContent = articles.filter(a => a.isManual && (a.category || '').toLowerCase() === 'startupevents').length;
     document.getElementById('statGnews').textContent = articles.filter(a => !a.isManual).length;
     document.getElementById('statUsers').textContent = statsData.totalUsers ?? statsData.users ?? '—';
     document.getElementById('statBookmarks').textContent = statsData.totalBookmarks ?? statsData.bookmarks ?? '—';
@@ -1176,6 +1290,8 @@ async function uploadArticle(prefix) {
     category = '60sec';
   } else if (prefix === 'ca') {
     category = 'currentaffairs';
+  } else if (prefix === 'startup') {
+    category = 'startupevents';
   } else {
     category = 'General';
   }
@@ -1189,6 +1305,21 @@ async function uploadArticle(prefix) {
   
   const expiry = document.getElementById(`${prefix}-expiry`)?.value;
   if (expiry) formData.append('expiresAt', new Date(expiry).toISOString());
+  
+  // Startup-specific fields
+  if (prefix === 'startup') {
+    const eventDate = document.getElementById('startup-eventDate')?.value;
+    if (eventDate) formData.append('eventDate', new Date(eventDate).toISOString());
+    
+    const location = document.getElementById('startup-location')?.value.trim();
+    if (location) formData.append('location', location);
+    
+    const regLink = document.getElementById('startup-regLink')?.value.trim();
+    if (regLink) formData.append('registrationLink', regLink);
+    
+    const eventType = document.getElementById('startup-eventType')?.value;
+    if (eventType) formData.append('eventType', eventType);
+  }
   
   // ADD IMAGE FILE IF PRESENT (manual OR auto-queue)
   let imageFile = document.getElementById(`${prefix}-image`)?.files[0];
@@ -1207,7 +1338,7 @@ async function uploadArticle(prefix) {
       log(`Image too large: ${(imageFile.size / 1024 / 1024).toFixed(2)}MB (max 5MB)`, 'error');
       showToast(`Image too large! Max 5MB. Your file: ${(imageFile.size / 1024 / 1024).toFixed(2)}MB`, 'error');
       btn.disabled = false;
-      btn.innerHTML = prefix === 'aid' ? '🔵 Publish AI-D Article' : prefix === '60sec' ? '⚡ Publish 60 Sec Digest' : '🔴 Publish Current Affairs';
+      btn.innerHTML = prefix === 'aid' ? '🔵 Publish AI-D Article' : prefix === '60sec' ? '⚡ Publish 60 Sec Digest' : prefix === 'ca' ? '🔴 Publish Current Affairs' : '🚀 Publish Startup Event';
       return;
     }
     formData.append('image', imageFile);
@@ -1233,7 +1364,7 @@ async function uploadArticle(prefix) {
     }
     
     if (response.ok && (data.success || data.articleId)) {
-      const labels = { aid: '🔵 AI-D', '60sec': '⚡ 60 Sec Digest', ca: '🔴 Current Affairs' };
+      const labels = { aid: '🔵 AI-D', '60sec': '⚡ 60 Sec Digest', ca: '🔴 Current Affairs', startup: '🚀 Startup Event' };
       log(`Article uploaded successfully: ${labels[prefix]}`, 'success');
       showToast(`✅ ${labels[prefix]} published!`, 'success');
 
@@ -1254,7 +1385,7 @@ async function uploadArticle(prefix) {
     showToast('Network error: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
-    const btnLabels = { aid: '🔵 Publish AI-D Article', '60sec': '⚡ Publish 60 Sec Digest', ca: '🔴 Publish Current Affairs' };
+    const btnLabels = { aid: '🔵 Publish AI-D Article', '60sec': '⚡ Publish 60 Sec Digest', ca: '🔴 Publish Current Affairs', startup: '🚀 Publish Startup Event' };
     btn.innerHTML = btnLabels[prefix];
   }
 }
@@ -1276,6 +1407,18 @@ function resetForm(prefix) {
     if (subcategory) subcategory.value = 'General';
   }
   
+  // Clear startup-specific fields
+  if (prefix === 'startup') {
+    const eventDate = document.getElementById('startup-eventDate');
+    if (eventDate) eventDate.value = '';
+    const location = document.getElementById('startup-location');
+    if (location) location.value = '';
+    const regLink = document.getElementById('startup-regLink');
+    if (regLink) regLink.value = '';
+    const eventType = document.getElementById('startup-eventType');
+    if (eventType) eventType.value = 'Pitch';
+  }
+  
   // Clear image
   const img = document.getElementById(`${prefix}-image`);
   if (img) img.value = '';
@@ -1291,7 +1434,7 @@ function resetForm(prefix) {
   const drop = document.getElementById(`${prefix}-imageDrop`);
   if (drop) {
     drop.querySelector('.drop-icon').textContent = '🖼️';
-    drop.querySelector('.drop-text').textContent = 'Click to upload image';
+    drop.querySelector('.drop-text').textContent = prefix === 'startup' ? 'Click to upload logo or poster' : 'Click to upload image';
   }
   
   // Clear bulk paste parser if AI-D
@@ -1408,7 +1551,7 @@ function filterByCategory(cat) {
   });
   const active = document.getElementById(`filter-${cat}`);
   if (active) {
-    const colors = { all: 'var(--accent)', aid: 'var(--accent)', '60sec': 'var(--orange)', ca: 'var(--red)' };
+    const colors = { all: 'var(--accent)', aid: 'var(--accent)', '60sec': 'var(--orange)', ca: 'var(--red)', startup: 'var(--startup)' };
     active.style.background = colors[cat] || 'var(--accent)';
     active.style.color = '#fff';
     active.style.border = 'none';
@@ -1419,9 +1562,10 @@ function filterByCategory(cat) {
 function applyArticleFilters() {
   const query = document.getElementById('searchInput')?.value.toLowerCase() || '';
   let filtered = allArticlesData;
-  if (currentCategoryFilter === 'aid') filtered = filtered.filter(a => !['60sec','currentaffairs'].includes((a.category||'').toLowerCase()));
+  if (currentCategoryFilter === 'aid') filtered = filtered.filter(a => !['60sec','currentaffairs','startupevents'].includes((a.category||'').toLowerCase()));
   if (currentCategoryFilter === '60sec') filtered = filtered.filter(a => (a.category||'').toLowerCase() === '60sec');
   if (currentCategoryFilter === 'ca') filtered = filtered.filter(a => (a.category||'').toLowerCase() === 'currentaffairs');
+  if (currentCategoryFilter === 'startup') filtered = filtered.filter(a => (a.category||'').toLowerCase() === 'startupevents');
   if (query) filtered = filtered.filter(a => a.title.toLowerCase().includes(query) || (a.source||'').toLowerCase().includes(query));
   renderArticles(filtered);
 }
@@ -1440,9 +1584,11 @@ function renderArticles(articles) {
     let catBadge = `<span class="badge badge-teal">${escHtml(a.category||'General')}</span>`;
     if (cat === '60sec') catBadge = `<span class="badge badge-orange">⚡ 60 Sec Digest</span>`;
     if (cat === 'currentaffairs') catBadge = `<span class="badge badge-red">🔴 Current Affairs</span>`;
+    if (cat === 'startupevents') catBadge = `<span class="badge badge-startup">🚀 Startup Event</span>`;
+    const thumbIcon = cat === '60sec' ? '⚡' : cat === 'currentaffairs' ? '🔴' : cat === 'startupevents' ? '🚀' : '📄';
     return `
       <div class="article-card">
-        <div class="article-thumb">${hasImg ? `<img src="${a.image}" onerror="this.parentElement.innerHTML='📄'" />` : (cat === '60sec' ? '⚡' : cat === 'currentaffairs' ? '🔴' : '📄')}</div>
+        <div class="article-thumb">${hasImg ? `<img src="${a.image}" onerror="this.parentElement.innerHTML='${thumbIcon}'" />` : thumbIcon}</div>
         <div class="article-info">
           <div class="article-title">${escHtml(a.title)}</div>
           <div class="article-meta">
@@ -1577,7 +1723,7 @@ function previewImage(input, prefix) {
       showToast(`❌ Image too large!\nMax: 5MB\nYour file: ${fileSizeMB}MB`, 'error');
       input.value = '';
       drop.querySelector('.drop-icon').textContent = '🖼️';
-      drop.querySelector('.drop-text').textContent = 'Click to upload image';
+      drop.querySelector('.drop-text').textContent = prefix === 'startup' ? 'Click to upload logo or poster' : 'Click to upload image';
       return;
     }
     
@@ -1602,7 +1748,7 @@ function previewImage(input, prefix) {
 
 // Setup drag & drop for image uploads
 window.addEventListener('load', () => {
-  ['aid', 'ca'].forEach(prefix => {
+  ['aid', 'ca', 'startup'].forEach(prefix => {
     const drop = document.getElementById(`${prefix}-imageDrop`);
     if (!drop) return;
     
