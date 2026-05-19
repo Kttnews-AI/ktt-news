@@ -918,38 +918,89 @@ async function translate60SecDigest(articleId, targetLang) {
     const digestEl = document.getElementById(`digestContent_${articleId}`);
     const selectEl = document.getElementById(`digestTranslateSelect_${articleId}`);
     if (!digestEl || !targetLang) return;
+
+    // Store original HTML if not already stored
     if (!original60SecContent[articleId]) {
         original60SecContent[articleId] = digestEl.innerHTML;
     }
+
+    // Revert to English
     if (targetLang === 'en') {
         digestEl.innerHTML = original60SecContent[articleId];
         if (selectEl) selectEl.value = 'en';
+        showToast('↩ Reverted to English');
         return;
     }
-    const textContent = digestEl.innerText;
+
+    // Show loading
     digestEl.innerHTML = '<div style="text-align:center;color:#FF9800;padding:20px;"><span>🌐 Translating...</span></div>';
+
     try {
-        const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(textContent)}`);
-        const data = await response.json();
-        let translated = '';
-        if (data && data[0]) {
-            data[0].forEach(seg => {
-                if (seg[0]) translated += seg[0];
-            });
+        // Parse original HTML structure back from stored HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = original60SecContent[articleId];
+
+        // Collect all text nodes with their original HTML elements
+        const textNodes = [];
+        const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
+        let node;
+        while (node = walker.nextNode()) {
+            const text = node.textContent.trim();
+            if (text.length > 0 && text !== '•' && !/^\d+$/.test(text)) {
+                textNodes.push({ node: node, text: text });
+            }
         }
-        if (translated) {
-            digestEl.innerHTML = `<p style="color:#222;font-size:14px;line-height:1.7;padding:8px 0;white-space:pre-wrap;">${escapeHtml(translated)}</p>`;
-            showToast(`✅ Translated to ${targetLang.toUpperCase()}`);
-        } else {
+
+        if (textNodes.length === 0) {
             digestEl.innerHTML = original60SecContent[articleId];
-            if (selectEl) selectEl.value = 'en';
-            showToast('⚠️ Translation not available');
+            showToast('⚠️ Nothing to translate');
+            return;
         }
+
+        // Batch translate all unique texts (deduplicate to reduce API calls)
+        const uniqueTexts = [...new Set(textNodes.map(t => t.text))];
+        const translations = new Map();
+
+        // Translate in batches of 20 to avoid URL length limits
+        const batchSize = 20;
+        for (let i = 0; i < uniqueTexts.length; i += batchSize) {
+            const batch = uniqueTexts.slice(i, i + batchSize);
+            const combinedText = batch.join('\n§§§\n');
+
+            const response = await fetch(
+                `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(combinedText)}`
+            );
+            const data = await response.json();
+
+            if (data && data[0]) {
+                let translatedCombined = '';
+                data[0].forEach(seg => { if (seg[0]) translatedCombined += seg[0]; });
+                const translatedBatch = translatedCombined.split('\n§§§\n').map(t => t.trim());
+
+                batch.forEach((original, idx) => {
+                    translations.set(original, translatedBatch[idx] || original);
+                });
+            } else {
+                batch.forEach(original => translations.set(original, original));
+            }
+        }
+
+        // Apply translations back to the original HTML structure
+        textNodes.forEach(({ node, text }) => {
+            const translated = translations.get(text);
+            if (translated && translated !== text) {
+                node.textContent = node.textContent.replace(text, translated);
+            }
+        });
+
+        digestEl.innerHTML = tempDiv.innerHTML;
+        showToast(`✅ Translated to ${targetLang.toUpperCase()}`);
+
     } catch (err) {
         console.error('Translation error:', err);
         digestEl.innerHTML = original60SecContent[articleId];
         if (selectEl) selectEl.value = 'en';
-        showToast('⚠️ Translation failed');
+        showToast('⚠️ Translation failed — reverted to English');
     }
 }
 
