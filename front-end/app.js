@@ -2,6 +2,7 @@
 // CENTRINSIC NPT NEWS APP - FULLY UPDATED
 // WITH: FIXED MOBILE BACK BUTTON + HISTORY API
 // WITH: DYNAMIC TAB ORDER — AI-D first when it has content, else AI-S first
+// WITH: STARTUP EVENTS PROPER EVENT CARD VIEW
 // ============================================
 
 const API_BASE       = "https://centrinsicnpt.com";
@@ -374,6 +375,7 @@ function exportAllFunctions() {
     window.translate60SecDigest  = translate60SecDigest;
     window.getArticleTab         = getArticleTab;
     window.handleMobileBack      = handleMobileBack;
+    window.shareStartupEvent     = shareStartupEvent;
 }
 
 /* ============================================
@@ -1054,76 +1056,126 @@ async function translate60SecDigest(articleId, targetLang) {
 }
 
 /* ============================================
-   🚀 STARTUP EVENTS VIEW
-============================================ */
+   🚀 STARTUP EVENTS — PROPER EVENT CARD VIEW
+   ============================================ */
 function renderStartupEvents(articles) {
     const isDark     = document.body.classList.contains('dark');
-    const cardText   = isDark ? '#ccc'    : '#222';
+    const cardText   = isDark ? '#e0e0e0' : '#222';
     const metaBg     = isDark ? '#1a1a1a' : '#fff';
     const metaBorder = isDark ? '#2a2a2a' : '#e0e0e0';
     const startupColor = '#9c27b0';
+    const accentColor  = '#7b1fa2';
 
     const sorted = [...articles].sort((a, b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
 
     return sorted.map((item, articleIndex) => {
         const id      = String(item._id || item.articleId || item.id || articleIndex).replace(/[^a-zA-Z0-9-]/g, '');
-        const title   = item.title   || "Startup Events";
-        const content = item.content || item.description || '';
-        const source  = item.source  || 'Centrinsic NPT';
-        const date    = item.createdAt
-            ? new Date(item.createdAt).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
-            : 'Today';
+        const title   = item.title   || "Startup Event";
+        
+        // ── Event-specific fields (with fallbacks for any API shape) ──
+        const eventDate = item.eventDate || item.event_date || item.eventTime || item.date || item.startDate || item.createdAt;
+        const venue     = item.venue || item.location || item.venueOrOnline || item.eventLocation || '';
+        const regLink   = item.registrationLink || item.registration_url || item.signupUrl || item.externalLink || item.url || '';
+        const eventType = item.eventType || item.event_type || item.type || '';
+        const organizer = item.source || item.organizer || item.startupName || 'Centrinsic NPT';
+        const content   = item.content || item.description || '';
+        const imageUrl  = getImageUrl(item.image);
 
-        const sections    = parseBulletinContent(content);
-        const totalPoints = sections.reduce((sum, s) => sum + s.points.length, 0);
+        // ── Format event date ──
+        let formattedEventDate = 'Date TBA';
+        if (eventDate) {
+            try {
+                const d = new Date(eventDate);
+                if (!isNaN(d.getTime())) {
+                    formattedEventDate = d.toLocaleDateString('en-GB', {
+                        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                    });
+                }
+            } catch(e) {}
+        }
 
-        let eventHTML = '';
+        // ── Build description (plain paragraphs, NOT bulletin sections) ──
+        let descriptionHTML = '';
+        if (content) {
+            const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+            if (paragraphs.length > 1) {
+                descriptionHTML = paragraphs.map(p => 
+                    `<p style="color:${cardText};font-size:14px;line-height:1.7;margin:0 0 12px 0;">${escapeHtml(p.trim())}</p>`
+                ).join('');
+            } else {
+                descriptionHTML = `<p style="color:${cardText};font-size:14px;line-height:1.7;margin:0;">${escapeHtml(content.trim())}</p>`;
+            }
+        }
 
-        if (sections.length > 0) {
-            sections.forEach((section, sIdx) => {
-                const color = SECTION_COLORS[sIdx % SECTION_COLORS.length];
-                eventHTML += `
-                    <div style="background:${color};padding:12px 16px;margin:${sIdx===0?'0':'20px'} -16px 14px -16px;display:flex;align-items:center;gap:10px;">
-                        <div style="width:3px;height:20px;background:rgba(255,255,255,0.5);border-radius:2px;flex-shrink:0;"></div>
-                        <span style="color:#fff;font-size:14px;font-weight:800;letter-spacing:0.3px;line-height:1.3;">${escapeHtml(section.header)}</span>
-                    </div>`;
-                section.points.forEach((point, pIdx) => {
-                    const colonIdx = point.indexOf(':');
-                    let boldPart = '', restPart = point;
-                    if (colonIdx > 0 && colonIdx < 60) {
-                        boldPart = point.substring(0, colonIdx);
-                        restPart = point.substring(colonIdx + 1).trim();
-                    }
-                    eventHTML += `
-                        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid ${isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'};">
-                            <span style="background:${color};color:white;font-size:11px;font-weight:800;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">${pIdx+1}</span>
-                            <span style="color:${cardText};font-size:14px;line-height:1.65;flex:1;">
-                                ${boldPart ? `<strong style="color:${isDark?'#fff':'#111'};">${escapeHtml(boldPart)}:</strong> ` : ''}${escapeHtml(restPart)}
-                            </span>
-                        </div>`;
-                });
-            });
-        } else {
-            eventHTML = `<p style="color:${cardText};font-size:14px;line-height:1.7;padding:8px 0;">${escapeHtml(content)}</p>`;
+        // ── Header badges ──
+        const badges = [];
+        if (eventType) {
+            badges.push(`<<span style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;">🏷️ ${escapeHtml(eventType)}</span>`);
+        }
+        badges.push(`<<span style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;">📰 ${escapeHtml(organizer)}</span>`);
+        
+        if (venue) {
+            const isUrl = /^https?:\/\//.test(venue);
+            if (isUrl) {
+                badges.push(`<<a href="${escapeHtml(venue)}" target="_blank" rel="noopener noreferrer" style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;text-decoration:none;display:inline-block;">🔗 Online Event</a>`);
+            } else {
+                badges.push(`<<span style="background:rgba(255,255,255,0.25);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;">📍 ${escapeHtml(venue)}</span>`);
+            }
+        }
+
+        // ── Event poster image ──
+        let imageHTML = '';
+        if (imageUrl) {
+            imageHTML = `
+                <div style="padding:0 16px 16px 16px;">
+                    <img src="${escapeHtml(imageUrl)}" style="width:100%;border-radius:12px;display:block;box-shadow:0 4px 12px rgba(0,0,0,0.15);" loading="lazy" onerror="this.style.display='none'" alt="Event poster">
+                </div>`;
+        }
+
+        // ── Registration CTA ──
+        let regHTML = '';
+        if (regLink && regLink !== '#') {
+            regHTML = `
+                <div style="background:linear-gradient(135deg,#1b5e20,#2e7d32);padding:14px 16px;margin:0 -16px 16px -16px;display:flex;align-items:center;gap:12px;">
+                    <div style="width:3px;height:20px;background:rgba(255,255,255,0.5);border-radius:2px;flex-shrink:0;"></div>
+                    <div style="flex:1;">
+                        <div style="color:#fff;font-size:13px;font-weight:700;line-height:1.4;">🚀 Registration Open</div>
+                        <div style="color:rgba(255,255,255,0.8);font-size:12px;margin-top:2px;">External signup required</div>
+                    </div>
+                </div>
+                <div style="padding:0 16px 20px 16px;">
+                    <a href="${escapeHtml(regLink)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:linear-gradient(135deg,${startupColor},${accentColor});color:#fff;font-size:14px;font-weight:700;padding:14px;border-radius:12px;text-decoration:none;box-shadow:0 4px 12px rgba(156,39,176,0.3);">
+                        Register Now →
+                    </a>
+                </div>`;
         }
 
         return `
             <div style="background:${metaBg};border-radius:20px;margin-bottom:20px;overflow:hidden;border:1px solid ${metaBorder};box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-                <div style="background:linear-gradient(135deg,${startupColor},#7b1fa2);padding:18px 20px;">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                        <span style="font-size:22px;">🚀</span>
-                        <div>
-                            <div style="color:#fff;font-size:17px;font-weight:800;line-height:1.3;">${escapeHtml(title)}</div>
-                            <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:2px;">${escapeHtml(date)}</div>
+                <!-- Purple Gradient Header -->
+                <div style="background:linear-gradient(135deg,${startupColor},${accentColor});padding:18px 20px;">
+                    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+                        <span style="font-size:24px;flex-shrink:0;">🚀</span>
+                        <div style="flex:1;min-width:0;">
+                            <div style="color:#fff;font-size:17px;font-weight:800;line-height:1.3;word-break:break-word;">${escapeHtml(title)}</div>
+                            <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:4px;">📅 ${escapeHtml(formattedEventDate)}</div>
                         </div>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">${sections.length} sections</span>
-                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">${totalPoints} updates</span>
-                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:11px;padding:3px 10px;border-radius:12px;">📰 ${escapeHtml(source)}</span>
+                        ${badges.join('')}
                     </div>
                 </div>
-                <div style="padding:0 16px 16px 16px;" id="startupContent_${id}">${eventHTML}</div>
+
+                ${imageHTML}
+
+                <!-- Description Block (distinct background like your screenshot) -->
+                <div id="startupContent_${id}" style="background:${isDark?'#16213e':'#e8eaf6'};padding:16px;margin:0 16px 16px 16px;border-radius:12px;">
+                    ${descriptionHTML}
+                </div>
+
+                ${regHTML}
+
+                <!-- Footer -->
                 <div style="padding:12px 16px;border-top:1px solid ${metaBorder};display:flex;align-items:center;justify-content:space-between;background:${isDark?'#0a0a0a':'#fafafa'};flex-wrap:wrap;gap:8px;">
                     <span style="color:${isDark?'#555':'#aaa'};font-size:11px;">Centrinsic NPT • Startup Events</span>
                     <div style="display:flex;align-items:center;gap:6px;">
@@ -1135,11 +1187,45 @@ function renderStartupEvents(articles) {
                             <option value="kn" style="background:#333;color:#fff;">ಕನ್ನಡ</option>
                             <option value="ml" style="background:#333;color:#fff;">മലയാളം</option>
                         </select>
-                        <button onclick="share60SecDigest('${id}')" style="background:${startupColor};border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">📤 Share</button>
+                        <button onclick="shareStartupEvent('${id}')" style="background:${startupColor};border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">📤 Share</button>
                     </div>
                 </div>
             </div>`;
     }).join('');
+}
+
+/* ============================================
+   🚀 STARTUP EVENT SHARE
+============================================ */
+async function shareStartupEvent(articleId) {
+    const article = articlesCache.get(articleId) || allArticles.find(a => String(a._id||a.id||a.articleId).replace(/[^a-zA-Z0-9-]/g,'') === articleId);
+    if (!article) return;
+    
+    const title     = article.title || "Startup Event";
+    const regLink   = article.registrationLink || article.registration_url || article.signupUrl || article.url || '';
+    const venue     = article.venue || article.location || 'Location TBA';
+    const eventDate = article.eventDate || article.event_date || article.date || 'Upcoming';
+    
+    let shareText = `🚀 ${title}\n\n📅 ${eventDate}\n📍 ${venue}`;
+    if (regLink) shareText += `\n\n✍️ Register: ${regLink}`;
+    shareText += `\n\n📲 More startup events on Centrinsic NPT:\nhttps://centrinsicnpt.com`;
+
+    if (window.Capacitor?.Plugins?.Share) {
+        try { 
+            await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: 'https://centrinsicnpt.com' }); 
+            return; 
+        }
+        catch(e) { if ((e?.message||'').toLowerCase().includes('cancel')) return; }
+    }
+    if (navigator.share) {
+        try { 
+            await navigator.share({ title, text: shareText }); 
+            return; 
+        }
+        catch(e) { if (e.name === 'AbortError') return; }
+    }
+    copyToClipboard(shareText);
+    showToast('🔗 Event link copied!');
 }
 
 /* ============================================
@@ -1402,6 +1488,7 @@ function displayArticleDetail() {
     const articleTab = getArticleTab(currentArticle);
     const is60sec    = articleTab === '60sec';
     const isCA       = articleTab === 'currentaffairs';
+    const isStartup  = articleTab === 'startupevents';
 
     let originalLink = '#';
     if      (currentArticle.originalLink)     originalLink = currentArticle.originalLink;
@@ -1451,6 +1538,23 @@ function displayArticleDetail() {
         } else {
             bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;font-size:14px;">${escapeHtml(currentArticle.content||'')}</div>`;
         }
+    } else if (isStartup) {
+        // Startup Events detail view - plain paragraphs
+        const content = currentArticle.content || currentArticle.description || '';
+        if (content) {
+            const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+            if (paragraphs.length > 1) {
+                bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;">`;
+                paragraphs.forEach(p => {
+                    bodyContent += `<p style="margin:0 0 14px 0;">${escapeHtml(p.trim())}</p>`;
+                });
+                bodyContent += `</div>`;
+            } else {
+                bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;">${escapeHtml(content.trim())}</div>`;
+            }
+        } else {
+            bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;">No content available</div>`;
+        }
     } else {
         bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;font-size:16px;">${escapeHtml(currentArticle.content || currentArticle.description || "No content available")}</div>`;
     }
@@ -1491,8 +1595,19 @@ function displayArticleDetail() {
                     <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Source:</span><span style="color:#667eea;font-size:14px;font-weight:600;">${escapeHtml(source)}</span></div>
                     <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Category:</span><span style="background:${catColor};color:white;font-size:12px;font-weight:600;padding:3px 10px;border-radius:10px;">${escapeHtml(catLabel)}</span></div>
                     <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Published:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(date)}</span></div>
+                    ${isStartup ? `
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">📅 Event Date:</span><span style="color:#9c27b0;font-size:14px;font-weight:700;">${escapeHtml(currentArticle.eventDate || currentArticle.date || 'TBA')}</span></div>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">📍 Venue:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(currentArticle.venue || currentArticle.location || 'TBA')}</span></div>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">🏷️ Type:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(currentArticle.eventType || currentArticle.type || 'Event')}</span></div>
+                    ` : ''}
                 </div>
             </div>
+            ${(isStartup && (currentArticle.registrationLink || currentArticle.registration_url || currentArticle.url)) ? `
+            <div style="margin-bottom:20px;">
+                <a href="${escapeHtml(currentArticle.registrationLink || currentArticle.registration_url || currentArticle.url)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#9c27b0,#7b1fa2);border:none;border-radius:12px;padding:16px;color:#fff;font-size:15px;font-weight:700;width:100%;cursor:pointer;text-decoration:none;box-shadow:0 4px 12px rgba(156,39,176,0.3);">
+                    <span>🚀</span><span>Register for this Event</span>
+                </a>
+            </div>` : ''}
             ${originalLink !== '#' ? `
             <div style="margin-bottom:30px;">
                 <button onclick="openExternalLink('${escapeHtml(originalLink)}')" style="display:flex;align-items:center;justify-content:center;gap:10px;background:${linkBg};border:1px solid ${linkBorder};border-radius:12px;padding:16px;color:${linkColor};font-size:15px;font-weight:500;width:100%;cursor:pointer;">
@@ -1728,4 +1843,4 @@ function bindMobileButtons() {
     }
 }
 
-console.log("✅ Centrinsic NPT — Mobile Back Button Fixed with History API + Dynamic Tab Order");
+console.log("✅ Centrinsic NPT — Mobile Back Button Fixed with History API + Dynamic Tab Order + Startup Events View");
