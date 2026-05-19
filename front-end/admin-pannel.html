@@ -188,6 +188,7 @@
   }
 </style>
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 
@@ -339,16 +340,47 @@
           <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
             <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📝 Bulk Paste Parser</div>
             <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
-              Paste the full article block here — the system will auto-extract <strong>Source</strong>, <strong>Category</strong>, <strong>Original Link</strong>, <strong>Title</strong> and <strong>Content</strong> into the form below.
+              Paste <strong>all articles at once</strong> — the system detects each article block and queues them. Review article 1, click <strong>Publish</strong>, and the next article auto-loads with the next image.
             </div>
-            <textarea id="aid-bulkPaste" placeholder="Paste full block here... Source: ... Category: ... Original Link: ... Title: ... Content: ..."
-              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px 14px;font-size:13px;font-family:'DM Mono',monospace;min-height:120px;resize:vertical;outline:none;"></textarea>
-            <div style="display:flex;gap:10px;margin-top:10px;">
-              <button type="button" class="btn btn-primary btn-sm" onclick="parseAIDArticle()">🔍 Parse & Fill Fields</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('aid-bulkPaste').value=''">Clear</button>
+            <textarea id="aid-bulkPaste" placeholder="Paste full block here... 1. Title Source: ... Category: ... Original Link: ... Title: ... Content: ... (words)  2. Next Title Source: ..."
+              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px 14px;font-size:13px;font-family:'DM Mono',monospace;min-height:160px;resize:vertical;outline:none;"></textarea>
+            <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="parseAIDArticle()">🔍 Parse All Articles</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="clearArticleQueue()">Clear Queue</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('aid-bulkPaste').value=''">Clear Text</button>
             </div>
             <div id="aid-parseFeedback" style="margin-top:8px;font-size:12px;color:var(--accent2);display:none;"></div>
+
+            <!-- ARTICLE QUEUE NAVIGATOR -->
+            <div id="aid-articleQueueBar" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-top:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div style="font-size:13px;color:var(--text);min-width:0;">
+                  📰 <strong id="aid-articleQueueCounter" style="color:var(--accent);">Article 1 of 1</strong>
+                  <div id="aid-articleQueueTitle" style="color:var(--muted);margin-top:4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;">—</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-shrink:0;">
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="prevArticleQueue()">⬅ Prev</button>
+                  <button type="button" class="btn btn-primary btn-sm" onclick="nextArticleQueue()">Next ➡</button>
+                </div>
+              </div>
+            </div>
           </div>
+          <!-- AUTO IMAGE QUEUE -->
+          <div style="background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+            <div style="font-size:12px;font-weight:800;color:var(--accent2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🖼️ Auto Image Queue</div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+              The system auto-detects <strong style="color:var(--text);">today's date</strong> and only loads images for today (e.g., <code style="color:var(--accent2);">19-may-1</code>, <code style="color:var(--accent2);">19-may-2</code>...). 
+              The system will auto-attach the next image when you publish — no need to pick manually each time.
+            </div>
+            <input type="file" id="aid-queueInput" multiple accept="image/*" style="display:none;" onchange="loadImageQueue(this, 'aid')" />
+            <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-success btn-sm" onclick="document.getElementById('aid-queueInput').click()">📁 Load Image Queue</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="clearImageQueue('aid')">Clear Queue</button>
+            </div>
+            <div id="aid-queueStatus" style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.6;"></div>
+            <img id="aid-queuePreview" class="image-preview" style="display:none;margin-top:10px;max-height:120px;" alt="Next queued image" />
+          </div>
+
           
           <div class="form-group">
             <label>Article Title *</label>
@@ -515,6 +547,22 @@ India National News
               <div style="font-size:13px;color:var(--muted);">Exam-relevant content, government policies, major events.</div>
             </div>
           </div>
+          <!-- AUTO IMAGE QUEUE -->
+          <div style="background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+            <div style="font-size:12px;font-weight:800;color:var(--accent2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🖼️ Auto Image Queue</div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+              The system auto-detects <strong style="color:var(--text);">today's date</strong> and only loads images for today (e.g., <code style="color:var(--accent2);">19-may-1</code>, <code style="color:var(--accent2);">19-may-2</code>...). 
+              The system will auto-attach the next image when you publish.
+            </div>
+            <input type="file" id="ca-queueInput" multiple accept="image/*" style="display:none;" onchange="loadImageQueue(this, 'ca')" />
+            <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-success btn-sm" onclick="document.getElementById('ca-queueInput').click()">📁 Load Image Queue</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="clearImageQueue('ca')">Clear Queue</button>
+            </div>
+            <div id="ca-queueStatus" style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.6;"></div>
+            <img id="ca-queuePreview" class="image-preview" style="display:none;margin-top:10px;max-height:120px;" alt="Next queued image" />
+          </div>
+
           <div class="form-group">
             <label>Article Title *</label>
             <input type="text" id="ca-title" placeholder="Current affairs headline..." />
@@ -696,6 +744,8 @@ log(`API Base: ${API_BASE}`, 'info');
 
 window.onload = () => {
   log('Page loaded, checking for existing token', 'info');
+  updateQueueUI('aid');
+  updateQueueUI('ca');
   if (authToken) {
     log('Token found in localStorage, loading main layout', 'success');
     showMainLayout();
@@ -1071,13 +1121,19 @@ function showPanel(name) {
 async function loadDashboard() {
   log('Loading dashboard', 'info');
   try {
-    const [articlesData] = await Promise.all([api('/api/articles')]);
+    const [articlesData, statsData] = await Promise.all([
+      api('/api/articles'),
+      apiAuth('/api/admin/stats').catch(() => ({}))
+    ]);
     const articles = articlesData.articles || [];
-    
+
     document.getElementById('statManual').textContent = articles.filter(a => a.isManual && !['60sec', 'currentaffairs'].includes((a.category || '').toLowerCase())).length;
     document.getElementById('stat60sec').textContent = articles.filter(a => a.isManual && (a.category || '').toLowerCase() === '60sec').length;
     document.getElementById('statCA').textContent = articles.filter(a => a.isManual && (a.category || '').toLowerCase() === 'currentaffairs').length;
-    
+    document.getElementById('statGnews').textContent = articles.filter(a => !a.isManual).length;
+    document.getElementById('statUsers').textContent = statsData.totalUsers ?? statsData.users ?? '—';
+    document.getElementById('statBookmarks').textContent = statsData.totalBookmarks ?? statsData.bookmarks ?? '—';
+
     log('Dashboard loaded successfully', 'success');
   } catch (e) {
     log(`Failed to load dashboard: ${e.message}`, 'error');
@@ -1134,8 +1190,16 @@ async function uploadArticle(prefix) {
   const expiry = document.getElementById(`${prefix}-expiry`)?.value;
   if (expiry) formData.append('expiresAt', new Date(expiry).toISOString());
   
-  // ADD IMAGE FILE IF PRESENT
-  const imageFile = document.getElementById(`${prefix}-image`)?.files[0];
+  // ADD IMAGE FILE IF PRESENT (manual OR auto-queue)
+  let imageFile = document.getElementById(`${prefix}-image`)?.files[0];
+  let usedQueueImage = false;
+
+  if (!imageFile && window.imageQueues[prefix] && window.imageQueues[prefix].length > 0) {
+    imageFile = window.imageQueues[prefix][0];
+    usedQueueImage = true;
+    log(`Auto-attached queued image: ${imageFile.name}`, 'info');
+  }
+
   if (imageFile) {
     // Validate file size (5MB max for better performance)
     const maxSizeBytes = 5 * 1024 * 1024; // 5MB
@@ -1172,6 +1236,12 @@ async function uploadArticle(prefix) {
       const labels = { aid: '🔵 AI-D', '60sec': '⚡ 60 Sec Digest', ca: '🔴 Current Affairs' };
       log(`Article uploaded successfully: ${labels[prefix]}`, 'success');
       showToast(`✅ ${labels[prefix]} published!`, 'success');
+
+      // Consume from queue if we used an auto-queued image
+      if (usedQueueImage) {
+        consumeQueuedImage(prefix);
+      }
+
       resetForm(prefix);
       loadDashboard();
     } else {
@@ -1242,50 +1312,6 @@ function resetForm(prefix) {
 // ═══════════════════════════════════════════════════════════════════
 // ARTICLES
 // ═══════════════════════════════════════════════════════════════════
-async function loadArticles() {
-  log('Loading articles', 'info');
-  document.getElementById('articlesList').innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading...</div>';
-  try {
-    const data = await apiAuth('/api/admin/articles');
-    allArticlesData = data.articles || [];
-    log(`Loaded ${allArticlesData.length} articles`, 'success');
-    renderArticles(allArticlesData);
-  } catch (e) {
-    log(`Failed to load articles: ${e.message}`, 'error');
-    document.getElementById('articlesList').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><h4>Failed to load</h4><p>${e.message}</p></div>`;
-  }
-}
-
-function renderArticles(articles) {
-  const container = document.getElementById('articlesList');
-  if (!articles || articles.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h4>No articles found</h4></div>`;
-    return;
-  }
-  
-  container.innerHTML = `<div class="article-grid">` + articles.map(a => {
-    const date = new Date(a.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    const excerpt = (a.content || '').substring(0, 90) + '...';
-    const cat = (a.category || '').toLowerCase();
-    let catBadge = `<span class="badge badge-teal">${escHtml(a.category || 'General')}</span>`;
-    if (cat === '60sec') catBadge = `<span class="badge badge-orange">⚡ 60 Sec Digest</span>`;
-    if (cat === 'currentaffairs') catBadge = `<span class="badge badge-red">🔴 Current Affairs</span>`;
-    
-    return `
-      <div class="article-card">
-        <div class="article-info">
-          <div class="article-title">${escHtml(a.title)}</div>
-          <div class="article-meta">
-            ${escHtml(a.source || 'Unknown')} • ${date}
-            ${catBadge}
-            <span class="badge ${a.status === 'published' ? 'badge-green' : 'badge-red'}" style="margin-left:4px;">${a.status}</span>
-          </div>
-          <div class="article-excerpt">${escHtml(excerpt)}</div>
-        </div>
-      </div>`;
-  }).join('') + `</div>`;
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // GNEWS
 // ═══════════════════════════════════════════════════════════════════
@@ -1608,201 +1634,358 @@ window.addEventListener('load', () => {
 // ═══════════════════════════════════════════════════════════════════
 // BULK PASTE PARSER FOR AI-D - IMPROVED
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// ARTICLE QUEUE SYSTEM — MULTI-ARTICLE BULK PASTE
+// ═══════════════════════════════════════════════════════════════════
+window.articleQueue = [];
+window.currentArticleIndex = 0;
+
+function detectArticles(text) {
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = text.split('\n');
+  const articles = [];
+  let currentChunk = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    // Detect new article start: line begins with "N. " AND contains or is followed by "Source:" within 3 lines
+    const isArticleStart = /^\d+\.\s+/.test(line) && lines.slice(i, Math.min(i + 4, lines.length)).some(l => /source\s*:/i.test(l));
+
+    if (isArticleStart && currentChunk.length > 0) {
+      const parsed = parseSingleArticle(currentChunk.join('\n'));
+      if (parsed && parsed.title) articles.push(parsed);
+      currentChunk = [];
+    }
+    currentChunk.push(line);
+  }
+
+  if (currentChunk.length > 0) {
+    const parsed = parseSingleArticle(currentChunk.join('\n'));
+    if (parsed && parsed.title) articles.push(parsed);
+  }
+
+  return articles;
+}
+
+function parseSingleArticle(rawText) {
+  const fields = { source: '', category: '', link: '', title: '', content: '' };
+  const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (/^[\*\-]?\s*source\s*:/i.test(line)) {
+      const m = line.match(/source\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
+      if (m) fields.source = m[1].trim();
+      continue;
+    }
+    if (/^[\*\-]?\s*category\s*:/i.test(line)) {
+      const m = line.match(/category\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
+      if (m) fields.category = m[1].trim();
+      continue;
+    }
+    if (/^[\*\-]?\s*original\s+link\s*:/i.test(line)) {
+      let m = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (m) { fields.link = m[2].trim(); }
+      else {
+        m = line.match(/original\s+link\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
+        if (m) {
+          const txt = m[1].trim();
+          const urlM = txt.match(/\(([^)]+)\)/);
+          fields.link = urlM ? urlM[1].trim() : txt;
+        }
+      }
+      continue;
+    }
+    if (/^[\*\-]?\s*title\s*:/i.test(line)) {
+      const m = line.match(/title\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
+      if (m) fields.title = m[1].trim();
+      continue;
+    }
+    if (/^[\*\-]?\s*news\s+content\s*:/i.test(line) || /^[\*\-]?\s*content\s*:/i.test(line)) {
+      const m = line.match(/(?:news\s+)?content\s*:\s*(.+?)$/i);
+      if (m && m[1].trim()) fields.content = m[1].trim();
+      for (let j = i + 1; j < lines.length; j++) {
+        if (!lines[j].match(/^[\*\-]?\s*(source|category|original\s+link|title|content)\s*:/i)) {
+          fields.content += (fields.content ? '\n' : '') + lines[j];
+        }
+      }
+      break;
+    }
+  }
+
+  // Fallback: if no explicit title field, try to extract from first line
+  if (!fields.title) {
+    const firstLine = lines[0];
+    const titleMatch = firstLine.match(/^\d+\.\s*(.+?)(?:Source\s*:|$)/i);
+    if (titleMatch) fields.title = titleMatch[1].trim();
+  }
+
+  return fields;
+}
+
 function parseAIDArticle() {
   const rawText = document.getElementById('aid-bulkPaste').value.trim();
   const feedback = document.getElementById('aid-parseFeedback');
-  
+
   if (!rawText) {
     feedback.style.display = 'block';
     feedback.style.color = 'var(--danger)';
     feedback.textContent = '❌ Please paste some text first';
     return;
   }
-  
-  log('Parsing AI-D article from bulk paste', 'info');
-  
-  // Initialize fields
-  const fields = {
-    source: '',
-    category: '',
-    link: '',
-    title: '',
-    content: ''
-  };
-  
-  // Split into lines
-  const lines = rawText.split('\n').map(l => l.trim());
-  
-  // More flexible patterns that handle various formats
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    
-    // SOURCE EXTRACTION
-    if (/^[\*\-]?\s*source\s*:/i.test(line)) {
-      const match = line.match(/source\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
-      if (match) {
-        fields.source = match[1].trim();
-        log(`Extracted source: "${fields.source}"`, 'info');
-      }
-      continue;
-    }
-    
-    // CATEGORY EXTRACTION
-    if (/^[\*\-]?\s*category\s*:/i.test(line)) {
-      const match = line.match(/category\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
-      if (match) {
-        fields.category = match[1].trim();
-        log(`Extracted category: "${fields.category}"`, 'info');
-      }
-      continue;
-    }
-    
-    // ORIGINAL LINK EXTRACTION - Handle markdown and plain URLs
-    if (/^[\*\-]?\s*original\s+link\s*:/i.test(line)) {
-      // Try markdown format first [text](url)
-      let match = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
-      if (match) {
-        fields.link = match[2].trim();
-      } else {
-        // Try plain URL or text after colon
-        match = line.match(/original\s+link\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
-        if (match) {
-          const linkText = match[1].trim();
-          // Extract URL if it's a markdown-like format
-          if (linkText.includes('(') && linkText.includes(')')) {
-            const urlMatch = linkText.match(/\(([^)]+)\)/);
-            fields.link = urlMatch ? urlMatch[1].trim() : linkText;
-          } else {
-            fields.link = linkText;
-          }
-        }
-      }
-      log(`Extracted link: "${fields.link}"`, 'info');
-      continue;
-    }
-    
-    // TITLE EXTRACTION
-    if (/^[\*\-]?\s*title\s*:/i.test(line)) {
-      const match = line.match(/title\s*:\s*(.+?)(?:\s*$|(?=\n))/i);
-      if (match) {
-        fields.title = match[1].trim();
-        log(`Extracted title: "${fields.title}"`, 'info');
-      }
-      continue;
-    }
-    
-    // CONTENT EXTRACTION - Everything after "Content:"
-    if (/^[\*\-]?\s*content\s*:/i.test(line)) {
-      const contentStart = line.match(/content\s*:\s*(.+?)$/i);
-      if (contentStart && contentStart[1].trim()) {
-        fields.content = contentStart[1].trim();
-      }
-      
-      // Get remaining lines as content
-      for (let j = i + 1; j < lines.length; j++) {
-        if (lines[j] && !lines[j].match(/^[\*\-]?\s*(source|category|link|title|content)\s*:/i)) {
-          if (fields.content) fields.content += '\n' + lines[j];
-          else fields.content = lines[j];
-        }
-      }
-      
-      log(`Extracted content: ${fields.content.length} characters`, 'info');
-      break;
-    }
+
+  log('Parsing articles from bulk paste', 'info');
+  const detected = detectArticles(rawText);
+
+  if (detected.length === 0) {
+    feedback.style.display = 'block';
+    feedback.style.color = 'var(--danger)';
+    feedback.textContent = '❌ Could not detect any articles. Check format.';
+    log('Failed to detect articles', 'error');
+    return;
   }
-  
-  // Clean up whitespace
-  Object.keys(fields).forEach(key => {
-    fields[key] = fields[key].trim();
-  });
-  
-  // FILL FORM FIELDS
-  let filledCount = 0;
-  
-  if (fields.title) {
-    document.getElementById('aid-title').value = fields.title;
-    filledCount++;
-    log('✓ Filled Title', 'success');
+
+  if (detected.length === 1) {
+    // Single article: fill directly, no queue needed
+    window.articleQueue = [];
+    window.currentArticleIndex = 0;
+    fillArticleForm(detected[0]);
+    feedback.style.display = 'block';
+    feedback.style.color = 'var(--green)';
+    feedback.innerHTML = '✅ <strong>1 article</strong> parsed and filled!';
+    document.getElementById('aid-articleQueueBar').style.display = 'none';
+    log('Single article parsed and filled', 'success');
+    showToast('✅ Article parsed!', 'success');
+    return;
   }
-  
-  if (fields.content) {
-    document.getElementById('aid-content').value = fields.content;
-    filledCount++;
-    log('✓ Filled Content', 'success');
-  }
-  
-  if (fields.source) {
-    document.getElementById('aid-source').value = fields.source;
-    filledCount++;
-    log('✓ Filled Source', 'success');
-  }
-  
-  if (fields.link) {
-    document.getElementById('aid-link').value = fields.link;
-    filledCount++;
-    log('✓ Filled Link', 'success');
-  }
-  
-  // AUTO-MATCH CATEGORY TO DROPDOWN
+
+  // Multiple articles: build queue
+  window.articleQueue = detected;
+  window.currentArticleIndex = 0;
+  fillArticleForm(window.articleQueue[0]);
+  renderArticleQueueUI();
+
+  feedback.style.display = 'block';
+  feedback.style.color = 'var(--green)';
+  feedback.innerHTML = `✅ <strong>${detected.length} articles</strong> detected! Review article 1 and click <strong>Publish</strong>. The next article will auto-load.`;
+  log(`Detected ${detected.length} articles in bulk paste`, 'success');
+  showToast(`✅ ${detected.length} articles queued!`, 'success');
+}
+
+function fillArticleForm(fields) {
+  if (fields.title) document.getElementById('aid-title').value = fields.title;
+  if (fields.content) document.getElementById('aid-content').value = fields.content;
+  if (fields.source) document.getElementById('aid-source').value = fields.source;
+  if (fields.link) document.getElementById('aid-link').value = fields.link;
+
   if (fields.category) {
     const categorySelect = document.getElementById('aid-subcategory');
     const rawCategory = fields.category.toLowerCase();
-    
-    // Expanded category mapping
     const categoryMap = {
-      'cricket': 'Sports',
-      'ipl': 'Sports',
-      'sports': 'Sports',
-      'tech': 'Technology',
-      'technology': 'Technology',
-      'ai': 'Technology',
-      'business': 'Business',
-      'finance': 'Business',
+      'cricket': 'Sports', 'ipl': 'Sports', 'sports': 'Sports',
+      'tech': 'Technology', 'technology': 'Technology', 'ai': 'Technology',
+      'business': 'Business', 'finance': 'Business',
       'science': 'Science',
-      'entertainment': 'Entertainment',
-      'movie': 'Entertainment',
-      'film': 'Entertainment',
-      'health': 'Health',
-      'medical': 'Health',
-      'politics': 'Politics',
-      'government': 'Politics',
-      'world': 'World',
-      'international': 'World',
-      'india': 'India',
-      'indian': 'India'
+      'entertainment': 'Entertainment', 'movie': 'Entertainment', 'film': 'Entertainment',
+      'health': 'Health', 'medical': 'Health',
+      'politics': 'Politics', 'government': 'Politics',
+      'world': 'World', 'international': 'World',
+      'india': 'India', 'indian': 'India',
+      'state politics': 'Politics', 'governance': 'Politics',
+      'legal actions': 'Politics', 'regional party': 'Politics'
     };
-    
-    // Find best match
     let foundMatch = null;
     for (const [key, value] of Object.entries(categoryMap)) {
-      if (rawCategory.includes(key)) {
-        foundMatch = value;
-        break;
+      if (rawCategory.includes(key)) { foundMatch = value; break; }
+    }
+    if (foundMatch) categorySelect.value = foundMatch;
+  }
+
+  log(`Filled form: "${fields.title?.substring(0, 40)}..."`, 'info');
+}
+
+function renderArticleQueueUI() {
+  const bar = document.getElementById('aid-articleQueueBar');
+  const counter = document.getElementById('aid-articleQueueCounter');
+  const title = document.getElementById('aid-articleQueueTitle');
+
+  if (!window.articleQueue || window.articleQueue.length === 0) {
+    if (bar) bar.style.display = 'none';
+    return;
+  }
+
+  const idx = window.currentArticleIndex;
+  const total = window.articleQueue.length;
+  const article = window.articleQueue[idx];
+
+  if (bar) bar.style.display = 'block';
+  if (counter) counter.textContent = `Article ${idx + 1} of ${total}`;
+  if (title) title.textContent = article.title || '—';
+
+  // Scroll to top of form for visibility
+  document.getElementById('aid-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function nextArticleQueue() {
+  if (!window.articleQueue.length) return;
+  if (window.currentArticleIndex < window.articleQueue.length - 1) {
+    window.currentArticleIndex++;
+    fillArticleForm(window.articleQueue[window.currentArticleIndex]);
+    renderArticleQueueUI();
+    showToast(`Loaded article ${window.currentArticleIndex + 1}`, '');
+  } else {
+    showToast('This is the last article', '');
+  }
+}
+
+function prevArticleQueue() {
+  if (!window.articleQueue.length) return;
+  if (window.currentArticleIndex > 0) {
+    window.currentArticleIndex--;
+    fillArticleForm(window.articleQueue[window.currentArticleIndex]);
+    renderArticleQueueUI();
+    showToast(`Loaded article ${window.currentArticleIndex + 1}`, '');
+  }
+}
+
+function clearArticleQueue() {
+  window.articleQueue = [];
+  window.currentArticleIndex = 0;
+  document.getElementById('aid-articleQueueBar').style.display = 'none';
+  document.getElementById('aid-parseFeedback').style.display = 'none';
+  log('Article queue cleared', 'info');
+  showToast('Article queue cleared', '');
+}
+
+function autoAdvanceArticleQueue() {
+  if (!window.articleQueue.length) return false;
+  if (window.currentArticleIndex < window.articleQueue.length - 1) {
+    window.currentArticleIndex++;
+    fillArticleForm(window.articleQueue[window.currentArticleIndex]);
+    renderArticleQueueUI();
+    return true;
+  }
+  // All done
+  window.articleQueue = [];
+  window.currentArticleIndex = 0;
+  document.getElementById('aid-articleQueueBar').style.display = 'none';
+  showToast('🎉 All articles published!', 'success');
+  return false;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTO IMAGE QUEUE SYSTEM — DATE AWARE
+// ═══════════════════════════════════════════════════════════════════
+window.imageQueues = { aid: [], ca: [] };
+window.imageQueueMeta = { aid: null, ca: null };
+
+function getTodayPrefix() {
+  const now = new Date();
+  const day = now.getDate();
+  const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const month = monthNames[now.getMonth()];
+  return `${day}-${month}`; // e.g., "19-may"
+}
+
+function loadImageQueue(input, prefix) {
+  const allFiles = Array.from(input.files).filter(f => f.type.startsWith('image/'));
+  if (!allFiles.length) {
+    showToast('No images selected', 'error');
+    return;
+  }
+
+  const todayPrefix = getTodayPrefix(); // e.g., "19-may"
+  const todayPattern = new RegExp(`^${todayPrefix}-\\d+`, 'i');
+
+  // Filter to only TODAY's images
+  let files = allFiles.filter(f => todayPattern.test(f.name));
+
+  // Fallback: looser match if strict pattern fails
+  if (files.length === 0) {
+    files = allFiles.filter(f => f.name.toLowerCase().includes(todayPrefix + '-'));
+  }
+
+  if (files.length === 0) {
+    window.imageQueues[prefix] = [];
+    window.imageQueueMeta[prefix] = { todayPrefix, todayCount: 0, totalCount: allFiles.length };
+    updateQueueUI(prefix);
+    showToast(`❌ No images for today (${todayPrefix}). You picked ${allFiles.length} files for other dates.`, 'error');
+    log(`Queue load failed: 0/${allFiles.length} match today (${todayPrefix})`, 'error');
+    return;
+  }
+
+  // Sort by trailing number ascending: 19-may-1, 19-may-2, 19-may-10...
+  files.sort((a, b) => {
+    const parseNum = (name) => {
+      const m = name.match(/(\d+)-[a-z]+-(\d+)/i);
+      if (m) return parseInt(m[2]);
+      const nums = name.match(/\d+/g);
+      return nums && nums.length >= 2 ? parseInt(nums[nums.length - 1]) : 0;
+    };
+    return parseNum(a.name) - parseNum(b.name);
+  });
+
+  window.imageQueues[prefix] = files;
+  window.imageQueueMeta[prefix] = { todayPrefix, todayCount: files.length, totalCount: allFiles.length };
+  updateQueueUI(prefix);
+  showToast(`✅ Loaded ${files.length} images for ${todayPrefix}`, 'success');
+  log(`Loaded ${files.length}/${allFiles.length} images for ${todayPrefix}`, 'success');
+}
+
+function updateQueueUI(prefix) {
+  const queue = window.imageQueues[prefix];
+  const meta = window.imageQueueMeta[prefix];
+  const status = document.getElementById(`${prefix}-queueStatus`);
+  const preview = document.getElementById(`${prefix}-queuePreview`);
+  const todayPrefix = meta ? meta.todayPrefix : getTodayPrefix();
+
+  if (!queue || queue.length === 0) {
+    if (status) {
+      if (meta && meta.todayCount === 0 && meta.totalCount > 0) {
+        status.innerHTML = `<span style="color:var(--danger);">❌ No images match today (<strong>${todayPrefix}</strong>). You selected ${meta.totalCount} files for other dates.</span>`;
+      } else {
+        status.innerHTML = `<span style="color:var(--muted);">📅 Today is <strong style="color:var(--text);">${todayPrefix}</strong>. Click "Load Image Queue" to select your ${todayPrefix}-1, ${todayPrefix}-2 files.</span>`;
       }
     }
-    
-    if (foundMatch) {
-      categorySelect.value = foundMatch;
-      log(`Category matched: "${fields.category}" → "${foundMatch}"`, 'success');
-      filledCount++;
-    } else {
-      log(`Category not matched: "${fields.category}" (keeping default)`, 'info');
-    }
+    if (preview) { preview.style.display = 'none'; preview.src = ''; }
+    return;
   }
-  
-  // SHOW FEEDBACK
-  feedback.style.display = 'block';
-  
-  if (filledCount > 0) {
-    feedback.style.color = 'var(--green)';
-    feedback.innerHTML = `✅ <strong>${filledCount} fields</strong> parsed and filled!`;
-    log(`Successfully parsed ${filledCount} fields`, 'success');
-    showToast(`✅ Parsed ${filledCount} fields!`, 'success');
-  } else {
-    feedback.style.color = 'var(--danger)';
-    feedback.innerHTML = '❌ Could not parse any fields. Check format.';
-    log('Failed to parse any fields', 'error');
+
+  const next = queue[0];
+  const remaining = queue.slice(1);
+  if (status) {
+    status.innerHTML = `📅 <strong style="color:var(--accent2);">${todayPrefix}</strong> &nbsp;|&nbsp; 📦 <strong style="color:var(--text);">${queue.length}</strong> images &nbsp;|&nbsp; Next: <strong style="color:var(--accent2);">${escHtml(next.name)}</strong>${remaining.length ? ' &nbsp;|&nbsp; Upcoming: ' + remaining.slice(0,3).map(f => escHtml(f.name)).join(', ') + (remaining.length > 3 ? '...' : '') : ''}`;
   }
+
+  if (preview) {
+    preview.src = URL.createObjectURL(next);
+    preview.style.display = 'block';
+  }
+}
+
+function clearImageQueue(prefix) {
+  window.imageQueues[prefix] = [];
+  window.imageQueueMeta[prefix] = null;
+  const input = document.getElementById(`${prefix}-queueInput`);
+  if (input) input.value = '';
+  updateQueueUI(prefix);
+  log(`Cleared image queue for ${prefix}`, 'info');
+  showToast('Image queue cleared', '');
+}
+
+function getNextQueuedImage(prefix) {
+  const queue = window.imageQueues[prefix];
+  if (!queue || queue.length === 0) return null;
+  return queue[0];
+}
+
+function consumeQueuedImage(prefix) {
+  const queue = window.imageQueues[prefix];
+  if (!queue || queue.length === 0) return;
+  const used = queue.shift();
+  log(`Consumed queued image: ${used.name}. Remaining: ${queue.length}`, 'info');
+  updateQueueUI(prefix);
 }
 
 // ═══════════════════════════════════════════════════════════════════
