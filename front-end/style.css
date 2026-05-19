@@ -728,7 +728,6 @@ body {
 .tab-gnews     { background: #4CAF50; color: #fff; box-shadow: 0 2px 8px rgba(76,175,80,0.35); }
 .tab-manual    { background: #667eea; color: #fff; box-shadow: 0 2px 8px rgba(102,126,234,0.35); }
 .tab-60sec     { background: #FF9800; color: #fff; box-shadow: 0 2px 8px rgba(255,152,0,0.35); }
-.tab-startup   { background: #9c27b0; color: #fff; box-shadow: 0 2px 8px rgba(156,39,176,0.35); }
 
 /* Inactive tab state */
 .tab-inactive {
@@ -863,7 +862,6 @@ body {
 .badge-gnews     { background: #4CAF50; color: white; }
 .badge-manual    { background: #667eea; color: white; }
 .badge-60sec     { background: #FF9800; color: white; }
-.badge-startup  { background: #9c27b0; color: white; }
 
 /* ============================================
    BOTTOM NAVIGATION
