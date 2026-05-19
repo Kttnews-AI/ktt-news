@@ -910,7 +910,7 @@ function render60SecDigest(articles) {
                 <div style="padding:12px 16px;border-top:1px solid ${metaBorder};display:flex;align-items:center;justify-content:space-between;background:${isDark?'#0a0a0a':'#fafafa'};flex-wrap:wrap;gap:8px;">
                     <span style="color:${isDark?'#555':'#aaa'};font-size:11px;">Centrinsic NPT • 60 Sec Digest</span>
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <select id="digestTranslateSelect_${id}" onchange="translate60SecDigest('${id}', this.value)" style="background:#FF9800;color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;">
+                        <select id="digestTranslateSelect_${id}" onchange="translateDigestContent('${id}', this.value, 'startupContent_', 'startupTranslateSelect_')" style="background:#FF9800;color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;">
                             <option value="en" style="background:#333;color:#fff;">🌐 English</option>
                             <option value="hi" style="background:#333;color:#fff;">हिंदी</option>
                             <option value="te" style="background:#333;color:#fff;">తెలుగు</option>
@@ -1089,7 +1089,7 @@ function renderStartupEvents(articles) {
                 <div style="padding:12px 16px;border-top:1px solid ${metaBorder};display:flex;align-items:center;justify-content:space-between;background:${isDark?'#0a0a0a':'#fafafa'};flex-wrap:wrap;gap:8px;">
                     <span style="color:${isDark?'#555':'#aaa'};font-size:11px;">Centrinsic NPT • Startup Events</span>
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <select id="startupTranslateSelect_${id}" onchange="translate60SecDigest('${id}', this.value)" style="background:${startupColor};color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;">
+                        <select id="startupTranslateSelect_${id}" onchange="translateDigestContent('${id}', this.value, 'startupContent_', 'startupTranslateSelect_')" style="background:${startupColor};color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;">
                             <option value="en" style="background:#333;color:#fff;">🌐 English</option>
                             <option value="hi" style="background:#333;color:#fff;">हिंदी</option>
                             <option value="te" style="background:#333;color:#fff;">తెలుగు</option>
@@ -1097,7 +1097,94 @@ function renderStartupEvents(articles) {
                             <option value="kn" style="background:#333;color:#fff;">ಕನ್ನಡ</option>
                             <option value="ml" style="background:#333;color:#fff;">മലയാളം</option>
                         </select>
-                        <button onclick="share60SecDigest('${id}')" style="background:${startupColor};border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">📤 Share</button>
+                        <button onclick="share60SecDigest('${id}')" style="background:${startupColor};border:none;border-radius:8px;color:white;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">📤 Share</but/* ============================================
+   GENERIC DIGEST TRANSLATE (works for any digest type)
+=========================================== */
+async function translateDigestContent(articleId, targetLang, contentPrefix, selectPrefix) {
+    const contentEl = document.getElementById(`${contentPrefix}${articleId}`);
+    const selectEl = document.getElementById(`${selectPrefix}${articleId}`);
+    if (!contentEl || !targetLang) return;
+
+    const cacheKey = `${contentPrefix}${articleId}`;
+    if (!window._digestOriginals) window._digestOriginals = {};
+    if (!window._digestOriginals[cacheKey]) {
+        window._digestOriginals[cacheKey] = contentEl.innerHTML;
+    }
+
+    if (targetLang === 'en') {
+        contentEl.innerHTML = window._digestOriginals[cacheKey];
+        if (selectEl) selectEl.value = 'en';
+        showToast('↩ Reverted to English');
+        return;
+    }
+
+    contentEl.innerHTML = '<div style="text-align:center;color:#FF9800;padding:20px;"><span>🌐 Translating...</span></div>';
+
+    try {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = window._digestOriginals[cacheKey];
+
+        const textNodes = [];
+        const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
+        let node;
+        while (node = walker.nextNode()) {
+            const text = node.textContent.trim();
+            if (text.length > 0 && text !== '•' && !/^\d+$/.test(text)) {
+                textNodes.push({ node: node, text: text });
+            }
+        }
+
+        if (textNodes.length === 0) {
+            contentEl.innerHTML = window._digestOriginals[cacheKey];
+            showToast('⚠️ Nothing to translate');
+            return;
+        }
+
+        const uniqueTexts = [...new Set(textNodes.map(t => t.text))];
+        const translations = new Map();
+
+        const batchSize = 20;
+        for (let i = 0; i < uniqueTexts.length; i += batchSize) {
+            const batch = uniqueTexts.slice(i, i + batchSize);
+            const combinedText = batch.join('\n§§§\n');
+
+            const response = await fetch(
+                `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(combinedText)}`
+            );
+            const data = await response.json();
+
+            if (data && data[0]) {
+                let translatedCombined = '';
+                data[0].forEach(seg => { if (seg[0]) translatedCombined += seg[0]; });
+                const translatedBatch = translatedCombined.split('\n§§§\n').map(t => t.trim());
+
+                batch.forEach((original, idx) => {
+                    translations.set(original, translatedBatch[idx] || original);
+                });
+            } else {
+                batch.forEach(original => translations.set(original, original));
+            }
+        }
+
+        textNodes.forEach(({ node, text }) => {
+            const translated = translations.get(text);
+            if (translated && translated !== text) {
+                node.textContent = node.textContent.replace(text, translated);
+            }
+        });
+
+        contentEl.innerHTML = tempDiv.innerHTML;
+        showToast(`✅ Translated to ${targetLang.toUpperCase()}`);
+
+    } catch (err) {
+        console.error('Translation error:', err);
+        contentEl.innerHTML = window._digestOriginals[cacheKey];
+        if (selectEl) selectEl.value = 'en';
+        showToast('⚠️ Translation failed — reverted to English');
+    }
+}
+
+ton>
                     </div>
                 </div>
             </div>`;
