@@ -1627,114 +1627,156 @@ function displayArticleDetail() {
         bodyContent = `<div class="article-body-text" style="color:${bodyColor};line-height:1.8;margin-bottom:20px;font-size:16px;">${escapeHtml(currentArticle.content || currentArticle.description || "No content available")}</div>`;
     }
 
-    // ── Startup Event Countdown for Detail View ──
-    let startupCountdownHTML = '';
-    if (isStartup) {
-        const expireDate = currentArticle.expireDate || currentArticle.autoExpire || currentArticle.expiryDate || currentArticle.registrationDeadline;
-        const eventDate = currentArticle.eventDate || currentArticle.event_date || currentArticle.date;
-        const now = new Date();
-        
-        let regStatus = 'open';
-        let countdownText = '';
-        
-        if (expireDate) {
-            const exp = new Date(expireDate);
-            const diff = exp - now;
-            if (diff > 0) {
-                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                if (days > 0) countdownText = `${days} day${days>1?'s':''} remaining`;
-                else if (hours > 0) countdownText = `${hours} hours remaining`;
-                else countdownText = 'Closing soon';
+    /* ============================================
+   🚀 STARTUP EVENTS — DETAIL VIEW FIX
+   Shows: Event Date, Time, Venue, Type, 
+   Organizer, Registration Link, Website,
+   Countdown Timer, and Auto-Expire
+============================================ */
+
+// REPLACE THIS IN YOUR displayArticleDetail() FUNCTION:
+// Find the section with: "// ── Startup Event Countdown for Detail View ──"
+// Replace it with this improved version:
+
+// ── Startup Event Countdown for Detail View ──
+let startupCountdownHTML = '';
+if (isStartup) {
+    const expireDate = currentArticle.expireDate || currentArticle.autoExpire || currentArticle.expiryDate || currentArticle.registrationDeadline;
+    const eventDate = currentArticle.eventDate || currentArticle.event_date || currentArticle.date || currentArticle.startDate;
+    const now = new Date();
+    
+    let regStatus = 'open';
+    let countdownText = '';
+    let countdownColor = '#4CAF50';
+    
+    if (expireDate) {
+        const exp = new Date(expireDate);
+        const diff = exp - now;
+        if (diff > 0) {
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            if (days > 0) {
+                countdownText = `${days} day${days>1?'s':''} remaining`;
+                countdownColor = '#4CAF50';
+            } else if (hours > 6) {
+                countdownText = `${hours} hours remaining`;
+                countdownColor = '#FF9800';
             } else {
-                regStatus = 'closed';
-                countdownText = 'Registration Closed';
+                countdownText = `${hours}h ${mins}m remaining`;
+                countdownColor = '#ff1744';
             }
+        } else {
+            regStatus = 'closed';
+            countdownText = 'Registration Closed';
+            countdownColor = '#9e9e9e';
         }
-        
-        const regLink = currentArticle.registrationLink || currentArticle.registration_url || currentArticle.signupUrl || '';
-        const website = currentArticle.eventWebsite || currentArticle.website || '';
-        const venue = currentArticle.venue || currentArticle.location || 'TBA';
-        const eventType = currentArticle.eventType || currentArticle.type || '';
-        const eventTime = eventDate ? new Date(eventDate).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true}) : '';
-        
-        startupCountdownHTML = `
-            <div style="background:${isDark?'#16213e':'#e8eaf6'};border-radius:12px;padding:16px;margin:16px 0;border:1px solid ${detailBorder};">
-                <div style="display:flex;flex-direction:column;gap:10px;">
-                    ${eventDate ? `<div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:100px;">📅 Event Date:</span><span style="color:#9c27b0;font-size:14px;font-weight:700;">${escapeHtml(new Date(eventDate).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}))} ${eventTime ? `at ${eventTime}` : ''}</span></div>` : ''}
-                    <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:100px;">📍 Venue:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(venue)}</span></div>
-                    ${eventType ? `<div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:100px;">🏷️ Type:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(eventType)}</span></div>` : ''}
-                    ${countdownText ? `<div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:100px;">⏰ Status:</span><span style="color:${regStatus==='open'?'#4CAF50':'#ff1744'};font-size:14px;font-weight:700;">${escapeHtml(countdownText)}</span></div>` : ''}
-                </div>
-            </div>
-            ${(regStatus === 'open' && regLink) ? `
-            <div style="margin-bottom:20px;">
-                <a href="${escapeHtml(regLink)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#9c27b0,#7b1fa2);border:none;border-radius:12px;padding:16px;color:#fff;font-size:15px;font-weight:700;width:100%;cursor:pointer;text-decoration:none;box-shadow:0 4px 12px rgba(156,39,176,0.3);">
-                    <span>🚀</span><span>Register for this Event</span>
-                </a>
-            </div>` : ''}
-            ${(website && website !== regLink) ? `
-            <div style="margin-bottom:20px;">
-                <a href="${escapeHtml(website)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:${linkBg};border:1px solid ${linkBorder};border-radius:12px;padding:14px;color:${linkColor};font-size:14px;font-weight:500;width:100%;cursor:pointer;text-decoration:none;">
-                    <span>🌐</span><span>Visit Event Website</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-left:auto;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                </a>
-            </div>` : ''}
-        `;
     }
-
-    articleBody.innerHTML = `
-        ${imageUrl && !is60sec ? `<div class="article-image-container"><img src="${escapeHtml(imageUrl)}" class="article-image" loading="lazy" onerror="this.style.display='none'"></div>` : ''}
-        <div class="article-text-content">
-            <h1 class="article-headline">${escapeHtml(currentArticle.title || "Untitled")}</h1>
-            <div class="article-meta-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:10px 0;border-bottom:1px solid ${detailBorder};">
-                <span class="article-date" style="color:${metaColor};font-size:14px;">${escapeHtml(date)}</span>
-                <button onclick="shareCurrentArticle()" id="shareBtn" style="background:#4CAF50;border:none;border-radius:8px;color:white;padding:8px 16px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:5px;">📤 Share</button>
+    
+    const regLink = currentArticle.registrationLink || currentArticle.registration_url || currentArticle.signupUrl || currentArticle.externalLink || '';
+    const website = currentArticle.eventWebsite || currentArticle.website || currentArticle.url || '';
+    const venue = currentArticle.venue || currentArticle.location || currentArticle.venueOrOnline || 'TBA';
+    const eventType = currentArticle.eventType || currentArticle.event_type || currentArticle.type || '';
+    const organizer = currentArticle.source || currentArticle.organizer || currentArticle.startupName || 'Event Organizer';
+    
+    let eventDateTime = '';
+    if (eventDate) {
+        try {
+            const d = new Date(eventDate);
+            if (!isNaN(d.getTime())) {
+                const dateStr = d.toLocaleDateString('en-GB',{weekday:'short', day:'numeric',month:'short',year:'numeric'});
+                const timeStr = d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+                eventDateTime = `${dateStr} at ${timeStr}`;
+            }
+        } catch(e) {}
+    }
+    
+    startupCountdownHTML = `
+        <!-- ═══════════════════════════════════════════
+             EVENT DETAILS CARD (Highlighted)
+             ═══════════════════════════════════════════ -->
+        <div style="background:linear-gradient(135deg,#9c27b0,#7b1fa2);border-radius:16px;padding:18px;margin:20px 0;color:#fff;box-shadow:0 4px 16px rgba(156,39,176,0.25);">
+            <h3 style="margin:0 0 14px 0;font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;">📅 Event Details</h3>
+            <div style="display:flex;flex-direction:column;gap:14px;">
+                ${eventDateTime ? `
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                    <span style="font-size:20px;flex-shrink:0;margin-top:2px;">📅</span>
+                    <div style="flex:1;">
+                        <div style="font-size:11px;opacity:0.8;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;">When</div>
+                        <div style="font-size:15px;font-weight:700;line-height:1.4;margin-top:3px;">${escapeHtml(eventDateTime)}</div>
+                    </div>
+                </div>` : ''}
+                
+                ${venue && venue !== 'TBA' ? `
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                    <span style="font-size:20px;flex-shrink:0;margin-top:2px;">📍</span>
+                    <div style="flex:1;">
+                        <div style="font-size:11px;opacity:0.8;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;">Where</div>
+                        <div style="font-size:15px;font-weight:700;line-height:1.4;margin-top:3px;">${escapeHtml(venue)}</div>
+                    </div>
+                </div>` : ''}
+                
+                ${eventType ? `
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                    <span style="font-size:20px;flex-shrink:0;margin-top:2px;">🏷️</span>
+                    <div style="flex:1;">
+                        <div style="font-size:11px;opacity:0.8;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;">Event Type</div>
+                        <div style="font-size:15px;font-weight:700;line-height:1.4;margin-top:3px;">${escapeHtml(eventType)}</div>
+                    </div>
+                </div>` : ''}
+                
+                ${organizer ? `
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                    <span style="font-size:20px;flex-shrink:0;margin-top:2px;">🎯</span>
+                    <div style="flex:1;">
+                        <div style="font-size:11px;opacity:0.8;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;">Organizer</div>
+                        <div style="font-size:15px;font-weight:700;line-height:1.4;margin-top:3px;">${escapeHtml(organizer)}</div>
+                    </div>
+                </div>` : ''}
             </div>
-            ${!is60sec ? `
-            <div id="translateBar" style="margin-bottom:16px;padding:10px 14px;background:${transBg};border-radius:12px;border:1px solid ${detailBorder};display:flex;align-items:center;gap:10px;">
-                <span style="font-size:13px;color:${metaColor};white-space:nowrap;">🌐 Translate:</span>
-                <select id="translateSelect" onchange="translateArticle(this.value)" style="flex:1;background:${selectBg};color:${selectColor};border:1px solid ${selectBorder};border-radius:20px;padding:8px 14px;font-size:13px;font-family:inherit;cursor:pointer;outline:none;">
-                    <option value="en">↩ Original (English)</option>
-                    <optgroup label="── Indian Languages ──">
-                        <option value="hi">🇮🇳 Hindi</option><option value="te">తె Telugu</option><option value="ta">த Tamil</option>
-                        <option value="kn">ಕ Kannada</option><option value="ml">മ Malayalam</option><option value="bn">বাং Bengali</option>
-                        <option value="mr">म Marathi</option><option value="gu">ગુ Gujarati</option><option value="pa">ਪ Punjabi</option>
-                        <option value="ur">اردو Urdu</option><option value="or">ଓ Odia</option><option value="as">অ Assamese</option>
-                        <option value="ne">ने Nepali</option><option value="si">සි Sinhala</option>
-                    </optgroup>
-                    <optgroup label="── World Languages ──">
-                        <option value="zh">🇨🇳 Chinese</option><option value="ar">🇸🇦 Arabic</option><option value="fr">🇫🇷 French</option>
-                        <option value="de">🇩🇪 German</option><option value="es">🇪🇸 Spanish</option><option value="ja">🇯🇵 Japanese</option>
-                        <option value="ko">🇰🇷 Korean</option><option value="pt">🇵🇹 Portuguese</option><option value="ru">🇷🇺 Russian</option>
-                        <option value="tr">🇹🇷 Turkish</option><option value="it">🇮🇹 Italian</option><option value="th">🇹🇭 Thai</option>
-                        <option value="vi">🇻🇳 Vietnamese</option><option value="id">🇮🇩 Indonesian</option><option value="ms">🇲🇾 Malay</option>
-                        <option value="sw">🌍 Swahili</option>
-                    </optgroup>
-                </select>
-            </div>` : ''}
-            ${bodyContent}
-            ${startupCountdownHTML}
-            <div style="background:${cardBg};border-radius:12px;padding:20px;margin:20px 0;border:1px solid ${detailBorder};">
-                <div style="display:flex;flex-direction:column;gap:12px;">
-                    <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Source:</span><span style="color:#667eea;font-size:14px;font-weight:600;">${escapeHtml(source)}</span></div>
-                    <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Category:</span><span style="background:${catColor};color:white;font-size:12px;font-weight:600;padding:3px 10px;border-radius:10px;">${escapeHtml(catLabel)}</span></div>
-                    <div style="display:flex;align-items:center;gap:10px;"><span style="color:${labelColor};font-size:14px;min-width:80px;">Published:</span><span style="color:${metaColor};font-size:14px;">${escapeHtml(date)}</span></div>
-                </div>
+        </div>
+        
+        <!-- ═══════════════════════════════════════════
+             REGISTRATION STATUS (Countdown Timer)
+             ═══════════════════════════════════════════ -->
+        <div style="background:${countdownColor}15;border-left:5px solid ${countdownColor};border-radius:12px;padding:14px 16px;margin:16px 0;display:flex;align-items:center;gap:12px;">
+            <span style="font-size:28px;flex-shrink:0;animation:pulse 2s infinite;">⏰</span>
+            <div style="flex:1;">
+                <div style="color:${countdownColor};font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;">Registration Status</div>
+                <div style="color:${countdownColor};font-size:16px;font-weight:800;margin-top:4px;">${escapeHtml(countdownText)}</div>
             </div>
-            ${originalLink !== '#' ? `
-            <div style="margin-bottom:30px;">
-                <button onclick="openExternalLink('${escapeHtml(originalLink)}')" style="display:flex;align-items:center;justify-content:center;gap:10px;background:${linkBg};border:1px solid ${linkBorder};border-radius:12px;padding:16px;color:${linkColor};font-size:15px;font-weight:500;width:100%;cursor:pointer;">
-                    <span>📰</span><span>Read Full Original Article</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;margin-left:auto;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                </button>
+        </div>
+        
+        <!-- ═══════════════════════════════════════════
+             ACTION BUTTONS (Register + Website)
+             ═══════════════════════════════════════════ -->
+        <div style="display:flex;flex-direction:column;gap:12px;margin:20px 0;">
+            ${(regStatus === 'open' && regLink) ? `
+            <a href="${escapeHtml(regLink)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#9c27b0,#7b1fa2);border:none;border-radius:14px;padding:16px 20px;color:#fff;font-size:15px;font-weight:800;width:100%;cursor:pointer;text-decoration:none;box-shadow:0 4px 16px rgba(156,39,176,0.3);transition:all 0.3s ease;transform:translateZ(0);">
+                <span style="font-size:18px;">🚀</span>
+                <span>Register Now</span>
+                <span style="margin-left:auto;font-size:18px;">→</span>
+            </a>` : regStatus === 'closed' ? `
+            <div style="display:flex;align-items:center;justify-content:center;gap:10px;background:#9e9e9e15;border:2px solid #9e9e9e30;border-radius:14px;padding:16px 20px;color:#999;font-size:15px;font-weight:700;width:100%;cursor:not-allowed;">
+                <span style="font-size:18px;">🔒</span>
+                <span>Registration Closed</span>
             </div>` : ''}
-        </div>`;
-
-    // Use navigateTo for detail screen so back button works
-    navigateTo('detail');
-    const detailContent = document.getElementById("detailContent");
-    if (detailContent) detailContent.scrollTop = 0;
+            
+            ${(website && website !== regLink) ? `
+            <a href="${escapeHtml(website)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:transparent;border:2px solid #9c27b0;border-radius:14px;padding:14px 20px;color:#9c27b0;font-size:14px;font-weight:700;width:100%;cursor:pointer;text-decoration:none;transition:all 0.3s ease;">
+                <span style="font-size:16px;">🌐</span>
+                <span>Visit Event Website</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px;margin-left:auto;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            </a>` : ''}
+        </div>
+        
+        <style>
+            @keyframes pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.1); }
+            }
+        </style>
+    `;
 }
 
 /* ============================================
