@@ -37,6 +37,7 @@ const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
 const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_DELAY_MS = parseInt(process.env.GEMINI_DELAY_MS) || 4000; // 4s default for free tier (15 RPM)
+let isPublishing = false; // Lock to prevent concurrent publish runs
 const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 60) * 60 * 1000;
 const MANUAL_ARTICLES_LIMIT = 0;
 const GNEWS_ARTICLES_LIMIT = 10;
@@ -133,7 +134,8 @@ const articleSchema = new mongoose.Schema({
     expiresAt: { type: Date },
     author_id: mongoose.Schema.Types.ObjectId,
     author_name: String,
-    summary: { type: String, default: '' }
+    summary: { type: String, default: '' },
+    isRSS: { type: Boolean, default: false }  // true = auto-fetched from RSS, forces AI-D tab
 }, { timestamps: true });
 
 // UPCOMING / QUEUED ARTICLES (For 8-Day Auto-Upload)
@@ -413,15 +415,21 @@ async function queueRSSFor8Days() {
 
             // AI Rewrite to ~170 words
             let finalContent = article.content;
-            if (GEMINI_API_KEY) {
+            const originalLength = article.content?.length || 0;
+
+            if (GEMINI_API_KEY && geminiModel) {
                 try {
                     finalContent = await rewriteSummaryWithGemini(article.title, article.content);
-                    console.log(`   🤖 [${i + 1}/${articles.length}] AI summary OK: ${article.title.substring(0, 45)}...`);
-                    // Rate limit safety (15 RPM on free tier = 4s gap)
+                    const newLength = finalContent?.length || 0;
+                    const wordCount = finalContent?.split(/\s+/)?.filter(w => w.length > 0)?.length || 0;
+                    console.log(`   🤖 [${i + 1}/${articles.length}] AI summary: ${wordCount} words, ${newLength} chars | ${article.title.substring(0, 40)}...`);
+                    // Rate limit safety
                     if (i < articles.length - 1) await new Promise(r => setTimeout(r, GEMINI_DELAY_MS));
                 } catch (e) {
-                    console.log(`   ⚠️ AI rewrite failed for: ${article.title.substring(0, 50)}`);
+                    console.log(`   ⚠️ AI rewrite failed for: ${article.title.substring(0, 50)} — using original (${originalLength} chars)`);
                 }
+            } else {
+                console.log(`   ⏭️ No Gemini key, using original content (${originalLength} chars)`);
             }
 
             await UpcomingArticle.create({
@@ -459,7 +467,10 @@ const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
 
 async function rewriteSummaryWithGemini(title, content) {
-    if (!geminiModel) return content;
+    if (!geminiModel) {
+        console.log('   ⚠️ Gemini model not initialized — check GEMINI_API_KEY');
+        return content;
+    }
 
     try {
         const prompt = `Rewrite the following news article into a professional, factual summary of exactly 150-170 words. Preserve all key facts, names, dates, and important quotes. Use clear journalistic language. Do not add opinions or information not in the original text. Output plain text only — no markdown, no headers, no bullet points.
@@ -470,14 +481,8 @@ ARTICLE: ${content.substring(0, 4000)}
 
 SUMMARY:`;
 
-        const result = await geminiModel.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 300,
-            }
-        });
-
+        // Correct API format for @google/generative-ai package
+        const result = await geminiModel.generateContent(prompt);
         const response = await result.response;
         let summary = response.text().trim();
 
@@ -487,9 +492,12 @@ SUMMARY:`;
             summary = words.slice(0, 170).join(' ') + '...';
         }
 
+        console.log(`   ✅ Gemini returned ${words.length} words`);
         return summary;
     } catch (err) {
         console.error('❌ Gemini rewrite error:', err.message);
+        if (err.message?.includes('API key')) console.error('   → Check your GEMINI_API_KEY in .env');
+        if (err.message?.includes('quota')) console.error('   → Rate limit exceeded, try again later');
         return content;
     }
 }
@@ -1235,6 +1243,13 @@ let publishScheduleLog = { nextPublishTime: null, lastPublishTime: null, lastPub
 // CHANGE #1: FIXED publishQueuedArticles — Publishes articles for TODAY
 // ============================================
 async function publishQueuedArticles() {
+    if (isPublishing) {
+        console.log('⏳ Publish already in progress, skipping');
+        return;
+    }
+    isPublishing = true;
+
+    try {
     const now = new Date();
 
     // Find the EARLIEST targetDate in the queue (timezone-agnostic)
@@ -1263,16 +1278,16 @@ async function publishQueuedArticles() {
     console.log(`   Found ${queued.length} articles matching targetDate range`);
 
     if (queued.length === 0) {
-        console.log('   ⚠️ No articles matched — checking all queued articles as fallback...');
-        // Fallback: publish ALL remaining queued articles (catch-up mode)
-        const allQueued = await UpcomingArticle.find({ status: 'published' }).limit(35);
+        console.log('   ⚠️ No articles matched — checking earliest articles as fallback...');
+        // Fallback: publish ONLY the earliest 35 articles (one day max)
+        const allQueued = await UpcomingArticle.find({ status: 'published' }).sort({ targetDate: 1 }).limit(35);
         if (allQueued.length === 0) {
             console.log('   ❌ Queue is completely empty');
             publishScheduleLog.lastPublishTime = new Date().toISOString();
             publishScheduleLog.lastPublishedCount = 0;
             return;
         }
-        console.log(`   🔄 Fallback: publishing ${allQueued.length} articles from queue`);
+        console.log(`   🔄 Fallback: publishing ${allQueued.length} earliest articles from queue`);
         for (const q of allQueued) {
             await Article.create({
                 title: q.title,
@@ -1289,6 +1304,7 @@ async function publishQueuedArticles() {
                 author_name: q.author_name || 'RSS Auto-Fetch'
             });
         }
+        // Only delete the specific articles we published
         await UpcomingArticle.deleteMany({ _id: { $in: allQueued.map(q => q._id) } });
         publishScheduleLog.lastPublishTime = new Date().toISOString();
         publishScheduleLog.lastPublishedCount = allQueued.length;
@@ -1309,7 +1325,8 @@ async function publishQueuedArticles() {
             status: 'published',
             expiresAt: q.expiresAt,
             author_id: q.author_id,
-            author_name: q.author_name || 'RSS Auto-Fetch'
+            author_name: q.author_name || 'RSS Auto-Fetch',
+            isRSS: q.isRSS || false
         });
     }
 
@@ -1321,6 +1338,9 @@ async function publishQueuedArticles() {
     publishScheduleLog.lastPublishTime = new Date().toISOString();
     publishScheduleLog.lastPublishedCount = queued.length;
     console.log(`   ✅ Published ${queued.length} articles for ${targetDay.toDateString()}`);
+    } finally {
+        isPublishing = false;
+    }
 }
 
 async function schedulePublishAfterDelay() {
@@ -1341,6 +1361,10 @@ async function schedulePublishAfterDelay() {
 // ROBUST PUBLISH CHECK — survives server restarts
 // ============================================
 async function checkAndPublishPending() {
+    if (isPublishing) {
+        console.log('⏳ Publish already in progress, skipping check');
+        return;
+    }
     try {
         // Count manual articles currently live
         const liveCount = await Article.countDocuments({ isManual: true });
@@ -1563,6 +1587,7 @@ app.listen(PORT, async () => {
     console.log(`Auto-refill:      ✅ Every 6 hours if queue < 100`);
     console.log(`Gemini AI:        ${GEMINI_API_KEY ? '✅' : '❌'} ${GEMINI_API_KEY ? '(~170 words summary)' : '(add GEMINI_API_KEY to .env)'}`);
     console.log(`Gemini Delay:     ${GEMINI_DELAY_MS}ms (${(GEMINI_DELAY_MS/1000).toFixed(1)}s) between articles`);
+    console.log(`Gemini Key Length: ${GEMINI_API_KEY ? GEMINI_API_KEY.length : 0} chars`);
     console.log(`Duplicate Filter: ✅ URL + fuzzy title match (30-day window)`);
     console.log(`Image Extraction: ✅ RSS → OG tags → Category fallback`);
     console.log(`Robust Publish:   ✅ Startup check + 30-min interval`);
@@ -1572,6 +1597,22 @@ app.listen(PORT, async () => {
     setTimeout(async () => {
         await checkAndPublishPending();
     }, 5000);
+
+    // Test Gemini on startup
+    if (GEMINI_API_KEY) {
+        setTimeout(async () => {
+            try {
+                const testResult = await geminiModel.generateContent('Say "Gemini is working" in 5 words or less.');
+                const testText = (await testResult.response.text()).trim();
+                console.log(`🤖 Gemini test: ${testText}`);
+            } catch (e) {
+                console.error('🤖 Gemini test FAILED:', e.message);
+                console.error('   → Check your GEMINI_API_KEY and quota');
+            }
+        }, 8000);
+    } else {
+        console.log('🤖 Gemini: No API key configured');
+    }
 
     // Run publish check every 30 minutes (catches missed publishes)
     setInterval(checkAndPublishPending, 30 * 60 * 1000);
