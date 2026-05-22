@@ -297,81 +297,142 @@ const adminAuthMiddleware = async (req, res, next) => {
 // RSS FEEDS CONFIGURATION (FREE — NO API KEY)
 // ============================================
 const RSS_FEEDS = [
+    // World / General (12)
     { name: 'BBC News', url: 'http://feeds.bbci.co.uk/news/rss.xml', category: 'World' },
     { name: 'BBC World', url: 'http://feeds.bbci.co.uk/news/world/rss.xml', category: 'World' },
-    { name: 'Reuters', url: 'http://feeds.reuters.com/reuters/topNews', category: 'World' },
-    { name: 'Reuters World', url: 'http://feeds.reuters.com/reuters/worldNews', category: 'World' },
+    { name: 'Guardian World', url: 'https://www.theguardian.com/world/rss', category: 'World' },
+    { name: 'Guardian UK', url: 'https://www.theguardian.com/uk/rss', category: 'World' },
+    { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'World' },
+    { name: 'NPR News', url: 'https://feeds.npr.org/1001/rss.xml', category: 'World' },
+    { name: 'NYT Home', url: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', category: 'World' },
+    { name: 'NYT World', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', category: 'World' },
+    { name: 'USA Today', url: 'http://rssfeeds.usatoday.com/usatoday-NewsTopStories', category: 'World' },
+    { name: 'ABC News', url: 'https://abcnews.go.com/abcnews/topstories', category: 'World' },
+    { name: 'CBS News', url: 'https://www.cbsnews.com/latest/rss/main', category: 'World' },
+    { name: 'Politico', url: 'https://www.politico.com/rss/politicopicks.xml', category: 'World' },
+
+    // India (6)
     { name: 'Times of India', url: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms', category: 'India' },
     { name: 'TOI India', url: 'https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms', category: 'India' },
     { name: 'The Hindu', url: 'https://www.thehindu.com/news/national/?service=rss', category: 'India' },
     { name: 'Hindu Business', url: 'https://www.thehindu.com/business/?service=rss', category: 'Business' },
+    { name: 'Economic Times', url: 'https://economictimes.indiatimes.com/rssfeedstopstories.cms', category: 'Business' },
+    { name: 'Business Standard', url: 'https://www.business-standard.com/rss/latest.rss', category: 'Business' },
+
+    // Technology (10)
     { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', category: 'Technology' },
     { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml', category: 'Technology' },
+    { name: 'Engadget', url: 'https://www.engadget.com/rss.xml', category: 'Technology' },
+    { name: 'Ars Technica', url: 'http://feeds.arstechnica.com/arstechnica/index', category: 'Technology' },
+    { name: 'Wired', url: 'https://www.wired.com/feed/rss', category: 'Technology' },
+    { name: 'Gizmodo', url: 'https://gizmodo.com/rss', category: 'Technology' },
+    { name: 'CNET', url: 'https://www.cnet.com/rss/news/', category: 'Technology' },
+    { name: '9to5Mac', url: 'https://9to5mac.com/feed/', category: 'Technology' },
+    { name: '9to5Google', url: 'https://9to5google.com/feed/', category: 'Technology' },
+    { name: 'Android Police', url: 'https://www.androidpolice.com/feed/', category: 'Technology' },
+
+    // Sports (6)
     { name: 'ESPN', url: 'https://www.espn.com/espn/rss/news', category: 'Sports' },
-    { name: 'ESPN Cricket', url: 'https://www.espncricinfo.com/rss/content/story/feeds/0.xml', category: 'Sports' },
-    { name: 'CNN', url: 'http://rss.cnn.com/rss/edition.rss', category: 'World' },
-    { name: 'CNN Tech', url: 'http://rss.cnn.com/rss/edition_technology.rss', category: 'Technology' },
-    { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'World' },
-    { name: 'NPR', url: 'https://feeds.npr.org/1001/rss.xml', category: 'World' },
-    { name: 'NPR Tech', url: 'https://feeds.npr.org/1019/rss.xml', category: 'Technology' },
+    { name: 'ESPN Cricinfo', url: 'https://www.espncricinfo.com/rss/content/story/feeds/0.xml', category: 'Sports' },
+    { name: 'BBC Sport', url: 'http://feeds.bbci.co.uk/sport/rss.xml', category: 'Sports' },
+    { name: 'Guardian Sport', url: 'https://www.theguardian.com/sport/rss', category: 'Sports' },
+    { name: 'NYT Sports', url: 'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml', category: 'Sports' },
+    { name: 'Sky Sports', url: 'https://www.skysports.com/rss/12040', category: 'Sports' },
+
+    // Business (5)
+    { name: 'Guardian Business', url: 'https://www.theguardian.com/business/rss', category: 'Business' },
+    { name: 'CNBC', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html', category: 'Business' },
+    { name: 'Fortune', url: 'https://fortune.com/feed/', category: 'Business' },
+    { name: 'Business Insider', url: 'https://www.businessinsider.com/rss', category: 'Business' },
+    { name: 'MarketWatch', url: 'https://www.marketwatch.com/rss/topstories', category: 'Business' },
+
+    // Science (5)
+    { name: 'Guardian Science', url: 'https://www.theguardian.com/science/rss', category: 'Science' },
     { name: 'Science Daily', url: 'https://www.sciencedaily.com/rss/all.xml', category: 'Science' },
     { name: 'Space.com', url: 'https://www.space.com/feeds/all', category: 'Science' },
-    { name: 'Entertainment Weekly', url: 'https://feeds.ew.com/entertainment/all', category: 'Entertainment' }
+    { name: 'Phys.org', url: 'https://phys.org/rss-feed/', category: 'Science' },
+    { name: 'ScienceAlert', url: 'https://www.sciencealert.com/rss', category: 'Science' },
+
+    // Entertainment (5)
+    { name: 'Deadline', url: 'https://deadline.com/feed/', category: 'Entertainment' },
+    { name: 'Hollywood Reporter', url: 'https://www.hollywoodreporter.com/feed/', category: 'Entertainment' },
+    { name: 'IGN', url: 'https://www.ign.com/rss/articles/feed?tags=games,movies,tv', category: 'Entertainment' },
+    { name: 'Polygon', url: 'https://www.polygon.com/rss/index.xml', category: 'Entertainment' },
+    { name: 'Kotaku', url: 'https://kotaku.com/rss', category: 'Entertainment' },
 ];
 
 // Fetch RSS articles
-async function fetchRSSArticles(targetCount = 35) {
+async function fetchRSSArticles(targetCount = 35, globalSeenLinks = null, skipOG = false) {
     const allArticles = [];
     const errors = [];
-    const seenLinks = new Set();
+    const seenLinks = globalSeenLinks || new Set();
     let dupesSkipped = 0;
     let imagesFixed = 0;
+    let feedsAttempted = 0;
 
-    for (const feed of RSS_FEEDS) {
-        if (allArticles.length >= targetCount) break;
-        try {
-            const feedData = await rssParser.parseURL(feed.url);
-            const items = feedData.items.slice(0, 7); // Fetch a few extra to allow for dupes
+    // Shuffle so we hit different sources each run
+    const shuffledFeeds = [...RSS_FEEDS].sort(() => Math.random() - 0.5);
 
-            for (const item of items) {
-                if (allArticles.length >= targetCount) break;
+    for (const feed of shuffledFeeds) {
+        // Fetch up to 2x target to allow for dupes downstream
+        if (allArticles.length >= targetCount * 2) break;
+        feedsAttempted++;
 
-                const link = item.link || item.guid || '';
-                if (seenLinks.has(link)) { dupesSkipped++; continue; }
-                seenLinks.add(link);
+        let retries = 2;
+        let success = false;
 
-                let content = item.content || item.contentSnippet || item.summary || item.description || 'No content available';
-                content = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                if (content.length < 100) content = item.title + '. ' + content;
-                if (content.length > 1200) content = content.substring(0, 1200) + '...';
+        while (retries >= 0 && !success) {
+            try {
+                const feedData = await rssParser.parseURL(feed.url);
+                // Grab more items per feed (was 7, now 20)
+                const items = feedData.items.slice(0, 20);
 
-                // Better image extraction
-                let imageUrl = extractImageFromRSS(item);
-                if (!imageUrl && link) {
-                    imageUrl = await fetchOGImage(link);
-                    if (imageUrl) imagesFixed++;
+                for (const item of items) {
+                    if (allArticles.length >= targetCount * 2) break;
+
+                    const link = item.link || item.guid || '';
+                    if (seenLinks.has(link)) { dupesSkipped++; continue; }
+                    seenLinks.add(link);
+
+                    let content = item.content || item.contentSnippet || item.summary || item.description || 'No content available';
+                    content = content.replace(/<<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                    if (content.length < 100) content = item.title + '. ' + content;
+                    if (content.length > 1200) content = content.substring(0, 1200) + '...';
+
+                    // Fast path: skip OG fetching during bulk queueing
+                    let imageUrl = extractImageFromRSS(item);
+                    if (!imageUrl && link && !skipOG) {
+                        imageUrl = await fetchOGImage(link);
+                        if (imageUrl) imagesFixed++;
+                    }
+                    if (!imageUrl) {
+                        imageUrl = getFallbackImage(feed.category);
+                    }
+
+                    allArticles.push({
+                        title: item.title || 'Untitled',
+                        content: content,
+                        source: feed.name,
+                        category: feed.category,
+                        image: imageUrl,
+                        originalLink: link,
+                        isRSS: true
+                    });
                 }
-                if (!imageUrl) {
-                    imageUrl = getFallbackImage(feed.category);
+                success = true;
+            } catch (err) {
+                retries--;
+                if (retries < 0) {
+                    errors.push(`${feed.name}: ${err.message}`);
+                } else {
+                    await new Promise(r => setTimeout(r, 1000));
                 }
-
-                allArticles.push({
-                    title: item.title || 'Untitled',
-                    content: content,
-                    source: feed.name,
-                    category: feed.category,
-                    image: imageUrl,
-                    originalLink: link,
-                    isRSS: true
-                });
             }
-        } catch (err) {
-            errors.push(`${feed.name}: ${err.message}`);
         }
     }
 
-    console.log(`📡 RSS fetched: ${allArticles.length} articles (${errors.length} errors, ${dupesSkipped} feed-dupes skipped, ${imagesFixed} images from OG tags)`);
-    if (errors.length > 0) console.log('   Errors:', errors.slice(0, 3).join(', '));
+    console.log(`📡 RSS fetched: ${allArticles.length} articles (${errors.length} errors, ${dupesSkipped} dupes skipped, ${imagesFixed} OG images, ${feedsAttempted} feeds tried)`);
+    if (errors.length > 0) console.log('   Errors:', errors.slice(0, 5).join(', '));
     return allArticles;
 }
 
@@ -379,6 +440,7 @@ async function fetchRSSArticles(targetCount = 35) {
 async function queueRSSFor8Days() {
     const perDay = 35;
     const days = 8;
+    const maxAttemptsPerDay = 3;
 
     // Use IST date as base so Day 1 = tomorrow in India time
     const istDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -389,74 +451,90 @@ async function queueRSSFor8Days() {
     console.log(`   Base date (IST): ${baseDate.toDateString()}`);
     console.log(`🤖 Gemini AI rewrite: ${GEMINI_API_KEY ? '✅ Enabled' : '❌ Disabled (add GEMINI_API_KEY to .env)'}`);
 
+    // GLOBAL seen links across ALL days — prevents cross-day duplicates
+    const globalSeenLinks = new Set();
+    let totalQueued = 0;
+
     for (let day = 0; day < days; day++) {
         const targetDate = new Date(baseDate);
         targetDate.setDate(targetDate.getDate() + day);  // Day 1 = today
         targetDate.setHours(0, 0, 0, 0);
 
-        const articles = await fetchRSSArticles(perDay);
-        if (articles.length === 0) {
-            console.log(`   Day ${day + 1}: No articles fetched`);
-            continue;
-        }
+        let dayQueued = 0;
+        let daySkipped = 0;
+        let attempts = 0;
 
-        let queuedCount = 0;
-        let skippedCount = 0;
-        for (let i = 0; i < articles.length; i++) {
-            const article = articles[i];
+        // Keep fetching until we have 35 non-duplicates or exhaust attempts
+        while (dayQueued < perDay && attempts < maxAttemptsPerDay) {
+            attempts++;
+            const needed = perDay - dayQueued;
+            const fetchTarget = Math.max(needed * 3, 25); // fetch 3× what we still need
 
-            // DUPLICATE CHECK
-            const isDup = await isDuplicateArticle(article.title, article.originalLink);
-            if (isDup) {
-                skippedCount++;
-                console.log(`   ⏭️ Skipped duplicate: ${article.title.substring(0, 50)}...`);
-                continue;
+            console.log(`   📡 Day ${day + 1} attempt ${attempts}: need ${needed} more, fetching ~${fetchTarget}`);
+
+            const fetched = await fetchRSSArticles(fetchTarget, globalSeenLinks, true);
+            if (fetched.length === 0) {
+                console.log(`   ⚠️ Day ${day + 1}: zero articles returned, breaking`);
+                break;
             }
 
-            // AI Rewrite to ~170 words
-            let finalContent = article.content;
-            const originalLength = article.content?.length || 0;
+            for (const article of fetched) {
+                if (dayQueued >= perDay) break;
 
-            if (GEMINI_API_KEY && geminiModel) {
-                try {
-                    finalContent = await rewriteSummaryWithGemini(article.title, article.content);
-                    const newLength = finalContent?.length || 0;
-                    const wordCount = finalContent?.split(/\s+/)?.filter(w => w.length > 0)?.length || 0;
-                    console.log(`   🤖 [${i + 1}/${articles.length}] AI summary: ${wordCount} words, ${newLength} chars | ${article.title.substring(0, 40)}...`);
-                    // Rate limit safety
-                    if (i < articles.length - 1) await new Promise(r => setTimeout(r, GEMINI_DELAY_MS));
-                } catch (e) {
-                    console.log(`   ⚠️ AI rewrite failed for: ${article.title.substring(0, 50)} — using original (${originalLength} chars)`);
+                // DUPLICATE CHECK
+                const isDup = await isDuplicateArticle(article.title, article.originalLink);
+                if (isDup) {
+                    daySkipped++;
+                    console.log(`   ⏭️ Skipped duplicate: ${article.title.substring(0, 50)}...`);
+                    continue;
                 }
-            } else {
-                console.log(`   ⏭️ No Gemini key, using original content (${originalLength} chars)`);
+
+                // AI Rewrite to ~170 words
+                let finalContent = article.content;
+                const originalLength = article.content?.length || 0;
+
+                if (GEMINI_API_KEY && geminiModel) {
+                    try {
+                        finalContent = await rewriteSummaryWithGemini(article.title, article.content);
+                        const newLength = finalContent?.length || 0;
+                        const wordCount = finalContent?.split(/\s+/)?.filter(w => w.length > 0)?.length || 0;
+                        console.log(`   🤖 [${dayQueued + 1}/35] AI summary: ${wordCount} words, ${newLength} chars | ${article.title.substring(0, 40)}...`);
+                        // Rate limit safety
+                        if (dayQueued < perDay - 1) await new Promise(r => setTimeout(r, GEMINI_DELAY_MS));
+                    } catch (e) {
+                        console.log(`   ⚠️ AI rewrite failed for: ${article.title.substring(0, 50)} — using original (${originalLength} chars)`);
+                    }
+                } else {
+                    console.log(`   ⏭️ No Gemini key, using original content (${originalLength} chars)`);
+                }
+
+                await UpcomingArticle.create({
+                    title: article.title,
+                    content: finalContent,
+                    summary: finalContent,
+                    image: article.image,
+                    source: article.source,
+                    category: article.category,
+                    originalLink: article.originalLink,
+                    isManual: true,
+                    status: 'published',
+                    targetDate: targetDate,
+                    dayLabel: `Day ${day + 1}`,
+                    isRSS: true,
+                    author_name: 'RSS Auto-Fetch'
+                });
+                dayQueued++;
+                totalQueued++;
             }
 
-            await UpcomingArticle.create({
-                title: article.title,
-                content: finalContent,
-                summary: finalContent,
-                image: article.image,
-                source: article.source,
-                category: article.category,
-                originalLink: article.originalLink,
-                isManual: true,
-                status: 'published',
-                targetDate: targetDate,
-                dayLabel: `Day ${day + 1}`,
-                isRSS: true,
-                author_name: 'RSS Auto-Fetch'
-            });
-            queuedCount++;
+            console.log(`   📊 Day ${day + 1} attempt ${attempts}: ${dayQueued}/35 queued (${daySkipped} skipped)`);
+            await new Promise(r => setTimeout(r, 1500));
         }
 
-        console.log(`   ✅ Day ${day + 1} (${targetDate.toDateString()}): ${queuedCount} articles queued (${skippedCount} duplicates skipped)`);
-
-
-        await new Promise(r => setTimeout(r, 1500));
+        console.log(`   ✅ Day ${day + 1} (${targetDate.toDateString()}): ${dayQueued} articles queued`);
     }
 
-    console.log('🎉 All 8 days queued!\n');
+    console.log(`🎉 Total queued: ${totalQueued} articles across ${days} days\n`);
 }
 
 
@@ -526,6 +604,7 @@ function normalizeTitle(title) {
 }
 
 function titleSimilarity(a, b) {
+    if (!a || !b) return 0;
     const wordsA = new Set(normalizeTitle(a).split(' ').filter(w => w.length > 2));
     const wordsB = new Set(normalizeTitle(b).split(' ').filter(w => w.length > 2));
     if (wordsA.size === 0 || wordsB.size === 0) return 0;
@@ -549,14 +628,14 @@ async function isDuplicateArticle(title, originalLink) {
                        || await Article.findOne({ title });
     if (existingTitle) return true;
 
-    // 3. Fuzzy title match in last 30 days
+    // 3. Fuzzy title match in last 30 days — RAISED to 0.88 (was 0.82)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const recentUpcoming = await UpcomingArticle.find({ createdAt: { $gte: thirtyDaysAgo } }).select('title');
     const recentArticles = await Article.find({ createdAt: { $gte: thirtyDaysAgo } }).select('title');
     const allTitles = [...recentUpcoming, ...recentArticles].map(a => a.title);
 
     for (const existing of allTitles) {
-        if (titleSimilarity(title, existing) > 0.82) return true;
+        if (titleSimilarity(title, existing) > 0.88) return true;
     }
 
     return false;
@@ -601,7 +680,7 @@ function extractImageFromRSS(item) {
 
     // 5. Extract from HTML content (content:encoded, description, content, summary)
     const htmlContent = item['content:encoded'] || item.content || item.description || item.summary || '';
-    const imgMatch = htmlContent.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
+    const imgMatch = htmlContent.match(/<<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
     if (imgMatch) return imgMatch[1];
 
     // 6. Broader regex for raw image URLs in text
@@ -624,12 +703,12 @@ async function fetchOGImage(url) {
         });
         const html = response.data;
         // og:image
-        let ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-                   || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+        let ogMatch = html.match(/<<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+                   || html.match(/<<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
         // twitter:image
         if (!ogMatch) {
-            ogMatch = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
-                     || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+            ogMatch = html.match(/<<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
+                     || html.match(/<<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
         }
         if (ogMatch) {
             let imgUrl = ogMatch[1].trim();
@@ -900,6 +979,16 @@ app.delete('/api/admin/queue/:id', adminAuthMiddleware, async (req, res) => {
         }
         await UpcomingArticle.findByIdAndDelete(req.params.id);
         res.json({ success: true, message: 'Removed from queue' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Clear entire queue
+app.post('/api/admin/clear-queue', adminAuthMiddleware, async (req, res) => {
+    try {
+        await UpcomingArticle.deleteMany({});
+        res.json({ success: true, message: 'Queue cleared' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -1202,7 +1291,7 @@ if (DEBUG) {
             <div class="card">
                 <h3>News Sources</h3>
                 <p>✅ GNews API: ${GNEWS_API_KEY ? 'Configured' : 'Not Configured'}</p>
-                <p>✅ RSS Feeds: 20 free sources (no API key)</p>
+                <p>✅ RSS Feeds: 49 free sources (no API key)</p>
                 <p>✅ Manual Articles: MongoDB (Unlimited)</p>
                 <p>📦 Cache Duration: ${CACHE_DURATION / 60000} min</p>
                 <p>🔁 GNews: Single request per cache window</p>
@@ -1749,7 +1838,7 @@ app.listen(PORT, async () => {
     console.log('🚀 CENTRINSIC NPT SERVER STARTED');
     console.log(`Port:             ${PORT}`);
     console.log(`GNews API:        ${GNEWS_API_KEY ? '✅' : '❌'}`);
-    console.log(`RSS Feeds:        ✅ 20 free sources`);
+    console.log(`RSS Feeds:        ✅ 49 free sources`);
     console.log(`Manual Articles:  ♾️  Unlimited`);
     console.log(`GNews Articles:   ${GNEWS_ARTICLES_LIMIT} per fetch`);
     console.log(`Cache Duration:   ${CACHE_DURATION / 60000} min`);
@@ -1761,7 +1850,7 @@ app.listen(PORT, async () => {
     console.log(`Gemini AI:        ${GEMINI_API_KEY ? '✅' : '❌'} ${GEMINI_API_KEY ? '(~170 words summary)' : '(add GEMINI_API_KEY to .env)'}`);
     console.log(`Gemini Delay:     ${GEMINI_DELAY_MS}ms (${(GEMINI_DELAY_MS/1000).toFixed(1)}s) between articles`);
     console.log(`Gemini Key Length: ${GEMINI_API_KEY ? GEMINI_API_KEY.length : 0} chars`);
-    console.log(`Duplicate Filter: ✅ URL + fuzzy title match (30-day window)`);
+    console.log(`Duplicate Filter: ✅ URL + fuzzy title match (30-day window, 0.88 threshold)`);
     console.log(`Image Extraction: ✅ RSS → OG tags → Category fallback`);
     console.log(`Robust Publish:   ✅ Startup check + 30-min interval`);
     console.log('========================================');
