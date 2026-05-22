@@ -16,6 +16,7 @@ const os = require('os');
 const axios = require('axios');
 const crypto = require('crypto');
 const Parser = require('rss-parser');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
@@ -34,6 +35,8 @@ const rssParser = new Parser({
 // GNEWS
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
 const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_DELAY_MS = parseInt(process.env.GEMINI_DELAY_MS) || 4000; // 4s default for free tier (15 RPM)
 const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 60) * 60 * 1000;
 const MANUAL_ARTICLES_LIMIT = 0;
 const GNEWS_ARTICLES_LIMIT = 10;
@@ -129,7 +132,8 @@ const articleSchema = new mongoose.Schema({
     status: { type: String, enum: ['draft', 'published'], default: 'published' },
     expiresAt: { type: Date },
     author_id: mongoose.Schema.Types.ObjectId,
-    author_name: String
+    author_name: String,
+    summary: { type: String, default: '' }
 }, { timestamps: true });
 
 // UPCOMING / QUEUED ARTICLES (For 8-Day Auto-Upload)
@@ -145,6 +149,7 @@ const upcomingArticleSchema = new mongoose.Schema({
     expiresAt: { type: Date },
     author_id: mongoose.Schema.Types.ObjectId,
     author_name: String,
+    summary: { type: String, default: '' },
     targetDate: { type: Date, required: true },
     dayLabel: { type: String },
     isRSS: { type: Boolean, default: false }
@@ -316,25 +321,37 @@ const RSS_FEEDS = [
 async function fetchRSSArticles(targetCount = 35) {
     const allArticles = [];
     const errors = [];
+    const seenLinks = new Set();
+    let dupesSkipped = 0;
+    let imagesFixed = 0;
 
     for (const feed of RSS_FEEDS) {
         if (allArticles.length >= targetCount) break;
         try {
             const feedData = await rssParser.parseURL(feed.url);
-            const items = feedData.items.slice(0, 5);
+            const items = feedData.items.slice(0, 7); // Fetch a few extra to allow for dupes
 
             for (const item of items) {
                 if (allArticles.length >= targetCount) break;
+
+                const link = item.link || item.guid || '';
+                if (seenLinks.has(link)) { dupesSkipped++; continue; }
+                seenLinks.add(link);
 
                 let content = item.content || item.contentSnippet || item.summary || item.description || 'No content available';
                 content = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
                 if (content.length < 100) content = item.title + '. ' + content;
                 if (content.length > 1200) content = content.substring(0, 1200) + '...';
 
-                let imageUrl = null;
-                if (item.enclosure && item.enclosure.url) imageUrl = item.enclosure.url;
-                else if (item['media:content'] && item['media:content'].$ && item['media:content'].$.url) imageUrl = item['media:content'].$.url;
-                else if (item['media:thumbnail'] && item['media:thumbnail'].$ && item['media:thumbnail'].$.url) imageUrl = item['media:thumbnail'].$.url;
+                // Better image extraction
+                let imageUrl = extractImageFromRSS(item);
+                if (!imageUrl && link) {
+                    imageUrl = await fetchOGImage(link);
+                    if (imageUrl) imagesFixed++;
+                }
+                if (!imageUrl) {
+                    imageUrl = getFallbackImage(feed.category);
+                }
 
                 allArticles.push({
                     title: item.title || 'Untitled',
@@ -342,7 +359,7 @@ async function fetchRSSArticles(targetCount = 35) {
                     source: feed.name,
                     category: feed.category,
                     image: imageUrl,
-                    originalLink: item.link || item.guid || '',
+                    originalLink: link,
                     isRSS: true
                 });
             }
@@ -351,7 +368,7 @@ async function fetchRSSArticles(targetCount = 35) {
         }
     }
 
-    console.log(`📡 RSS fetched: ${allArticles.length} articles (${errors.length} errors)`);
+    console.log(`📡 RSS fetched: ${allArticles.length} articles (${errors.length} errors, ${dupesSkipped} feed-dupes skipped, ${imagesFixed} images from OG tags)`);
     if (errors.length > 0) console.log('   Errors:', errors.slice(0, 3).join(', '));
     return allArticles;
 }
@@ -363,6 +380,7 @@ async function queueRSSFor8Days() {
     const days = 8;
 
     console.log(`\n📅 Queueing RSS articles for ${days} days (${perDay}/day)...`);
+    console.log(`🤖 Gemini AI rewrite: ${GEMINI_API_KEY ? '✅ Enabled' : '❌ Disabled (add GEMINI_API_KEY to .env)'}`);
 
     for (let day = 0; day < days; day++) {
         const targetDate = new Date(now);
@@ -375,10 +393,36 @@ async function queueRSSFor8Days() {
             continue;
         }
 
-        for (const article of articles) {
+        let queuedCount = 0;
+        let skippedCount = 0;
+        for (let i = 0; i < articles.length; i++) {
+            const article = articles[i];
+
+            // DUPLICATE CHECK
+            const isDup = await isDuplicateArticle(article.title, article.originalLink);
+            if (isDup) {
+                skippedCount++;
+                console.log(`   ⏭️ Skipped duplicate: ${article.title.substring(0, 50)}...`);
+                continue;
+            }
+
+            // AI Rewrite to ~170 words
+            let finalContent = article.content;
+            if (GEMINI_API_KEY) {
+                try {
+                    finalContent = await rewriteSummaryWithGemini(article.title, article.content);
+                    console.log(`   🤖 [${i + 1}/${articles.length}] AI summary OK: ${article.title.substring(0, 45)}...`);
+                    // Rate limit safety (15 RPM on free tier = 4s gap)
+                    if (i < articles.length - 1) await new Promise(r => setTimeout(r, GEMINI_DELAY_MS));
+                } catch (e) {
+                    console.log(`   ⚠️ AI rewrite failed for: ${article.title.substring(0, 50)}`);
+                }
+            }
+
             await UpcomingArticle.create({
                 title: article.title,
-                content: article.content,
+                content: finalContent,
+                summary: finalContent,
                 image: article.image,
                 source: article.source,
                 category: article.category,
@@ -390,13 +434,207 @@ async function queueRSSFor8Days() {
                 isRSS: true,
                 author_name: 'RSS Auto-Fetch'
             });
+            queuedCount++;
         }
 
-        console.log(`   ✅ Day ${day + 1} (${targetDate.toDateString()}): ${articles.length} articles queued`);
+        console.log(`   ✅ Day ${day + 1} (${targetDate.toDateString()}): ${queuedCount} articles queued (${skippedCount} duplicates skipped)`);
+
+
         await new Promise(r => setTimeout(r, 1500));
     }
 
     console.log('🎉 All 8 days queued!\n');
+}
+
+
+// ============================================
+// GEMINI AI SUMMARY REWRITE (~170 WORDS)
+// ============================================
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
+
+async function rewriteSummaryWithGemini(title, content) {
+    if (!geminiModel) return content;
+
+    try {
+        const prompt = `Rewrite the following news article into a professional, factual summary of exactly 150-170 words. Preserve all key facts, names, dates, and important quotes. Use clear journalistic language. Do not add opinions or information not in the original text. Output plain text only — no markdown, no headers, no bullet points.
+
+TITLE: ${title}
+
+ARTICLE: ${content.substring(0, 4000)}
+
+SUMMARY:`;
+
+        const result = await geminiModel.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 300,
+            }
+        });
+
+        const response = await result.response;
+        let summary = response.text().trim();
+
+        // Word count enforcement — hard cap at ~170 words
+        const words = summary.split(/\s+/).filter(w => w.length > 0);
+        if (words.length > 175) {
+            summary = words.slice(0, 170).join(' ') + '...';
+        }
+
+        return summary;
+    } catch (err) {
+        console.error('❌ Gemini rewrite error:', err.message);
+        return content;
+    }
+}
+
+// ============================================
+// DUPLICATE FILTER & BETTER IMAGE EXTRACTION
+// ============================================
+
+const CATEGORY_FALLBACK_IMAGES = {
+    'World': 'https://images.unsplash.com/photo-1523995462485-3a17e36c6c80?w=800&q=80',
+    'India': 'https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=800&q=80',
+    'Technology': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80',
+    'Sports': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80',
+    'Business': 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80',
+    'Science': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80',
+    'Entertainment': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
+    'General': 'https://images.unsplash.com/photo-1504711434969-e33886168db5?w=800&q=80'
+};
+
+function normalizeTitle(title) {
+    if (!title) return '';
+    return title.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function titleSimilarity(a, b) {
+    const wordsA = new Set(normalizeTitle(a).split(' ').filter(w => w.length > 2));
+    const wordsB = new Set(normalizeTitle(b).split(' ').filter(w => w.length > 2));
+    if (wordsA.size === 0 || wordsB.size === 0) return 0;
+    const intersection = [...wordsA].filter(x => wordsB.has(x));
+    const union = new Set([...wordsA, ...wordsB]);
+    return intersection.length / union.size;
+}
+
+async function isDuplicateArticle(title, originalLink) {
+    if (!title || title.length < 10) return true; // Too short = likely invalid
+
+    // 1. Exact URL match
+    if (originalLink) {
+        const existingUrl = await UpcomingArticle.findOne({ originalLink })
+                         || await Article.findOne({ originalLink });
+        if (existingUrl) return true;
+    }
+
+    // 2. Exact title match
+    const existingTitle = await UpcomingArticle.findOne({ title })
+                       || await Article.findOne({ title });
+    if (existingTitle) return true;
+
+    // 3. Fuzzy title match in last 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentUpcoming = await UpcomingArticle.find({ createdAt: { $gte: thirtyDaysAgo } }).select('title');
+    const recentArticles = await Article.find({ createdAt: { $gte: thirtyDaysAgo } }).select('title');
+    const allTitles = [...recentUpcoming, ...recentArticles].map(a => a.title);
+
+    for (const existing of allTitles) {
+        if (titleSimilarity(title, existing) > 0.82) return true;
+    }
+
+    return false;
+}
+
+function extractImageFromRSS(item) {
+    // 1. Standard enclosure
+    if (item.enclosure?.url) return item.enclosure.url;
+    if (item.enclosure?.['@url']) return item.enclosure['@url'];
+
+    // 2. media:content (various formats)
+    let mediaContent = item['media:content'];
+    if (!mediaContent && item['media:group']) {
+        mediaContent = item['media:group']['media:content'];
+    }
+    if (mediaContent) {
+        const contents = Array.isArray(mediaContent) ? mediaContent : [mediaContent];
+        for (const m of contents) {
+            const url = m?.$?.url || m?.url || m?.['@url'] || m?.$?.['@url'];
+            if (url && !url.includes('tracking') && !url.includes('pixel') && !url.includes('1x1')) {
+                return url;
+            }
+        }
+    }
+
+    // 3. media:thumbnail
+    let thumb = item['media:thumbnail'];
+    if (!thumb && item['media:group']) {
+        thumb = item['media:group']['media:thumbnail'];
+    }
+    if (thumb) {
+        const thumbs = Array.isArray(thumb) ? thumb : [thumb];
+        for (const t of thumbs) {
+            const url = t?.$?.url || t?.url || t?.['@url'];
+            if (url) return url;
+        }
+    }
+
+    // 4. itunes:image
+    if (item['itunes:image']?.href) return item['itunes:image'].href;
+    if (item['itunes:image']?.$?.href) return item['itunes:image'].$.href;
+
+    // 5. Extract from HTML content (content:encoded, description, content, summary)
+    const htmlContent = item['content:encoded'] || item.content || item.description || item.summary || '';
+    const imgMatch = htmlContent.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
+    if (imgMatch) return imgMatch[1];
+
+    // 6. Broader regex for raw image URLs in text
+    const broadMatch = htmlContent.match(/https?:\/\/[^\s"<>]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s"<>]*)?/i);
+    if (broadMatch) return broadMatch[0];
+
+    // 7. Image in CDATA or other fields
+    if (item.image?.url) return item.image.url;
+
+    return null;
+}
+
+async function fetchOGImage(url) {
+    if (!url) return null;
+    try {
+        const response = await axios.get(url, {
+            timeout: 8000,
+            maxRedirects: 5,
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CentrinsicBot/1.0)' }
+        });
+        const html = response.data;
+        // og:image
+        let ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+                   || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+        // twitter:image
+        if (!ogMatch) {
+            ogMatch = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
+                     || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+        }
+        if (ogMatch) {
+            let imgUrl = ogMatch[1].trim();
+            if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
+            if (imgUrl.startsWith('/')) {
+                const base = new URL(url);
+                imgUrl = `${base.protocol}//${base.host}${imgUrl}`;
+            }
+            return imgUrl;
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function getFallbackImage(category) {
+    return CATEGORY_FALLBACK_IMAGES[category] || CATEGORY_FALLBACK_IMAGES['General'];
 }
 
 // ============================================
@@ -1017,6 +1255,7 @@ async function publishQueuedArticles() {
         await Article.create({
             title: q.title,
             content: q.content,
+            summary: q.summary || q.content,
             image: q.image,
             source: q.source,
             category: q.category,
@@ -1209,6 +1448,10 @@ app.listen(PORT, () => {
     console.log(`Keep-alive:       ✅ 14 min`);
     console.log(`Admin Password:   ${ADMIN_PASSWORD ? '✅ Configured' : '❌ NOT SET — add ADMIN_PASSWORD to .env!'}`);
     console.log(`Auto-refill:      ✅ Every 6 hours if queue < 100`);
+    console.log(`Gemini AI:        ${GEMINI_API_KEY ? '✅' : '❌'} ${GEMINI_API_KEY ? '(~170 words summary)' : '(add GEMINI_API_KEY to .env)'}`);
+    console.log(`Gemini Delay:     ${GEMINI_DELAY_MS}ms (${(GEMINI_DELAY_MS/1000).toFixed(1)}s) between articles`);
+    console.log(`Duplicate Filter: ✅ URL + fuzzy title match (30-day window)`);
+    console.log(`Image Extraction: ✅ RSS → OG tags → Category fallback`);
     console.log('========================================');
     
     // Start auto-refill checks
