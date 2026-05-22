@@ -225,19 +225,37 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-// Admin password check (standalone)
+// Admin password check (standalone) — FIXED
 const checkAdminPassword = (passwordInput) => {
     if (!ADMIN_PASSWORD || !passwordInput) return false;
     try {
-        const provided = crypto.createHash('sha256').update(Buffer.from(String(passwordInput))).digest();
-        const expected = crypto.createHash('sha256').update(Buffer.from(ADMIN_PASSWORD)).digest();
-        return crypto.timingSafeEqual(provided, expected);
-    } catch { return false; }
+        const input = String(passwordInput).trim();
+        const expected = String(ADMIN_PASSWORD).trim();
+        
+        // Use timing-safe comparison with direct string match first
+        if (input.length !== expected.length) return false;
+        
+        const provided = crypto.createHash('sha256').update(Buffer.from(input)).digest();
+        const expectedHash = crypto.createHash('sha256').update(Buffer.from(expected)).digest();
+        return crypto.timingSafeEqual(provided, expectedHash);
+    } catch (e) { 
+        console.error('Admin password check error:', e.message);
+        return false; 
+    }
 };
 
 // COMBINED: Password OR OTP
 const adminAuthMiddleware = async (req, res, next) => {
     const adminPassword = req.headers['x-admin-password'] || req.query.admin_password;
+
+    // Debug log
+    if (adminPassword) {
+        console.log('🔐 Admin password attempt received');
+        console.log('   ADMIN_PASSWORD env exists:', !!ADMIN_PASSWORD);
+        console.log('   Check result:', checkAdminPassword(adminPassword));
+    }
+
+
 
     if (adminPassword && checkAdminPassword(adminPassword)) {
         const adminUser = await User.findOne({ email: "centrinsicnpt@gmail.com" });
