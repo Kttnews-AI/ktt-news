@@ -464,7 +464,7 @@ async function queueRSSFor8Days() {
 // GEMINI AI SUMMARY REWRITE (~170 WORDS)
 // ============================================
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash-8b' }) : null;
 
 async function rewriteSummaryWithGemini(title, content) {
     if (!geminiModel) {
@@ -1373,19 +1373,17 @@ async function checkAndPublishPending() {
 
         console.log(`🔍 Publish check: ${liveCount} live manual articles, ${queuedCount} queued`);
 
-        // If no live articles but queue has articles, publish the earliest day's batch
+        // ONLY publish if NO live articles exist (fresh start / after delete)
+        // This prevents double-publishing when articles already exist
         if (liveCount === 0 && queuedCount > 0) {
             console.log('🚨 No live articles found but queue has articles — running catch-up publish!');
             await publishQueuedArticles();
+        } else if (liveCount > 0) {
+            console.log(`✅ ${liveCount} live articles already present — skipping catch-up`);
         }
 
-        // Also: if it's been more than 2 hours since last publish and queue has articles, publish
-        const lastPublish = publishScheduleLog.lastPublishTime ? new Date(publishScheduleLog.lastPublishTime) : null;
-        const hoursSinceLast = lastPublish ? (Date.now() - lastPublish.getTime()) / (1000 * 60 * 60) : 999;
-        if (hoursSinceLast > 2 && queuedCount > 0) {
-            console.log(`🚨 ${hoursSinceLast.toFixed(1)} hours since last publish — running catch-up!`);
-            await publishQueuedArticles();
-        }
+        // REMOVED: The hoursSinceLast catch-up was causing multiple days to publish
+        // The auto-delete at 23:57 IST + 33min delay is the ONLY scheduled publish trigger
     } catch (err) {
         console.error('❌ checkAndPublishPending error:', err.message);
     }
@@ -1503,17 +1501,109 @@ app.post('/api/admin/trigger-publish', adminAuthMiddleware, async (req, res) => 
     }
 });
 
+// RESTORE missing days — publish specific day(s) back to live articles
+app.post('/api/admin/restore-day', adminAuthMiddleware, async (req, res) => {
+    try {
+        const { dayOffset } = req.body; // 0 = today, 1 = tomorrow, etc. Or use 'all' for all remaining
+
+        if (dayOffset === 'all') {
+            // Publish ALL remaining queued articles (emergency restore)
+            const allQueued = await UpcomingArticle.find({ status: 'published' }).sort({ targetDate: 1 });
+            if (allQueued.length === 0) {
+                return res.json({ success: true, message: 'No queued articles to restore' });
+            }
+            for (const q of allQueued) {
+                await Article.create({
+                    title: q.title,
+                    content: q.content,
+                    summary: q.summary || q.content,
+                    image: q.image,
+                    source: q.source,
+                    category: q.category,
+                    originalLink: q.originalLink,
+                    isManual: true,
+                    status: 'published',
+                    expiresAt: q.expiresAt,
+                    author_id: q.author_id,
+                    author_name: q.author_name || 'RSS Auto-Fetch',
+                    isRSS: q.isRSS || false
+                });
+            }
+            await UpcomingArticle.deleteMany({ _id: { $in: allQueued.map(q => q._id) } });
+            return res.json({ 
+                success: true, 
+                message: `Restored ${allQueued.length} articles`,
+                restoredCount: allQueued.length
+            });
+        }
+
+        // Restore specific day by offset
+        const targetDay = new Date();
+        targetDay.setHours(0, 0, 0, 0);
+        targetDay.setDate(targetDay.getDate() + (dayOffset || 0));
+        const endOfDay = new Date(targetDay);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const toRestore = await UpcomingArticle.find({
+            targetDate: { $gte: targetDay, $lte: endOfDay },
+            status: 'published'
+        });
+
+        if (toRestore.length === 0) {
+            return res.json({ success: true, message: `No articles found for day offset ${dayOffset}` });
+        }
+
+        for (const q of toRestore) {
+            await Article.create({
+                title: q.title,
+                content: q.content,
+                summary: q.summary || q.content,
+                image: q.image,
+                source: q.source,
+                category: q.category,
+                originalLink: q.originalLink,
+                isManual: true,
+                status: 'published',
+                expiresAt: q.expiresAt,
+                author_id: q.author_id,
+                author_name: q.author_name || 'RSS Auto-Fetch',
+                isRSS: q.isRSS || false
+            });
+        }
+        await UpcomingArticle.deleteMany({ _id: { $in: toRestore.map(q => q._id) } });
+
+        res.json({ 
+            success: true, 
+            message: `Restored ${toRestore.length} articles for ${targetDay.toDateString()}`,
+            restoredCount: toRestore.length,
+            dayOffset: dayOffset
+        });
+    } catch (err) { 
+        res.status(500).json({ success: false, error: err.message }); 
+    }
+});
+
 app.get('/api/admin/publish-status', adminAuthMiddleware, async (req, res) => {
     try {
         const liveCount = await Article.countDocuments({ isManual: true });
         const queuedCount = await UpcomingArticle.countDocuments();
         const earliest = await UpcomingArticle.findOne().sort({ targetDate: 1 }).select('targetDate dayLabel');
+
+        // Get day-by-day breakdown
+        const dayBreakdown = await UpcomingArticle.aggregate([
+            { $match: { status: 'published' } },
+            { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$targetDate' } }, count: { $sum: 1 }, dayLabel: { $first: '$dayLabel' } } },
+            { $sort: { _id: 1 } }
+        ]);
+
         res.json({
             liveManualArticles: liveCount,
             queuedArticles: queuedCount,
             earliestTargetDate: earliest ? { date: earliest.targetDate, dayLabel: earliest.dayLabel } : null,
+            dayBreakdown: dayBreakdown,
             lastPublish: publishScheduleLog,
-            autoDelete: autoDeleteLog
+            autoDelete: autoDeleteLog,
+            todayIST: new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' })
         });
     } catch (err) { 
         res.status(500).json({ success: false, error: err.message }); 
@@ -1599,7 +1689,7 @@ app.listen(PORT, async () => {
     }, 5000);
 
     // Test Gemini on startup
-    if (GEMINI_API_KEY) {
+    if (GEMINI_API_KEY && geminiModel) {
         setTimeout(async () => {
             try {
                 const testResult = await geminiModel.generateContent('Say "Gemini is working" in 5 words or less.');
@@ -1607,11 +1697,12 @@ app.listen(PORT, async () => {
                 console.log(`🤖 Gemini test: ${testText}`);
             } catch (e) {
                 console.error('🤖 Gemini test FAILED:', e.message);
-                console.error('   → Check your GEMINI_API_KEY and quota');
+                console.error('   → Model may be deprecated. Try gemini-1.5-flash-8b or gemini-2.0-flash-latest');
+                console.error('   → Check your GEMINI_API_KEY at https://aistudio.google.com/app/apikey');
             }
         }, 8000);
     } else {
-        console.log('🤖 Gemini: No API key configured');
+        console.log('🤖 Gemini: No API key or model not initialized');
     }
 
     // Run publish check every 30 minutes (catches missed publishes)
