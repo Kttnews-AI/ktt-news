@@ -391,7 +391,7 @@ async function queueRSSFor8Days() {
 
     for (let day = 0; day < days; day++) {
         const targetDate = new Date(baseDate);
-        targetDate.setDate(targetDate.getDate() + day + 1);
+        targetDate.setDate(targetDate.getDate() + day);  // Day 1 = today
         targetDate.setHours(0, 0, 0, 0);
 
         const articles = await fetchRSSArticles(perDay);
@@ -1621,7 +1621,7 @@ app.post('/api/admin/reset-and-reorganize', adminAuthMiddleware, async (req, res
 
         for (let day = 0; day < days; day++) {
             const targetDate = new Date(baseDate);
-            targetDate.setDate(targetDate.getDate() + day + 1);
+            targetDate.setDate(targetDate.getDate() + day);  // Day 1 = today
             targetDate.setHours(0, 0, 0, 0);
 
             const dayArticles = allArticles.slice(articleIndex, articleIndex + perDay);
