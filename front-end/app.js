@@ -376,6 +376,86 @@ function exportAllFunctions() {
     window.getArticleTab         = getArticleTab;
     window.handleMobileBack      = handleMobileBack;
     window.shareStartupEvent     = shareStartupEvent;
+    window.ensureTickerStyles    = ensureTickerStyles;
+    window.buildAutonomousTicker = buildAutonomousTicker;
+}
+
+/* ============================================
+   🤖 AI-D AUTONOMOUS TICKER — 8-Day Marquee
+============================================ */
+let _tickerStylesInjected = false;
+
+function ensureTickerStyles() {
+    if (_tickerStylesInjected) return;
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes tickerScroll {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .ai-ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+            background: linear-gradient(90deg, #0d1b2a 0%, #1b3a4b 50%, #0d1b2a 100%);
+            border-left: 3px solid #00e676;
+            border-radius: 10px;
+            margin: 0 16px 16px 16px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .ai-ticker-track {
+            display: flex;
+            width: max-content;
+            animation: tickerScroll 22s linear infinite;
+            will-change: transform;
+        }
+        .ai-ticker-track:hover {
+            animation-play-state: paused;
+        }
+        .ai-ticker-item {
+            flex-shrink: 0;
+            padding: 10px 40px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #e0f7fa;
+            white-space: nowrap;
+            letter-spacing: 0.3px;
+        }
+        .ai-ticker-dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            background: #00e676;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+            box-shadow: 0 0 6px #00e676;
+            animation: pulseDot 1.5s ease-in-out infinite;
+        }
+        @keyframes pulseDot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.5; transform: scale(0.7); }
+        }
+        .ai-ticker-sep {
+            color: #00e676;
+            margin: 0 12px;
+            opacity: 0.6;
+        }
+    `;
+    document.head.appendChild(style);
+    _tickerStylesInjected = true;
+}
+
+function buildAutonomousTicker() {
+    const msg = '⚡ AI-D Autonomous Mode Active • Daily AI-powered updates continue automatically';
+    // Duplicate message so scroll is seamless (no gap)
+    const items = Array(6).fill(msg).map((m, i) =>
+        `<span class="ai-ticker-item"><span class="ai-ticker-dot"></span>${m}<span class="ai-ticker-sep">◆</span></span>`
+    ).join('');
+    return `
+        <div class="ai-ticker-wrap">
+            <div class="ai-ticker-track">${items}</div>
+        </div>`;
 }
 
 /* ============================================
@@ -820,7 +900,8 @@ function renderTabView() {
             <div style="width:4px;height:24px;background:${cfg.color};border-radius:2px;"></div>
             <h2 style="color:${theme.sectionTitleColor};font-size:20px;font-weight:700;margin:0;">${cfg.icon} ${cfg.title}</h2>
             <span style="background:${cfg.color};color:white;font-size:12px;padding:4px 12px;border-radius:12px;margin-left:auto;">${activeArticles.length}</span>
-        </div>`;
+        </div>
+        ${currentTab === 'manual' ? (ensureTickerStyles(), buildAutonomousTicker()) : ''}`;
 
     if (activeArticles.length > 0) {
         if (currentTab === '60sec') {
@@ -1957,4 +2038,4 @@ function bindMobileButtons() {
     }
 }
 
-console.log("✅ Centrinsic NPT — Mobile Back Button Fixed + Dynamic Tab Order + Startup Events with Countdown & Auto-Expire");
+console.log("✅ Centrinsic NPT — Mobile Back Button + Dynamic Tab + Startup Events + AI-D Autonomous Ticker");
