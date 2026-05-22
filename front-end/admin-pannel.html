@@ -54,6 +54,8 @@
   .topbar h2 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
   .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); display: inline-block; }
+  .status-dot.offline { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+  .status-dot.warn { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
   .status-text { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; }
   .content { padding: 28px 32px; }
   .panel { display: none; }
@@ -61,7 +63,7 @@
 
   /* LOGIN */
   #loginScreen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; }
-  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px; width: 380px; max-width: 90vw; }
+  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px; width: 420px; max-width: 90vw; }
   .login-card h2 { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 6px; }
   .login-card p  { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
 
@@ -117,6 +119,7 @@
   .stat-card.orange::before { background: var(--orange); }
   .stat-card.dark-red::before { background: var(--red); }
   .stat-card.startup::before { background: var(--startup); }
+  .stat-card.queue::before { background: #8b5cf6; }
   .stat-label { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
   .stat-value { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; line-height: 1; }
   .stat-sub   { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -153,6 +156,38 @@
   .debug-box { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.2); border-radius: 10px; padding: 12px 14px; margin-top: 12px; font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; line-height: 1.6; max-height: 200px; overflow-y: auto; }
   .debug-box.error { background: rgba(255,71,87,0.08); border-color: rgba(255,71,87,0.2); color: var(--danger); }
 
+  /* QUEUE / SCHEDULER */
+  .queue-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+  .day-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; transition: all 0.2s; }
+  .day-card:hover { border-color: var(--accent); }
+  .day-card.full { border-color: var(--green); background: rgba(46,213,115,0.08); }
+  .day-card.partial { border-color: var(--orange); background: rgba(255,152,0,0.08); }
+  .day-card.empty { opacity: 0.5; }
+  .day-card h4 { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .day-card .count { font-size: 28px; font-weight: 800; color: var(--accent); font-family: 'Syne', sans-serif; }
+  .day-card.full .count { color: var(--green); }
+  .day-card.partial .count { color: var(--orange); }
+  .day-card .date-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .progress-bar { width: 100%; height: 6px; background: var(--bg); border-radius: 3px; margin-top: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #a78bfa); border-radius: 3px; transition: width 0.6s ease; }
+  .progress-fill.green { background: linear-gradient(90deg, var(--green), #34d399); }
+  .progress-fill.orange { background: linear-gradient(90deg, var(--orange), #ffb74d); }
+
+  .scheduler-info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .scheduler-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .scheduler-box h4 { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .scheduler-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .scheduler-row:last-child { border-bottom: none; }
+  .scheduler-row .label { color: var(--muted); }
+  .scheduler-row .value { color: var(--text); font-weight: 600; }
+
+  .queue-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  .queue-table th, .queue-table td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  .queue-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; font-family: 'DM Mono', monospace; }
+  .queue-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .queue-table .truncate { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   /* MISC */
   .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .section-header h3 { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; }
@@ -174,6 +209,7 @@
   .badge-red    { background: rgba(255,71,87,0.15);  color: var(--danger); }
   .badge-orange { background: rgba(255,152,0,0.15);  color: var(--orange); }
   .badge-startup { background: rgba(251,191,36,0.15); color: var(--startup); }
+  .badge-queue { background: rgba(139,92,246,0.15); color: #a78bfa; }
 
   /* MODALS */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(4px); }
@@ -193,10 +229,10 @@
     .form-row { grid-template-columns: 1fr; }
     .content { padding: 20px 16px; }
     .topbar { padding: 16px; }
+    .queue-grid { grid-template-columns: repeat(2, 1fr); }
+    .scheduler-info { grid-template-columns: 1fr; }
   }
 </style>
-<base target="_blank">
-<base target="_blank">
 </head>
 <body>
 
@@ -211,6 +247,7 @@
     <div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;">
       <button id="tab-password" class="btn btn-sm" style="background:var(--accent);color:#fff;border:none;flex:1;" onclick="switchAuthMethod('password')">🔐 Password</button>
       <button id="tab-otp" class="btn btn-sm btn-ghost" style="flex:1;" onclick="switchAuthMethod('otp')">📧 OTP</button>
+      <button id="tab-adminpw" class="btn btn-sm btn-ghost" style="flex:1;" onclick="switchAuthMethod('adminpw')">🛡️ Admin Key</button>
     </div>
     
     <!-- PASSWORD LOGIN -->
@@ -237,7 +274,6 @@
       <div id="otpLoginError" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;line-height:1.5;"></div>
       <div id="otpLoginSuccess" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(46,213,115,0.12);border:1px solid rgba(46,213,115,0.3);border-radius:10px;color:var(--green);font-size:13px;line-height:1.5;"></div>
       
-      <!-- OTP VERIFICATION SECTION -->
       <div id="otpVerifySection" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
         <div class="form-group">
           <label>Enter 6-digit OTP</label>
@@ -247,8 +283,20 @@
         <div id="otpVerifyError" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;"></div>
       </div>
     </div>
+
+    <!-- ADMIN PASSWORD LOGIN -->
+    <div id="adminPwSection" style="display:none;">
+      <div class="form-group">
+        <label>Admin Password</label>
+        <input type="password" id="adminPasswordInput" placeholder="Enter admin password from .env" onkeydown="if(event.key==='Enter')doAdminPasswordLogin()" autocomplete="off" />
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5;">
+        This uses the <code style="color:var(--accent2);">ADMIN_PASSWORD</code> from your server environment. No OTP needed.
+      </div>
+      <button id="adminPwBtn" class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doAdminPasswordLogin()">Unlock Admin →</button>
+      <div id="adminPwError" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);border-radius:10px;color:var(--danger);font-size:13px;line-height:1.5;"></div>
+    </div>
     
-    <!-- FOOTER TOOLS -->
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:center;">
       <button class="btn btn-ghost btn-sm" onclick="testServerConnection()" style="font-size:12px;">🔌 Test Server</button>
       <button class="btn btn-ghost btn-sm" onclick="toggleDebugLog()" style="font-size:12px;margin-left:6px;">🔍 Debug Log</button>
@@ -275,6 +323,7 @@
       <button class="nav-item" onclick="showPanel('upload-startup')"><span class="icon">🚀</span><span>Startup Events</span></button>
       <div class="nav-section-label">Manage</div>
       <button class="nav-item" onclick="showPanel('articles')"><span class="icon">📰</span><span>All Articles</span></button>
+      <button class="nav-item" onclick="showPanel('queue')"><span class="icon">📅</span><span>8-Day Queue</span></button>
       <button class="nav-item" onclick="showPanel('gnews')"><span class="icon">🌐</span><span>GNews Cache</span></button>
       <button class="nav-item" onclick="showPanel('scheduler')"><span class="icon">⏰</span><span>Scheduler</span></button>
     </nav>
@@ -283,7 +332,7 @@
         <div class="admin-avatar" id="adminAvatar">A</div>
         <div class="admin-info">
           <div class="name" id="adminName">Admin</div>
-          <div class="role">ADMIN</div>
+          <div class="role" id="adminRole">ADMIN</div>
         </div>
       </div>
     </div>
@@ -293,8 +342,9 @@
     <div class="topbar">
       <h2 id="topbarTitle">Dashboard</h2>
       <div class="topbar-right">
-        <span class="status-dot"></span>
-        <span class="status-text" id="dbStatus">Connected</span>
+        <span class="status-dot" id="dbStatusDot"></span>
+        <span class="status-text" id="dbStatus">Checking...</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadAllData()">🔄 Refresh</button>
         <button class="btn btn-ghost btn-sm" onclick="doLogout()">Logout</button>
       </div>
     </div>
@@ -308,13 +358,15 @@
           <div class="stat-card orange"><div class="stat-label">60 Sec Digests</div><div class="stat-value" id="stat60sec">—</div><div class="stat-sub">Daily bulletins</div></div>
           <div class="stat-card dark-red"><div class="stat-label">Current Affairs</div><div class="stat-value" id="statCA">—</div><div class="stat-sub">Current affairs</div></div>
           <div class="stat-card startup"><div class="stat-label">Startup Events</div><div class="stat-value" id="statStartup">—</div><div class="stat-sub">Events listed</div></div>
+          <div class="stat-card queue"><div class="stat-label">Queue (8 Days)</div><div class="stat-value" id="statQueue">—</div><div class="stat-sub">Articles queued</div></div>
           <div class="stat-card teal"><div class="stat-label">GNews Cached</div><div class="stat-value" id="statGnews">—</div><div class="stat-sub">AI-S cards</div></div>
           <div class="stat-card green"><div class="stat-label">Total Users</div><div class="stat-value" id="statUsers">—</div><div class="stat-sub">Registered</div></div>
           <div class="stat-card red-b"><div class="stat-label">Bookmarks</div><div class="stat-value" id="statBookmarks">—</div><div class="stat-sub">Saved by users</div></div>
+          <div class="stat-card purple"><div class="stat-label">Cache Age</div><div class="stat-value" id="statCacheAge">—</div><div class="stat-sub">Minutes</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
-            <div class="section-header"><h3>Quick Upload</h3></div>
+            <div class="section-header"><h3>Quick Actions</h3></div>
             <div style="display:flex;flex-direction:column;gap:10px;">
               <button class="btn btn-primary" onclick="showPanel('upload-aid')">🔵 Upload AI-D Article</button>
               <button class="btn btn-orange"  onclick="showPanel('upload-60sec')">⚡ Upload 60 Sec Digest</button>
@@ -322,12 +374,19 @@
               <button class="btn btn-startup" onclick="showPanel('upload-startup')">🚀 Upload Startup Event</button>
               <div class="divider" style="margin:4px 0;"></div>
               <button class="btn btn-ghost"   onclick="refreshGNews()">🔄 Refresh GNews Cache</button>
+              <button class="btn btn-ghost"   onclick="fetchRSS8Days()">📡 Fetch & Queue 8 Days RSS</button>
               <button class="btn btn-danger"  onclick="openDeleteAllModal()">🗑️ Delete All Manual News</button>
             </div>
           </div>
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
-            <div class="section-header"><h3>Auto-Delete Status</h3></div>
-            <div id="schedulerStatusDash" style="color:var(--muted);font-size:14px;">Loading...</div>
+            <div class="section-header"><h3>System Status</h3></div>
+            <div id="systemStatusDash" style="color:var(--muted);font-size:14px;line-height:2;">
+              <div>🗑️ Auto-Delete: <span id="dashDeleteStatus" style="color:var(--text);font-weight:600;">Loading...</span></div>
+              <div>📡 Auto-Publish: <span id="dashPublishStatus" style="color:var(--text);font-weight:600;">Loading...</span></div>
+              <div>💓 Keep-Alive: <span id="dashKeepAlive" style="color:var(--text);font-weight:600;">Loading...</span></div>
+              <div>📦 GNews Cache: <span id="dashGnewsCache" style="color:var(--text);font-weight:600;">Loading...</span></div>
+              <div>🗄️ Database: <span id="dashDbStatus" style="color:var(--text);font-weight:600;">Loading...</span></div>
+            </div>
           </div>
         </div>
       </div>
@@ -347,7 +406,6 @@
             </div>
           </div>
           
-          <!-- BULK PASTE PARSER -->
           <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
             <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📝 Bulk Paste Parser</div>
             <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
@@ -362,7 +420,6 @@
             </div>
             <div id="aid-parseFeedback" style="margin-top:8px;font-size:12px;color:var(--accent2);display:none;"></div>
 
-            <!-- ARTICLE QUEUE NAVIGATOR -->
             <div id="aid-articleQueueBar" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-top:12px;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                 <div style="font-size:13px;color:var(--text);min-width:0;">
@@ -376,7 +433,7 @@
               </div>
             </div>
           </div>
-          <!-- AUTO IMAGE QUEUE -->
+          
           <div style="background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
             <div style="font-size:12px;font-weight:800;color:var(--accent2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🖼️ Auto Image Queue</div>
             <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
@@ -471,7 +528,6 @@
             </div>
           </div>
 
-          <!-- FORMAT GUIDE -->
           <div style="background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
             <div style="font-size:12px;font-weight:800;color:var(--orange);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📋 Paste Format Guide</div>
             <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);line-height:1.8;background:var(--surface2);padding:12px;border-radius:8px;">
@@ -508,13 +564,11 @@ India National News
               style="min-height:380px;font-family:'DM Mono',monospace;font-size:13px;line-height:1.7;" onchange="update60SecPreview()" oninput="update60SecPreview()"></textarea>
           </div>
 
-          <!-- Live preview count -->
           <div id="60sec-parsePreview" style="background:var(--surface2);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted);display:none;">
             📊 Detected: <span id="60sec-sectionCount" style="color:var(--orange);font-weight:700;">0</span> sections,
             <span id="60sec-pointCount" style="color:var(--accent2);font-weight:700;">0</span> total points
           </div>
 
-          <!-- IMPORTANT NOTE — category is auto-set to '60sec' -->
           <div style="background:rgba(255,152,0,0.12);border:1px solid rgba(255,152,0,0.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;">
             ✅ <strong style="color:var(--orange);">Category is automatically set to "60sec"</strong> — no need to select anything. This ensures the article always appears in the ⚡ 60 Sec tab.
           </div>
@@ -558,7 +612,7 @@ India National News
               <div style="font-size:13px;color:var(--muted);">Exam-relevant content, government policies, major events.</div>
             </div>
           </div>
-          <!-- AUTO IMAGE QUEUE -->
+          
           <div style="background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
             <div style="font-size:12px;font-weight:800;color:var(--accent2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🖼️ Auto Image Queue</div>
             <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
@@ -709,7 +763,6 @@ India National News
             </div>
           </div>
 
-          <!-- CATEGORY NOTE -->
           <div style="background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;">
             ✅ <strong style="color:var(--startup);">Category is automatically set to "startupevents"</strong> — no need to select anything. This ensures the event always appears in the 🚀 Startup tab.
           </div>
@@ -755,6 +808,53 @@ India National News
         <div id="articlesList"><div class="loading-row"><div class="spinner"></div> Loading articles...</div></div>
       </div>
 
+      <!-- ══ 8-DAY QUEUE ══ -->
+      <div class="panel" id="panel-queue">
+        <div class="section-header">
+          <h3>📅 8-Day RSS Queue System</h3>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <span class="badge badge-queue" id="queueCountBadge">0 queued</span>
+            <button class="btn btn-primary btn-sm" onclick="fetchRSS8Days()">📡 Fetch & Queue 8 Days</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadQueuePanel()">🔄 Refresh</button>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div>
+              <div style="font-size:18px;font-weight:700;font-family:'Syne',sans-serif;">Queue Progress</div>
+              <div style="font-size:13px;color:var(--muted);margin-top:4px;">Target: 280 articles (35 × 8 days)</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;color:var(--accent);" id="queueTotalDisplay">0</div>
+              <div style="font-size:12px;color:var(--muted);">articles queued</div>
+            </div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="queueProgressBar" style="width:0%"></div></div>
+          <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;">
+            <span id="queueProgressText">0 / 280</span>
+            <span id="queueProgressPct">0%</span>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+          <div style="font-size:16px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:16px;">Day-by-Day Breakdown</div>
+          <div class="queue-grid" id="queueDayGrid">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div style="font-size:16px;font-weight:700;font-family:'Syne',sans-serif;">Queued Articles</div>
+            <button class="btn btn-danger btn-sm" onclick="clearQueue()">🗑️ Clear All Queue</button>
+          </div>
+          <div id="queueArticlesList" style="max-height:500px;overflow-y:auto;">
+            <div class="loading-row"><div class="spinner"></div> Loading queue...</div>
+          </div>
+        </div>
+      </div>
+
       <!-- ══ GNEWS ══ -->
       <div class="panel" id="panel-gnews">
         <div class="section-header">
@@ -767,10 +867,32 @@ India National News
 
       <!-- ══ SCHEDULER ══ -->
       <div class="panel" id="panel-scheduler">
-        <div class="section-header"><h3>Auto-Delete Scheduler</h3></div>
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
-          <h4 style="font-family:'Syne',sans-serif;margin-bottom:16px;">Scheduler Status</h4>
-          <div id="schedulerStatusFull" style="color:var(--muted);font-size:14px;line-height:2;">Loading...</div>
+        <div class="section-header"><h3>⏰ Auto-Delete & Auto-Publish Scheduler</h3></div>
+        
+        <div class="scheduler-info">
+          <div class="scheduler-box">
+            <h4>🗑️ Auto-Delete</h4>
+            <div id="schedulerDeleteDetails" style="color:var(--muted);font-size:13px;line-height:2;">
+              Loading...
+            </div>
+            <div style="margin-top:16px;">
+              <button class="btn btn-red btn-sm" onclick="triggerAutoDelete()">⏰ Trigger Auto-Delete Now</button>
+            </div>
+          </div>
+          
+          <div class="scheduler-box">
+            <h4>📡 Auto-Publish</h4>
+            <div id="schedulerPublishDetails" style="color:var(--muted);font-size:13px;line-height:2;">
+              Loading...
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-top:24px;">
+          <div style="font-size:16px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:16px;">System Logs</div>
+          <div id="schedulerLog" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);max-height:250px;overflow-y:auto;line-height:1.8;">
+            <div style="color:var(--accent);">[System] Scheduler panel loaded. Waiting for data...</div>
+          </div>
         </div>
       </div>
 
@@ -803,7 +925,16 @@ India National News
   </div>
 </div>
 
-<div id="toast"></div>
+<div class="modal-overlay" id="deleteQueueModal">
+  <div class="modal">
+    <h3>Remove from Queue?</h3>
+    <p id="deleteQueueMsg">Remove this queued article?</p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('deleteQueueModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDeleteQueue()">Remove</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
@@ -846,9 +977,12 @@ function toggleDebugLog() {
 // ═══════════════════════════════════════════════════════════════════
 const API_BASE = 'https://centrinsicnpt.com';
 let authToken = localStorage.getItem('admin_token') || '';
+let adminPassword = localStorage.getItem('admin_password') || ''; // For x-admin-password header
 let allArticlesData = [];
 let currentCategoryFilter = 'all';
 let deleteTargetId = null;
+let deleteQueueTargetId = null;
+let queueDataCache = [];
 
 log('Admin Panel initialized', 'info');
 log(`API Base: ${API_BASE}`, 'info');
@@ -857,39 +991,55 @@ window.onload = () => {
   log('Page loaded, checking for existing token', 'info');
   updateQueueUI('aid');
   updateQueueUI('ca');
-  if (authToken) {
-    log('Token found in localStorage, loading main layout', 'success');
+  if (authToken || adminPassword) {
+    log('Credentials found, loading main layout', 'info');
     showMainLayout();
-    loadDashboard();
+    loadAllData();
   } else {
-    log('No token found, showing login screen', 'info');
+    log('No credentials found, showing login screen', 'info');
   }
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// AUTHENTICATION - PASSWORD & OTP
+// AUTHENTICATION - PASSWORD & OTP & ADMIN PASSWORD
 // ═══════════════════════════════════════════════════════════════════
 
 function switchAuthMethod(method) {
   log(`Switching to ${method} authentication`, 'info');
   
-  // Update tabs
-  document.getElementById('tab-password').style.background = method === 'password' ? 'var(--accent)' : 'transparent';
-  document.getElementById('tab-password').style.color = method === 'password' ? '#fff' : 'var(--muted)';
-  document.getElementById('tab-password').style.border = method === 'password' ? 'none' : '1px solid var(--border)';
+  const tabs = ['password', 'otp', 'adminpw'];
+  const colors = {
+    password: { bg: 'var(--accent)', color: '#fff', border: 'none' },
+    otp: { bg: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)' },
+    adminpw: { bg: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)' }
+  };
   
-  document.getElementById('tab-otp').style.background = method === 'otp' ? 'var(--accent)' : 'transparent';
-  document.getElementById('tab-otp').style.color = method === 'otp' ? '#fff' : 'var(--muted)';
-  document.getElementById('tab-otp').style.border = method === 'otp' ? 'none' : '1px solid var(--border)';
+  tabs.forEach(t => {
+    const btn = document.getElementById(`tab-${t}`);
+    if (btn) {
+      const c = colors[t];
+      btn.style.background = c.bg;
+      btn.style.color = c.color;
+      btn.style.border = c.border;
+    }
+  });
   
-  // Show/hide sections
+  // Highlight active
+  const activeBtn = document.getElementById(`tab-${method}`);
+  if (activeBtn) {
+    activeBtn.style.background = 'var(--accent)';
+    activeBtn.style.color = '#fff';
+    activeBtn.style.border = 'none';
+  }
+  
   document.getElementById('passwordSection').style.display = method === 'password' ? 'block' : 'none';
   document.getElementById('otpLoginSection').style.display = method === 'otp' ? 'block' : 'none';
+  document.getElementById('adminPwSection').style.display = method === 'adminpw' ? 'block' : 'none';
   
-  // Clear errors
   document.getElementById('passwordError').style.display = 'none';
   document.getElementById('otpLoginError').style.display = 'none';
   document.getElementById('otpVerifyError').style.display = 'none';
+  document.getElementById('adminPwError').style.display = 'none';
 }
 
 // ─────────────────────── PASSWORD LOGIN ────────────────────────
@@ -938,7 +1088,7 @@ async function doLoginPassword() {
       localStorage.setItem('admin_token', authToken);
       localStorage.setItem('admin_email', email);
       showMainLayout();
-      loadDashboard();
+      loadAllData();
       showToast('Logged in successfully!', 'success');
     } else {
       const msg = data.message || data.error || 'Login failed. Check credentials.';
@@ -956,6 +1106,61 @@ async function doLoginPassword() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Sign In →';
+  }
+}
+
+// ─────────────────────── ADMIN PASSWORD LOGIN ────────────────────────
+async function doAdminPasswordLogin() {
+  const pw = document.getElementById('adminPasswordInput').value.trim();
+  const btn = document.getElementById('adminPwBtn');
+  const errBox = document.getElementById('adminPwError');
+  
+  errBox.style.display = 'none';
+  errBox.textContent = '';
+  
+  if (!pw) {
+    errBox.style.display = 'block';
+    errBox.textContent = 'Enter admin password';
+    return;
+  }
+  
+  log('Testing admin password against health endpoint...', 'info');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Verifying...';
+  
+  try {
+    // Test password by calling a protected endpoint
+    const response = await fetch(`${API_BASE}/api/admin/cache-status`, {
+      method: 'GET',
+      headers: { 'x-admin-password': pw }
+    });
+    
+    if (response.ok) {
+      log('Admin password accepted', 'success');
+      adminPassword = pw;
+      localStorage.setItem('admin_password', pw);
+      localStorage.setItem('admin_email', 'admin@centrinsic');
+      showMainLayout();
+      loadAllData();
+      showToast('Admin unlocked via password!', 'success');
+    } else {
+      const text = await response.text();
+      let msg = 'Invalid admin password';
+      try { const d = JSON.parse(text); msg = d.error || msg; } catch(e){}
+      log(`Admin password rejected: ${msg}`, 'error');
+      errBox.style.display = 'block';
+      errBox.textContent = msg;
+      showToast(msg, 'error');
+    }
+  } catch (e) {
+    const msg = `Network error: ${e.message}`;
+    log(msg, 'error');
+    errBox.style.display = 'block';
+    errBox.textContent = msg;
+    showToast(msg, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Unlock Admin →';
   }
 }
 
@@ -1082,7 +1287,7 @@ async function doVerifyOTP() {
       localStorage.setItem('admin_token', authToken);
       localStorage.setItem('admin_email', email);
       showMainLayout();
-      loadDashboard();
+      loadAllData();
       showToast('Logged in successfully!', 'success');
     } else {
       const msg = data.message || data.error || 'Invalid OTP';
@@ -1111,19 +1316,33 @@ function showMainLayout() {
   const name = email.split('@')[0];
   document.getElementById('adminName').textContent = name;
   document.getElementById('adminAvatar').textContent = name[0].toUpperCase();
+  document.getElementById('adminRole').textContent = authToken ? 'OTP AUTH' : (adminPassword ? 'ADMIN KEY' : 'ADMIN');
 }
 
 function doLogout() {
   log('Logging out', 'info');
   authToken = '';
+  adminPassword = '';
   localStorage.removeItem('admin_token');
+  localStorage.removeItem('admin_password');
   localStorage.removeItem('admin_email');
   location.reload();
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// API HELPERS
+// API HELPERS — Now supports BOTH Bearer token AND x-admin-password
 // ═══════════════════════════════════════════════════════════════════
+function getAuthHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  if (adminPassword) {
+    headers['x-admin-password'] = adminPassword;
+  }
+  return headers;
+}
+
 async function api(path, method = 'GET', body = null) {
   const opts = {
     method: method,
@@ -1158,10 +1377,7 @@ async function api(path, method = 'GET', body = null) {
 async function apiAuth(path, method = 'GET', body = null) {
   const opts = {
     method: method,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authToken}`
-    }
+    headers: getAuthHeaders()
   };
   if (body) opts.body = JSON.stringify(body);
   
@@ -1199,6 +1415,7 @@ const panelTitles = {
   'upload-ca': '🔴 Upload Current Affairs',
   'upload-startup': '🚀 Upload Startup Event',
   'articles': 'All Articles',
+  'queue': '8-Day Queue',
   'gnews': 'GNews Cache (AI-S)',
   'scheduler': 'Scheduler'
 };
@@ -1223,6 +1440,7 @@ function showPanel(name) {
   document.getElementById('topbarTitle').textContent = panelTitles[name] || name;
   
   if (name === 'articles') loadArticles();
+  if (name === 'queue') loadQueuePanel();
   if (name === 'gnews') loadGNewsPanel();
   if (name === 'scheduler') loadSchedulerStatus();
   if (name === 'dashboard') loadDashboard();
@@ -1231,28 +1449,264 @@ function showPanel(name) {
 // ═══════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════
+async function loadAllData() {
+  log('Loading all dashboard data...', 'info');
+  await Promise.all([
+    loadDashboard(),
+    loadSystemStatus(),
+    loadCacheStatus()
+  ]);
+}
+
 async function loadDashboard() {
   log('Loading dashboard', 'info');
   try {
     const [articlesData, statsData] = await Promise.all([
       api('/api/articles'),
-      apiAuth('/api/admin/stats').catch(() => ({}))
+      apiAuth('/api/debug/db-status').catch(() => ({}))
     ]);
     const articles = articlesData.articles || [];
+    const collections = statsData.collections || {};
 
     document.getElementById('statManual').textContent = articles.filter(a => a.isManual && !['60sec', 'currentaffairs', 'startupevents'].includes((a.category || '').toLowerCase())).length;
     document.getElementById('stat60sec').textContent = articles.filter(a => a.isManual && (a.category || '').toLowerCase() === '60sec').length;
     document.getElementById('statCA').textContent = articles.filter(a => a.isManual && (a.category || '').toLowerCase() === 'currentaffairs').length;
     document.getElementById('statStartup').textContent = articles.filter(a => a.isManual && (a.category || '').toLowerCase() === 'startupevents').length;
     document.getElementById('statGnews').textContent = articles.filter(a => !a.isManual).length;
-    document.getElementById('statUsers').textContent = statsData.totalUsers ?? statsData.users ?? '—';
-    document.getElementById('statBookmarks').textContent = statsData.totalBookmarks ?? statsData.bookmarks ?? '—';
+    document.getElementById('statUsers').textContent = collections.users ?? '—';
+    document.getElementById('statBookmarks').textContent = collections.bookmarks ?? '—';
+    document.getElementById('statQueue').textContent = collections.upcomingarticles ?? '—';
+
+    // DB status dot
+    const dbOk = statsData.mongoConnection === 'connected';
+    document.getElementById('dbStatus').textContent = dbOk ? 'Connected' : 'Error';
+    document.getElementById('dbStatusDot').className = 'status-dot ' + (dbOk ? '' : 'offline');
 
     log('Dashboard loaded successfully', 'success');
   } catch (e) {
     log(`Failed to load dashboard: ${e.message}`, 'error');
     showToast('Failed to load dashboard', 'error');
   }
+}
+
+async function loadSystemStatus() {
+  try {
+    const [health, autoDel, keepAlive] = await Promise.all([
+      api('/api/health').catch(() => ({})),
+      apiAuth('/api/admin/auto-delete-status').catch(() => ({})),
+      apiAuth('/api/admin/keep-alive-status').catch(() => ({}))
+    ]);
+
+    const del = autoDel.autoDelete || {};
+    const pub = autoDel.autoPublish || {};
+    const ka = keepAlive.keepAlive || {};
+
+    document.getElementById('dashDeleteStatus').textContent = del.lastRun 
+      ? `Last: ${new Date(del.lastRun).toLocaleDateString()} (${del.lastDeletedCount || 0} deleted)` 
+      : 'Never run';
+    
+    document.getElementById('dashPublishStatus').textContent = pub.delayMinutes 
+      ? `${pub.delayMinutes} min after 11:57 PM` 
+      : 'Not configured';
+    
+    document.getElementById('dashKeepAlive').textContent = ka.totalPings 
+      ? `${ka.totalPings} pings, last ${ka.lastPing ? new Date(ka.lastPing).toLocaleTimeString() : 'never'}` 
+      : 'Not started';
+    
+    document.getElementById('dashGnewsCache').textContent = health.cache 
+      ? `${health.cache.articlesCached || 0} articles (${health.cache.isStale ? 'stale' : 'fresh'})` 
+      : 'Unknown';
+    
+    document.getElementById('dashDbStatus').textContent = health.dbConnected ? '✅ Online' : '❌ Offline';
+
+  } catch (e) {
+    log(`System status error: ${e.message}`, 'error');
+  }
+}
+
+async function loadCacheStatus() {
+  try {
+    const data = await apiAuth('/api/admin/cache-status');
+    const age = data.cacheDurationMinutes || 60;
+    const cached = data.articlesInCache || 0;
+    const isStale = data.cacheStatus?.isStale;
+    document.getElementById('statCacheAge').textContent = isStale ? 'Stale' : `${age}m`;
+    document.getElementById('statCacheAge').style.color = isStale ? 'var(--danger)' : 'var(--text)';
+  } catch (e) {
+    document.getElementById('statCacheAge').textContent = '—';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 8-DAY QUEUE SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+async function loadQueuePanel() {
+  log('Loading 8-day queue panel', 'info');
+  const list = document.getElementById('queueArticlesList');
+  list.innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading queue...</div>';
+  
+  try {
+    const data = await apiAuth('/api/admin/queue');
+    const queue = data.queue || [];
+    queueDataCache = queue;
+    
+    const total = queue.length;
+    const target = 280;
+    const pct = Math.min((total / target) * 100, 100);
+    
+    document.getElementById('queueTotalDisplay').textContent = total;
+    document.getElementById('queueProgressBar').style.width = pct + '%';
+    document.getElementById('queueProgressBar').className = 'progress-fill ' + (pct >= 100 ? 'green' : pct > 50 ? '' : 'orange');
+    document.getElementById('queueProgressText').textContent = `${total} / ${target}`;
+    document.getElementById('queueProgressPct').textContent = `${Math.round(pct)}%`;
+    document.getElementById('queueCountBadge').textContent = `${total} queued`;
+    
+    // Day breakdown
+    const dayCounts = {};
+    const dayDates = {};
+    for (let i = 1; i <= 8; i++) {
+      dayCounts[`Day ${i}`] = 0;
+      dayDates[`Day ${i}`] = '';
+    }
+    
+    queue.forEach(q => {
+      const label = q.dayLabel || 'Unscheduled';
+      dayCounts[label] = (dayCounts[label] || 0) + 1;
+      if (q.targetDate && !dayDates[label]) {
+        dayDates[label] = new Date(q.targetDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      }
+    });
+    
+    const grid = document.getElementById('queueDayGrid');
+    grid.innerHTML = '';
+    for (let i = 1; i <= 8; i++) {
+      const label = `Day ${i}`;
+      const count = dayCounts[label] || 0;
+      const dateStr = dayDates[label] || '';
+      let cls = 'day-card';
+      if (count >= 35) cls += ' full';
+      else if (count > 0) cls += ' partial';
+      else cls += ' empty';
+      
+      grid.innerHTML += `
+        <div class="${cls}">
+          <h4>${label}</h4>
+          <div class="count">${count}</div>
+          <div class="date-label">${dateStr || (count >= 35 ? '✅ Ready' : count > 0 ? 'Partial' : 'Empty')}</div>
+          <div style="margin-top:6px;font-size:10px;color:var(--muted);">${count}/35</div>
+        </div>
+      `;
+    }
+    
+    // Article list
+    if (queue.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h4>Queue is empty</h4><p>Click "Fetch & Queue 8 Days" to populate</p></div>`;
+    } else {
+      let html = `<table class="queue-table">
+        <thead><tr><th>Day</th><th>Title</th><th>Source</th><th>Category</th><th>Type</th><th>Action</th></tr></thead>
+        <tbody>`;
+      
+      queue.slice(0, 100).forEach(q => {
+        const typeBadge = q.isRSS 
+          ? `<span class="badge badge-purple">RSS</span>` 
+          : `<span class="badge badge-teal">Manual</span>`;
+        html += `
+          <tr>
+            <td>${q.dayLabel || '-'}</td>
+            <td class="truncate" title="${escHtml(q.title)}">${escHtml(q.title)}</td>
+            <td>${escHtml(q.source)}</td>
+            <td>${escHtml(q.category)}</td>
+            <td>${typeBadge}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="openDeleteQueue('${q._id}', '${escHtml(q.title).replace(/'/g,"\\'")}')">🗑️</button></td>
+          </tr>
+        `;
+      });
+      
+      if (queue.length > 100) {
+        html += `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px;">... and ${queue.length - 100} more articles</td></tr>`;
+      }
+      
+      html += `</tbody></table>`;
+      list.innerHTML = html;
+    }
+    
+    log(`Queue loaded: ${total} articles`, 'success');
+  } catch (e) {
+    log(`Queue load failed: ${e.message}`, 'error');
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><h4>Failed to load queue</h4><p>${e.message}</p></div>`;
+  }
+}
+
+async function fetchRSS8Days() {
+  log('Triggering 8-day RSS fetch...', 'info');
+  showToast('Fetching RSS for 8 days... This may take a moment.', '');
+  
+  try {
+    const data = await apiAuth('/api/admin/fetch-rss-8days', 'POST');
+    if (data.success) {
+      log(`RSS queued: ${data.totalQueued} articles`, 'success');
+      showToast(`✅ ${data.totalQueued} articles queued for 8 days!`, 'success');
+      loadQueuePanel();
+      loadDashboard();
+    } else {
+      log(`RSS queue failed: ${data.error || data.message}`, 'error');
+      showToast(data.error || data.message || 'Failed to queue', 'error');
+    }
+  } catch (e) {
+    log(`RSS fetch error: ${e.message}`, 'error');
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+function openDeleteQueue(id, title) {
+  deleteQueueTargetId = id;
+  document.getElementById('deleteQueueMsg').textContent = `Remove "${title}" from the queue?`;
+  document.getElementById('deleteQueueModal').classList.add('open');
+}
+
+async function confirmDeleteQueue() {
+  document.getElementById('deleteQueueModal').classList.remove('open');
+  if (!deleteQueueTargetId) return;
+  
+  try {
+    const data = await apiAuth(`/api/admin/queue/${deleteQueueTargetId}`, 'DELETE');
+    if (data.success) {
+      log('Queue item removed', 'success');
+      showToast('✅ Removed from queue', 'success');
+      loadQueuePanel();
+      loadDashboard();
+    } else {
+      log(`Remove failed: ${data.error}`, 'error');
+      showToast(data.error || 'Failed', 'error');
+    }
+  } catch (e) {
+    log(`Remove error: ${e.message}`, 'error');
+    showToast('Error: ' + e.message, 'error');
+  }
+  deleteQueueTargetId = null;
+}
+
+async function clearQueue() {
+  if (!confirm('⚠️ Delete ALL queued upcoming articles? This cannot be undone!')) return;
+  if (queueDataCache.length === 0) return showToast('Queue is already empty', 'warn');
+  
+  showToast('Clearing queue...', '');
+  let done = 0;
+  let failed = 0;
+  
+  for (const q of queueDataCache) {
+    try {
+      await apiAuth(`/api/admin/queue/${q._id}`, 'DELETE');
+      done++;
+    } catch (e) {
+      failed++;
+    }
+  }
+  
+  log(`Queue cleared: ${done} removed, ${failed} failed`, done > 0 ? 'success' : 'error');
+  showToast(`✅ ${done} articles removed from queue`, 'success');
+  loadQueuePanel();
+  loadDashboard();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1306,22 +1760,17 @@ async function uploadArticle(prefix) {
   const expiry = document.getElementById(`${prefix}-expiry`)?.value;
   if (expiry) formData.append('expiresAt', new Date(expiry).toISOString());
   
-  // Startup-specific fields
   if (prefix === 'startup') {
     const eventDate = document.getElementById('startup-eventDate')?.value;
     if (eventDate) formData.append('eventDate', new Date(eventDate).toISOString());
-    
     const location = document.getElementById('startup-location')?.value.trim();
     if (location) formData.append('location', location);
-    
     const regLink = document.getElementById('startup-regLink')?.value.trim();
     if (regLink) formData.append('registrationLink', regLink);
-    
     const eventType = document.getElementById('startup-eventType')?.value;
     if (eventType) formData.append('eventType', eventType);
   }
   
-  // ADD IMAGE FILE IF PRESENT (manual OR auto-queue)
   let imageFile = document.getElementById(`${prefix}-image`)?.files[0];
   let usedQueueImage = false;
 
@@ -1332,8 +1781,7 @@ async function uploadArticle(prefix) {
   }
 
   if (imageFile) {
-    // Validate file size (5MB max for better performance)
-    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+    const maxSizeBytes = 5 * 1024 * 1024;
     if (imageFile.size > maxSizeBytes) {
       log(`Image too large: ${(imageFile.size / 1024 / 1024).toFixed(2)}MB (max 5MB)`, 'error');
       showToast(`Image too large! Max 5MB. Your file: ${(imageFile.size / 1024 / 1024).toFixed(2)}MB`, 'error');
@@ -1343,8 +1791,6 @@ async function uploadArticle(prefix) {
     }
     formData.append('image', imageFile);
     log(`Image attached: ${imageFile.name} (${(imageFile.size / 1024).toFixed(2)}KB)`, 'info');
-  } else {
-    log('No image provided', 'info');
   }
   
   try {
@@ -1368,12 +1814,17 @@ async function uploadArticle(prefix) {
       log(`Article uploaded successfully: ${labels[prefix]}`, 'success');
       showToast(`✅ ${labels[prefix]} published!`, 'success');
 
-      // Consume from queue if we used an auto-queued image
       if (usedQueueImage) {
         consumeQueuedImage(prefix);
       }
 
-      resetForm(prefix);
+      // If article queue exists, auto-advance
+      if (prefix === 'aid' && window.articleQueue && window.articleQueue.length > 0) {
+        autoAdvanceArticleQueue();
+      } else {
+        resetForm(prefix);
+      }
+      
       loadDashboard();
     } else {
       const msg = data.error || data.message || 'Upload failed';
@@ -1391,23 +1842,19 @@ async function uploadArticle(prefix) {
 }
 
 function resetForm(prefix) {
-  // Clear text fields
   ['title', 'content', 'source', 'link', 'expiry'].forEach(f => {
     const el = document.getElementById(`${prefix}-${f}`);
     if (el) el.value = '';
   });
   
-  // Reset status
   const status = document.getElementById(`${prefix}-status`);
   if (status) status.value = 'published';
   
-  // Reset category for AI-D if it exists
   if (prefix === 'aid') {
     const subcategory = document.getElementById('aid-subcategory');
     if (subcategory) subcategory.value = 'General';
   }
   
-  // Clear startup-specific fields
   if (prefix === 'startup') {
     const eventDate = document.getElementById('startup-eventDate');
     if (eventDate) eventDate.value = '';
@@ -1419,25 +1866,21 @@ function resetForm(prefix) {
     if (eventType) eventType.value = 'Pitch';
   }
   
-  // Clear image
   const img = document.getElementById(`${prefix}-image`);
   if (img) img.value = '';
   
-  // Hide preview
   const preview = document.getElementById(`${prefix}-imagePreview`);
   if (preview) {
     preview.style.display = 'none';
     preview.src = '';
   }
   
-  // Reset drop zone
   const drop = document.getElementById(`${prefix}-imageDrop`);
   if (drop) {
     drop.querySelector('.drop-icon').textContent = '🖼️';
     drop.querySelector('.drop-text').textContent = prefix === 'startup' ? 'Click to upload logo or poster' : 'Click to upload image';
   }
   
-  // Clear bulk paste parser if AI-D
   if (prefix === 'aid') {
     const bulkPaste = document.getElementById('aid-bulkPaste');
     if (bulkPaste) bulkPaste.value = '';
@@ -1445,7 +1888,6 @@ function resetForm(prefix) {
     if (feedback) feedback.style.display = 'none';
   }
   
-  // Clear 60 sec preview if applicable
   if (prefix === '60sec') {
     const preview = document.getElementById('60sec-parsePreview');
     if (preview) preview.style.display = 'none';
@@ -1454,78 +1896,6 @@ function resetForm(prefix) {
 
 // ═══════════════════════════════════════════════════════════════════
 // ARTICLES
-// ═══════════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════════
-// GNEWS
-// ═══════════════════════════════════════════════════════════════════
-async function loadGNewsPanel() {
-  log('Loading GNews panel', 'info');
-  try {
-    const articles = await api('/api/articles');
-    const gnews = (articles.articles || []).filter(a => !a.isManual);
-    
-    if (gnews.length === 0) {
-      document.getElementById('gnewsList').innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><h4>No GNews cached</h4></div>';
-      return;
-    }
-    
-    document.getElementById('gnewsList').innerHTML = gnews.map(a => {
-      const date = a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent';
-      return `
-        <div class="article-card">
-          <div class="article-info">
-            <div class="article-title">${escHtml(a.title)}</div>
-            <div class="article-meta">${escHtml(a.source)} • ${date}</div>
-          </div>
-        </div>`;
-    }).join('');
-    
-    log('GNews panel loaded', 'success');
-  } catch (e) {
-    log(`Failed to load GNews: ${e.message}`, 'error');
-  }
-}
-
-async function refreshGNews() {
-  log('Refreshing GNews', 'info');
-  showToast('Refreshing GNews...', '');
-  try {
-    const data = await apiAuth('/api/admin/refresh-gnews', 'POST');
-    if (data.success) {
-      log(`GNews refreshed: ${data.count} articles`, 'success');
-      showToast(`✅ ${data.count} articles cached`, 'success');
-      if (document.getElementById('panel-gnews').classList.contains('active')) loadGNewsPanel();
-      loadDashboard();
-    } else {
-      log(`GNews refresh failed: ${data.error}`, 'error');
-      showToast(data.error || 'Refresh failed', 'error');
-    }
-  } catch (e) {
-    log(`GNews error: ${e.message}`, 'error');
-    showToast('Error: ' + e.message, 'error');
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// SCHEDULER
-// ═══════════════════════════════════════════════════════════════════
-async function loadSchedulerStatus() {
-  log('Loading scheduler status', 'info');
-  try {
-    const data = await api('/api/admin/auto-delete-status');
-    const ad = data.autoDelete;
-    const html = `
-      <div>⏰ <strong style="color:var(--text)">Scheduled:</strong> ${ad.scheduledTime}</div>
-      <div>✅ <strong style="color:var(--text)">Last Run:</strong> ${ad.lastRun ? new Date(ad.lastRun).toLocaleString() : 'Never'}</div>`;
-    document.getElementById('schedulerStatusFull').innerHTML = html;
-    log('Scheduler status loaded', 'success');
-  } catch (e) {
-    log(`Failed to load scheduler: ${e.message}`, 'error');
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// ARTICLE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════
 async function loadArticles() {
   log('Loading articles', 'info');
@@ -1603,6 +1973,134 @@ function renderArticles(articles) {
         </div>
       </div>`;
   }).join('') + `</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GNEWS
+// ═══════════════════════════════════════════════════════════════════
+async function loadGNewsPanel() {
+  log('Loading GNews panel', 'info');
+  try {
+    const articles = await api('/api/articles');
+    const gnews = (articles.articles || []).filter(a => !a.isManual);
+    const meta = articles.meta || {};
+    
+    let statusHtml = `
+      <div style="display:flex;gap:20px;flex-wrap:wrap;">
+        <div><strong style="color:var(--text)">Cached:</strong> ${meta.gnewsCount || gnews.length} articles</div>
+        <div><strong style="color:var(--text)">Last Updated:</strong> ${meta.lastUpdated ? new Date(meta.lastUpdated).toLocaleString() : 'Never'}</div>
+        <div><strong style="color:var(--text)">Cache Age:</strong> ${meta.cacheAgeMinutes || 0} min</div>
+        <div><strong style="color:var(--text)">Status:</strong> <span style="color:${meta.isCached?'var(--green)':'var(--orange)'}">${meta.isCached?'✅ Fresh':'⚠️ Stale'}</span></div>
+      </div>
+    `;
+    document.getElementById('gnewsStatus').innerHTML = statusHtml;
+    
+    if (gnews.length === 0) {
+      document.getElementById('gnewsList').innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div><h4>No GNews cached</h4></div>';
+      return;
+    }
+    
+    document.getElementById('gnewsList').innerHTML = gnews.map(a => {
+      const date = a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent';
+      return `
+        <div class="article-card">
+          <div class="article-info">
+            <div class="article-title">${escHtml(a.title)}</div>
+            <div class="article-meta">${escHtml(a.source)} • ${date}</div>
+          </div>
+        </div>`;
+    }).join('');
+    
+    log('GNews panel loaded', 'success');
+  } catch (e) {
+    log(`Failed to load GNews: ${e.message}`, 'error');
+  }
+}
+
+async function refreshGNews() {
+  log('Refreshing GNews', 'info');
+  showToast('Refreshing GNews...', '');
+  try {
+    const data = await apiAuth('/api/admin/refresh-gnews', 'POST');
+    if (data.success) {
+      log(`GNews refreshed: ${data.count} articles`, 'success');
+      showToast(`✅ ${data.count} articles cached`, 'success');
+      if (document.getElementById('panel-gnews').classList.contains('active')) loadGNewsPanel();
+      loadDashboard();
+    } else {
+      log(`GNews refresh failed: ${data.error}`, 'error');
+      showToast(data.error || 'Refresh failed', 'error');
+    }
+  } catch (e) {
+    log(`GNews error: ${e.message}`, 'error');
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCHEDULER
+// ═══════════════════════════════════════════════════════════════════
+async function loadSchedulerStatus() {
+  log('Loading scheduler status', 'info');
+  try {
+    const data = await apiAuth('/api/admin/auto-delete-status');
+    const ad = data.autoDelete || {};
+    const pub = data.autoPublish || {};
+    
+    // Delete details
+    const deleteHtml = `
+      <div class="scheduler-row"><span class="label">Scheduled Time</span><span class="value">${ad.scheduledTime || '11:57 PM IST'}</span></div>
+      <div class="scheduler-row"><span class="label">Current Time (IST)</span><span class="value">${ad.currentTimeInZone || '—'}</span></div>
+      <div class="scheduler-row"><span class="label">Last Run</span><span class="value">${ad.lastRun ? new Date(ad.lastRun).toLocaleString() : 'Never'}</span></div>
+      <div class="scheduler-row"><span class="label">Last Deleted</span><span class="value">${ad.lastDeletedCount || 0} articles</span></div>
+      <div class="scheduler-row"><span class="label">Total Runs</span><span class="value">${ad.totalRuns || 0}</span></div>
+      <div class="scheduler-row"><span class="label">Last Error</span><span class="value" style="color:${ad.lastError?'var(--danger)':'var(--green)'}">${ad.lastError || 'None'}</span></div>
+    `;
+    document.getElementById('schedulerDeleteDetails').innerHTML = deleteHtml;
+    
+    // Publish details
+    const publishHtml = `
+      <div class="scheduler-row"><span class="label">Publish Delay</span><span class="value">${pub.delayMinutes || 33} minutes after delete</span></div>
+      <div class="scheduler-row"><span class="label">Est. Publish Time</span><span class="value">${pub.estimatedPublishTime || '12:30 AM IST'}</span></div>
+      <div class="scheduler-row"><span class="label">Next Publish</span><span class="value">${pub.nextPublishTime ? new Date(pub.nextPublishTime).toLocaleString() : 'Not scheduled'}</span></div>
+      <div class="scheduler-row"><span class="label">Last Publish</span><span class="value">${pub.lastPublishTime ? new Date(pub.lastPublishTime).toLocaleString() : 'Never'}</span></div>
+      <div class="scheduler-row"><span class="label">Last Published</span><span class="value">${pub.lastPublishedCount || 0} articles</span></div>
+    `;
+    document.getElementById('schedulerPublishDetails').innerHTML = publishHtml;
+    
+    // Log
+    const logBox = document.getElementById('schedulerLog');
+    const time = new Date().toLocaleTimeString();
+    logBox.innerHTML = `<div style="color:var(--accent);">[${time}] Scheduler status refreshed</div>` + 
+      (ad.lastRun ? `<div style="color:var(--green);">[${time}] Last auto-delete: ${new Date(ad.lastRun).toLocaleString()}</div>` : '') +
+      (pub.lastPublishTime ? `<div style="color:var(--green);">[${time}] Last auto-publish: ${new Date(pub.lastPublishTime).toLocaleString()}</div>` : '');
+    
+    log('Scheduler status loaded', 'success');
+  } catch (e) {
+    log(`Failed to load scheduler: ${e.message}`, 'error');
+    document.getElementById('schedulerDeleteDetails').innerHTML = `<div style="color:var(--danger);">Error: ${e.message}</div>`;
+    document.getElementById('schedulerPublishDetails').innerHTML = `<div style="color:var(--danger);">Error: ${e.message}</div>`;
+  }
+}
+
+async function triggerAutoDelete() {
+  if (!confirm('⚠️ Manually trigger auto-delete NOW? This deletes all manual articles and schedules publish.')) return;
+  showToast('Triggering auto-delete...', '');
+  try {
+    const data = await apiAuth('/api/admin/trigger-auto-delete', 'POST');
+    if (data.success) {
+      log(`Auto-delete triggered: ${data.deletedCount} articles`, 'success');
+      showToast(`✅ Deleted ${data.deletedCount} articles. Publish scheduled.`, 'success');
+      loadSchedulerStatus();
+      loadDashboard();
+    } else {
+      log(`Trigger failed: ${data.error}`, 'error');
+      showToast(data.error || 'Failed', 'error');
+    }
+  } catch (e) {
+    log(`Trigger error: ${e.message}`, 'error');
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1707,14 +2205,12 @@ function previewImage(input, prefix) {
   const drop = document.getElementById(`${prefix}-imageDrop`);
   
   if (file) {
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       showToast('Please select a valid image file (JPG, PNG, WEBP)', 'error');
       input.value = '';
       return;
     }
     
-    // Validate file size (5MB max)
     const maxSizeBytes = 5 * 1024 * 1024;
     const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
     
@@ -1778,10 +2274,7 @@ window.addEventListener('load', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// BULK PASTE PARSER FOR AI-D - IMPROVED
-// ═══════════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════════
-// ARTICLE QUEUE SYSTEM — MULTI-ARTICLE BULK PASTE
+// BULK PASTE PARSER FOR AI-D
 // ═══════════════════════════════════════════════════════════════════
 window.articleQueue = [];
 window.currentArticleIndex = 0;
@@ -1794,7 +2287,6 @@ function detectArticles(text) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    // Detect new article start: line begins with "N. " AND contains or is followed by "Source:" within 3 lines
     const isArticleStart = /^\d+\.\s+/.test(line) && lines.slice(i, Math.min(i + 4, lines.length)).some(l => /source\s*:/i.test(l));
 
     if (isArticleStart && currentChunk.length > 0) {
@@ -1860,7 +2352,6 @@ function parseSingleArticle(rawText) {
     }
   }
 
-  // Fallback: if no explicit title field, try to extract from first line
   if (!fields.title) {
     const firstLine = lines[0];
     const titleMatch = firstLine.match(/^\d+\.\s*(.+?)(?:Source\s*:|$)/i);
@@ -1893,7 +2384,6 @@ function parseAIDArticle() {
   }
 
   if (detected.length === 1) {
-    // Single article: fill directly, no queue needed
     window.articleQueue = [];
     window.currentArticleIndex = 0;
     fillArticleForm(detected[0]);
@@ -1906,7 +2396,6 @@ function parseAIDArticle() {
     return;
   }
 
-  // Multiple articles: build queue
   window.articleQueue = detected;
   window.currentArticleIndex = 0;
   fillArticleForm(window.articleQueue[0]);
@@ -1969,7 +2458,6 @@ function renderArticleQueueUI() {
   if (counter) counter.textContent = `Article ${idx + 1} of ${total}`;
   if (title) title.textContent = article.title || '—';
 
-  // Scroll to top of form for visibility
   document.getElementById('aid-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
@@ -2012,7 +2500,6 @@ function autoAdvanceArticleQueue() {
     renderArticleQueueUI();
     return true;
   }
-  // All done
   window.articleQueue = [];
   window.currentArticleIndex = 0;
   document.getElementById('aid-articleQueueBar').style.display = 'none';
@@ -2031,7 +2518,7 @@ function getTodayPrefix() {
   const day = now.getDate();
   const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   const month = monthNames[now.getMonth()];
-  return `${day}-${month}`; // e.g., "19-may"
+  return `${day}-${month}`;
 }
 
 function loadImageQueue(input, prefix) {
@@ -2041,13 +2528,11 @@ function loadImageQueue(input, prefix) {
     return;
   }
 
-  const todayPrefix = getTodayPrefix(); // e.g., "19-may"
+  const todayPrefix = getTodayPrefix();
   const todayPattern = new RegExp(`^${todayPrefix}-\\d+`, 'i');
 
-  // Filter to only TODAY's images
   let files = allFiles.filter(f => todayPattern.test(f.name));
 
-  // Fallback: looser match if strict pattern fails
   if (files.length === 0) {
     files = allFiles.filter(f => f.name.toLowerCase().includes(todayPrefix + '-'));
   }
@@ -2061,7 +2546,6 @@ function loadImageQueue(input, prefix) {
     return;
   }
 
-  // Sort by trailing number ascending: 19-may-1, 19-may-2, 19-may-10...
   files.sort((a, b) => {
     const parseNum = (name) => {
       const m = name.match(/(\d+)-[a-z]+-(\d+)/i);
@@ -2187,6 +2671,14 @@ async function testServerConnection() {
     showToast('Server unreachable', 'error');
   }
 }
+
+// Auto refresh every 60s when dashboard is active
+setInterval(() => {
+  if ((authToken || adminPassword) && document.getElementById('panel-dashboard')?.classList.contains('active')) {
+    loadSystemStatus();
+    loadCacheStatus();
+  }
+}, 60000);
 
 </script>
 </body>
