@@ -375,15 +375,20 @@ async function fetchRSSArticles(targetCount = 35) {
 
 // Queue RSS articles for 8 days (35 per day)
 async function queueRSSFor8Days() {
-    const now = new Date();
     const perDay = 35;
     const days = 8;
 
+    // Use IST date as base so Day 1 = tomorrow in India time
+    const istDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const [m, d, y] = istDateStr.split('/');
+    const baseDate = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+
     console.log(`\n📅 Queueing RSS articles for ${days} days (${perDay}/day)...`);
+    console.log(`   Base date (IST): ${baseDate.toDateString()}`);
     console.log(`🤖 Gemini AI rewrite: ${GEMINI_API_KEY ? '✅ Enabled' : '❌ Disabled (add GEMINI_API_KEY to .env)'}`);
 
     for (let day = 0; day < days; day++) {
-        const targetDate = new Date(now);
+        const targetDate = new Date(baseDate);
         targetDate.setDate(targetDate.getDate() + day + 1);
         targetDate.setHours(0, 0, 0, 0);
 
@@ -1231,23 +1236,63 @@ let publishScheduleLog = { nextPublishTime: null, lastPublishTime: null, lastPub
 // ============================================
 async function publishQueuedArticles() {
     const now = new Date();
-    // Get TODAY's date (articles scheduled for today should publish today)
-    const today = new Date(now);
-    today.setHours(0, 0, 0, 0);
-    const endOfToday = new Date(today);
-    endOfToday.setHours(23, 59, 59, 999);
 
-    console.log(`📅 Publishing queued articles for ${today.toDateString()}`);
-    
+    // Find the EARLIEST targetDate in the queue (timezone-agnostic)
+    const earliest = await UpcomingArticle.findOne().sort({ targetDate: 1 }).select('targetDate');
+    if (!earliest) {
+        console.log('📅 No queued articles found in UpcomingArticle collection');
+        publishScheduleLog.lastPublishTime = new Date().toISOString();
+        publishScheduleLog.lastPublishedCount = 0;
+        return;
+    }
+
+    // Normalize to midnight→end-of-day for that targetDate
+    const targetDay = new Date(earliest.targetDate);
+    targetDay.setHours(0, 0, 0, 0);
+    const endOfTargetDay = new Date(targetDay);
+    endOfTargetDay.setHours(23, 59, 59, 999);
+
+    console.log(`📅 Publishing queued articles for targetDate: ${targetDay.toDateString()}`);
+    console.log(`   Query range: ${targetDay.toISOString()} → ${endOfTargetDay.toISOString()}`);
+
     const queued = await UpcomingArticle.find({
-        targetDate: { $gte: today, $lte: endOfToday },
+        targetDate: { $gte: targetDay, $lte: endOfTargetDay },
         status: 'published'
     });
 
+    console.log(`   Found ${queued.length} articles matching targetDate range`);
+
     if (queued.length === 0) {
-        console.log('   No queued articles for today');
+        console.log('   ⚠️ No articles matched — checking all queued articles as fallback...');
+        // Fallback: publish ALL remaining queued articles (catch-up mode)
+        const allQueued = await UpcomingArticle.find({ status: 'published' }).limit(35);
+        if (allQueued.length === 0) {
+            console.log('   ❌ Queue is completely empty');
+            publishScheduleLog.lastPublishTime = new Date().toISOString();
+            publishScheduleLog.lastPublishedCount = 0;
+            return;
+        }
+        console.log(`   🔄 Fallback: publishing ${allQueued.length} articles from queue`);
+        for (const q of allQueued) {
+            await Article.create({
+                title: q.title,
+                content: q.content,
+                summary: q.summary || q.content,
+                image: q.image,
+                source: q.source,
+                category: q.category,
+                originalLink: q.originalLink,
+                isManual: true,
+                status: 'published',
+                expiresAt: q.expiresAt,
+                author_id: q.author_id,
+                author_name: q.author_name || 'RSS Auto-Fetch'
+            });
+        }
+        await UpcomingArticle.deleteMany({ _id: { $in: allQueued.map(q => q._id) } });
         publishScheduleLog.lastPublishTime = new Date().toISOString();
-        publishScheduleLog.lastPublishedCount = 0;
+        publishScheduleLog.lastPublishedCount = allQueued.length;
+        console.log(`   ✅ Fallback published ${allQueued.length} articles`);
         return;
     }
 
@@ -1267,15 +1312,15 @@ async function publishQueuedArticles() {
             author_name: q.author_name || 'RSS Auto-Fetch'
         });
     }
-    
+
     // Delete published articles from queue
     await UpcomingArticle.deleteMany({ 
-        targetDate: { $gte: today, $lte: endOfToday } 
+        targetDate: { $gte: targetDay, $lte: endOfTargetDay } 
     });
-    
+
     publishScheduleLog.lastPublishTime = new Date().toISOString();
     publishScheduleLog.lastPublishedCount = queued.length;
-    console.log(`   ✅ Published ${queued.length} articles for ${today.toDateString()}`);
+    console.log(`   ✅ Published ${queued.length} articles for ${targetDay.toDateString()}`);
 }
 
 async function schedulePublishAfterDelay() {
@@ -1286,10 +1331,40 @@ async function schedulePublishAfterDelay() {
     console.log(`⏳ Auto-publish scheduled for ${publishTime.toLocaleTimeString('en-US', { timeZone: DELETE_TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: true })} (${PUBLISH_DELAY_MINUTES} min delay)`);
 
     setTimeout(async () => {
-        console.log('🚀 Running scheduled auto-publish...');
+        console.log('🚀 Running scheduled auto-publish (setTimeout)...');
         await publishQueuedArticles();
         publishScheduleLog.nextPublishTime = null;
     }, delayMs);
+}
+
+// ============================================
+// ROBUST PUBLISH CHECK — survives server restarts
+// ============================================
+async function checkAndPublishPending() {
+    try {
+        // Count manual articles currently live
+        const liveCount = await Article.countDocuments({ isManual: true });
+        // Count queued articles
+        const queuedCount = await UpcomingArticle.countDocuments();
+
+        console.log(`🔍 Publish check: ${liveCount} live manual articles, ${queuedCount} queued`);
+
+        // If no live articles but queue has articles, publish the earliest day's batch
+        if (liveCount === 0 && queuedCount > 0) {
+            console.log('🚨 No live articles found but queue has articles — running catch-up publish!');
+            await publishQueuedArticles();
+        }
+
+        // Also: if it's been more than 2 hours since last publish and queue has articles, publish
+        const lastPublish = publishScheduleLog.lastPublishTime ? new Date(publishScheduleLog.lastPublishTime) : null;
+        const hoursSinceLast = lastPublish ? (Date.now() - lastPublish.getTime()) / (1000 * 60 * 60) : 999;
+        if (hoursSinceLast > 2 && queuedCount > 0) {
+            console.log(`🚨 ${hoursSinceLast.toFixed(1)} hours since last publish — running catch-up!`);
+            await publishQueuedArticles();
+        }
+    } catch (err) {
+        console.error('❌ checkAndPublishPending error:', err.message);
+    }
 }
 
 async function deleteAllManualNews() {
@@ -1345,10 +1420,16 @@ setInterval(() => {
     const local = new Intl.DateTimeFormat('en-US', { timeZone: DELETE_TIMEZONE, hour: 'numeric', minute: 'numeric', hour12: false }).format(now);
     const [h, m] = local.split(':').map(Number);
     if (h === DELETE_HOUR && m === DELETE_MINUTE) {
-        const today = now.toISOString().split('T')[0];
-        const last = autoDeleteLog.lastRun ? new Date(autoDeleteLog.lastRun).toISOString().split('T')[0] : null;
-        if (last === today) return;
-        console.log(`⏰ Auto-delete triggered at ${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE}`);
+        // Use IST date for comparison, not UTC date
+        const todayIST = new Intl.DateTimeFormat('en-US', { timeZone: DELETE_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+        const lastIST = autoDeleteLog.lastRun 
+            ? new Intl.DateTimeFormat('en-US', { timeZone: DELETE_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(autoDeleteLog.lastRun))
+            : null;
+        if (lastIST === todayIST) {
+            console.log(`⏰ Already ran today (${todayIST}), skipping`);
+            return;
+        }
+        console.log(`⏰ Auto-delete triggered at ${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE} | Today: ${todayIST} | Last: ${lastIST || 'never'}`);
         deleteAllManualNews();
     }
 }, 60 * 1000);
@@ -1381,6 +1462,38 @@ app.post('/api/admin/trigger-auto-delete', adminAuthMiddleware, async (req, res)
         await deleteAllManualNews();
         res.json({ success: true, message: 'Auto-delete triggered', deletedCount: autoDeleteLog.lastDeletedCount, lastRun: autoDeleteLog.lastRun });
     } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+app.post('/api/admin/trigger-publish', adminAuthMiddleware, async (req, res) => {
+    try {
+        console.log('🔧 Manual publish triggered');
+        await publishQueuedArticles();
+        res.json({ 
+            success: true, 
+            message: 'Publish triggered', 
+            lastPublishTime: publishScheduleLog.lastPublishTime,
+            lastPublishedCount: publishScheduleLog.lastPublishedCount
+        });
+    } catch (err) { 
+        res.status(500).json({ success: false, error: err.message }); 
+    }
+});
+
+app.get('/api/admin/publish-status', adminAuthMiddleware, async (req, res) => {
+    try {
+        const liveCount = await Article.countDocuments({ isManual: true });
+        const queuedCount = await UpcomingArticle.countDocuments();
+        const earliest = await UpcomingArticle.findOne().sort({ targetDate: 1 }).select('targetDate dayLabel');
+        res.json({
+            liveManualArticles: liveCount,
+            queuedArticles: queuedCount,
+            earliestTargetDate: earliest ? { date: earliest.targetDate, dayLabel: earliest.dayLabel } : null,
+            lastPublish: publishScheduleLog,
+            autoDelete: autoDeleteLog
+        });
+    } catch (err) { 
+        res.status(500).json({ success: false, error: err.message }); 
+    }
 });
 
 // ============================================
@@ -1434,7 +1547,7 @@ async function checkAndRefillQueue() {
 // ============================================
 // START
 // ============================================
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log('========================================');
     console.log('🚀 CENTRINSIC NPT SERVER STARTED');
     console.log(`Port:             ${PORT}`);
@@ -1452,8 +1565,17 @@ app.listen(PORT, () => {
     console.log(`Gemini Delay:     ${GEMINI_DELAY_MS}ms (${(GEMINI_DELAY_MS/1000).toFixed(1)}s) between articles`);
     console.log(`Duplicate Filter: ✅ URL + fuzzy title match (30-day window)`);
     console.log(`Image Extraction: ✅ RSS → OG tags → Category fallback`);
+    console.log(`Robust Publish:   ✅ Startup check + 30-min interval`);
     console.log('========================================');
-    
+
+    // Wait for MongoDB to be ready, then run startup publish check
+    setTimeout(async () => {
+        await checkAndPublishPending();
+    }, 5000);
+
+    // Run publish check every 30 minutes (catches missed publishes)
+    setInterval(checkAndPublishPending, 30 * 60 * 1000);
+
     // Start auto-refill checks
     setTimeout(checkAndRefillQueue, 10000); // First check after 10 seconds
     setInterval(checkAndRefillQueue, 6 * 60 * 60 * 1000); // Then every 6 hours
