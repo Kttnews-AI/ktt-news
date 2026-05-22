@@ -970,21 +970,26 @@ const PUBLISH_DELAY_MINUTES = parseInt(process.env.PUBLISH_DELAY_MINUTES) || 33;
 let autoDeleteLog = { lastRun: null, lastDeletedCount: 0, lastError: null, totalRuns: 0 };
 let publishScheduleLog = { nextPublishTime: null, lastPublishTime: null, lastPublishedCount: 0 };
 
+// ============================================
+// CHANGE #1: FIXED publishQueuedArticles — Publishes articles for TODAY
+// ============================================
 async function publishQueuedArticles() {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    const endOfTomorrow = new Date(tomorrow);
-    endOfTomorrow.setHours(23, 59, 59, 999);
+    const now = new Date();
+    // Get TODAY's date (articles scheduled for today should publish today)
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
 
-    console.log(`📅 Publishing queued articles for ${tomorrow.toDateString()}`);
+    console.log(`📅 Publishing queued articles for ${today.toDateString()}`);
+    
     const queued = await UpcomingArticle.find({
-        targetDate: { $gte: tomorrow, $lte: endOfTomorrow },
+        targetDate: { $gte: today, $lte: endOfToday },
         status: 'published'
     });
 
     if (queued.length === 0) {
-        console.log('   No queued articles for tomorrow');
+        console.log('   No queued articles for today');
         publishScheduleLog.lastPublishTime = new Date().toISOString();
         publishScheduleLog.lastPublishedCount = 0;
         return;
@@ -1002,13 +1007,18 @@ async function publishQueuedArticles() {
             status: 'published',
             expiresAt: q.expiresAt,
             author_id: q.author_id,
-            author_name: q.author_name
+            author_name: q.author_name || 'RSS Auto-Fetch'
         });
     }
-    await UpcomingArticle.deleteMany({ targetDate: { $gte: tomorrow, $lte: endOfTomorrow } });
+    
+    // Delete published articles from queue
+    await UpcomingArticle.deleteMany({ 
+        targetDate: { $gte: today, $lte: endOfToday } 
+    });
+    
     publishScheduleLog.lastPublishTime = new Date().toISOString();
     publishScheduleLog.lastPublishedCount = queued.length;
-    console.log(`   ✅ Published ${queued.length} queued articles`);
+    console.log(`   ✅ Published ${queued.length} articles for ${today.toDateString()}`);
 }
 
 async function schedulePublishAfterDelay() {
@@ -1143,6 +1153,28 @@ app.get('/api/admin/keep-alive-status', adminAuthMiddleware, (req, res) => {
 });
 
 // ============================================
+// CHANGE #2: AUTO-REFILL QUEUE WHEN LOW (Camp Mode)
+// Runs every 6 hours to check if queue needs refilling
+// ============================================
+async function checkAndRefillQueue() {
+    try {
+        const count = await UpcomingArticle.countDocuments();
+        console.log(`📊 Queue check: ${count} articles remaining`);
+        
+        if (count < 100) {  // Less than ~3 days worth left
+            console.log(`🚨 Queue low! Auto-refilling 8 days...`);
+            await queueRSSFor8Days();
+            const newCount = await UpcomingArticle.countDocuments();
+            console.log(`✅ Queue refilled! Now ${newCount} articles`);
+        } else {
+            console.log(`✅ Queue healthy, no action needed`);
+        }
+    } catch (err) {
+        console.error('❌ Auto-refill error:', err.message);
+    }
+}
+
+// ============================================
 // START
 // ============================================
 app.listen(PORT, () => {
@@ -1158,5 +1190,10 @@ app.listen(PORT, () => {
     console.log(`Auto-publish:     ✅ After delete (${PUBLISH_DELAY_MINUTES} min delay)`);
     console.log(`Keep-alive:       ✅ 14 min`);
     console.log(`Admin Password:   ${ADMIN_PASSWORD ? '✅ Configured' : '❌ NOT SET — add ADMIN_PASSWORD to .env!'}`);
+    console.log(`Auto-refill:      ✅ Every 6 hours if queue < 100`);
     console.log('========================================');
+    
+    // Start auto-refill checks
+    setTimeout(checkAndRefillQueue, 10000); // First check after 10 seconds
+    setInterval(checkAndRefillQueue, 6 * 60 * 60 * 1000); // Then every 6 hours
 });
