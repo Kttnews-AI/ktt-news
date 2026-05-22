@@ -1583,6 +1583,89 @@ app.post('/api/admin/restore-day', adminAuthMiddleware, async (req, res) => {
     }
 });
 
+// RESET & REORGANIZE: Move ALL live articles back to queue, then redistribute evenly across 8 days
+app.post('/api/admin/reset-and-reorganize', adminAuthMiddleware, async (req, res) => {
+    try {
+        console.log('🔄 RESET & REORGANIZE started...');
+
+        // Step 1: Get all live manual articles
+        const liveArticles = await Article.find({ isManual: true });
+        console.log(`   Found ${liveArticles.length} live articles to move back to queue`);
+
+        // Step 2: Get all queued articles
+        const queuedArticles = await UpcomingArticle.find({ status: 'published' });
+        console.log(`   Found ${queuedArticles.length} queued articles`);
+
+        // Combine all articles
+        const allArticles = [...liveArticles, ...queuedArticles];
+        console.log(`   Total articles to reorganize: ${allArticles.length}`);
+
+        if (allArticles.length === 0) {
+            return res.json({ success: true, message: 'No articles to reorganize' });
+        }
+
+        // Step 3: Clear both collections
+        await Article.deleteMany({ isManual: true });
+        await UpcomingArticle.deleteMany({});
+        console.log('   Cleared live and queued collections');
+
+        // Step 4: Redistribute across 8 days starting from TODAY (May 23)
+        const perDay = 35;
+        const days = 8;
+        const istDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+        const [m, d, y] = istDateStr.split('/');
+        const baseDate = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+
+        let articleIndex = 0;
+        let totalQueued = 0;
+
+        for (let day = 0; day < days; day++) {
+            const targetDate = new Date(baseDate);
+            targetDate.setDate(targetDate.getDate() + day + 1);
+            targetDate.setHours(0, 0, 0, 0);
+
+            const dayArticles = allArticles.slice(articleIndex, articleIndex + perDay);
+            articleIndex += perDay;
+
+            for (const article of dayArticles) {
+                await UpcomingArticle.create({
+                    title: article.title,
+                    content: article.content,
+                    summary: article.summary || article.content,
+                    image: article.image,
+                    source: article.source || 'RSS Auto-Fetch',
+                    category: article.category || 'General',
+                    originalLink: article.originalLink || '',
+                    isManual: true,
+                    status: 'published',
+                    targetDate: targetDate,
+                    dayLabel: `Day ${day + 1}`,
+                    isRSS: article.isRSS || false,
+                    author_name: article.author_name || 'RSS Auto-Fetch'
+                });
+                totalQueued++;
+            }
+
+            console.log(`   📅 Day ${day + 1} (${targetDate.toDateString()}): ${dayArticles.length} articles`);
+        }
+
+        console.log(`✅ Reorganization complete: ${totalQueued} articles across ${days} days`);
+
+        res.json({
+            success: true,
+            message: `Reorganized ${totalQueued} articles across ${days} days`,
+            totalArticles: totalQueued,
+            daysOrganized: days,
+            perDay: perDay,
+            startDate: baseDate.toDateString()
+        });
+
+    } catch (err) {
+        console.error('❌ Reset & reorganize error:', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 app.get('/api/admin/publish-status', adminAuthMiddleware, async (req, res) => {
     try {
         const liveCount = await Article.countDocuments({ isManual: true });
