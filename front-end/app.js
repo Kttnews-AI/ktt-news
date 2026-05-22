@@ -447,7 +447,7 @@ function ensureTickerStyles() {
 }
 
 function buildAutonomousTicker() {
-    const msg = '⚡ AI-D Autonomous Mode Active • Daily AI-powered updates continue automatically';
+    const msg = '🌱 Centrinsic NPT is operating in autonomous mode for the next 8 days while we work on something meaningful behind the scenes. Daily AI-powered updates will continue uninterrupted.';
     // Duplicate message so scroll is seamless (no gap)
     const items = Array(6).fill(msg).map((m, i) =>
         `<span class="ai-ticker-item"><span class="ai-ticker-dot"></span>${m}<span class="ai-ticker-sep">◆</span></span>`
