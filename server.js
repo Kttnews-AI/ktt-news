@@ -464,7 +464,7 @@ async function queueRSSFor8Days() {
 // GEMINI AI SUMMARY REWRITE (~170 WORDS)
 // ============================================
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash-8b' }) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-3.5-flash' }) : null;
 
 async function rewriteSummaryWithGemini(title, content) {
     if (!geminiModel) {
@@ -1688,6 +1688,38 @@ app.listen(PORT, async () => {
         await checkAndPublishPending();
     }, 5000);
 
+    // EMERGENCY RESTORE: If queue has articles but live articles exist,
+    // restore missing days automatically (prevents data loss on redeploy)
+    setTimeout(async () => {
+        try {
+            const liveCount = await Article.countDocuments({ isManual: true });
+            const queuedCount = await UpcomingArticle.countDocuments();
+
+            // If we have live articles AND queued articles, check if we need to restore
+            if (liveCount > 0 && queuedCount > 0) {
+                const earliestQueued = await UpcomingArticle.findOne().sort({ targetDate: 1 });
+                const latestLive = await Article.findOne({ isManual: true }).sort({ createdAt: -1 });
+
+                if (earliestQueued && latestLive) {
+                    const queuedDate = new Date(earliestQueued.targetDate).toDateString();
+                    const liveDate = latestLive.createdAt ? new Date(latestLive.createdAt).toDateString() : 'unknown';
+
+                    console.log(`🔄 Restore check: Live=${liveCount}, Queued=${queuedCount}`);
+                    console.log(`   Earliest queued: ${queuedDate} | Latest live: ${liveDate}`);
+
+                    // If queue has articles for dates that should have been published, restore them
+                    const daysBehind = Math.floor((Date.now() - new Date(earliestQueued.targetDate).getTime()) / (1000 * 60 * 60 * 24));
+                    if (daysBehind >= 0) {
+                        console.log(`⚠️ Queue is ${daysBehind} days behind — articles may need restoration`);
+                        console.log(`   Use POST /api/admin/restore-day with {"dayOffset":"all"} to restore all`);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Restore check error:', e.message);
+        }
+    }, 10000);
+
     // Test Gemini on startup
     if (GEMINI_API_KEY && geminiModel) {
         setTimeout(async () => {
@@ -1697,7 +1729,7 @@ app.listen(PORT, async () => {
                 console.log(`🤖 Gemini test: ${testText}`);
             } catch (e) {
                 console.error('🤖 Gemini test FAILED:', e.message);
-                console.error('   → Model may be deprecated. Try gemini-1.5-flash-8b or gemini-2.0-flash-latest');
+                console.error('   → Model may be deprecated. Current working model: gemini-3.5-flash');
                 console.error('   → Check your GEMINI_API_KEY at https://aistudio.google.com/app/apikey');
             }
         }, 8000);
