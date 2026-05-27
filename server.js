@@ -1,8 +1,9 @@
 // ============================================
-// CENTRINSIC NPT SERVER — FULLY UPDATED
-// WITH: 8-DAY RSS QUEUE SYSTEM + AUTO-PUBLISH
+// CENTRINSIC NPT SERVER — CLEAN + AUTO-DELETE
 // WITH: PASSWORD OR OTP ADMIN AUTH
-// WITH: FREE RSS FEEDS FOR AI-D (35/day × 8 days)
+// WITH: GNEWS API FOR EXTERNAL NEWS
+// WITH: MANUAL ARTICLES ONLY
+// WITH: AUTO-DELETE AT 11:59 PM IST
 // ============================================
 require('dotenv').config();
 const express = require('express');
@@ -15,8 +16,6 @@ const multer = require('multer');
 const os = require('os');
 const axios = require('axios');
 const crypto = require('crypto');
-const Parser = require('rss-parser');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
@@ -26,18 +25,6 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'ktt-news-secret-key-2024';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
-// RSS Parser instance
-const rssParser = new Parser({
-    timeout: 10000,
-    headers: { 'User-Agent': 'CentrinsicNPT/1.0' }
-});
-
-// GNEWS
-const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
-const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_DELAY_MS = parseInt(process.env.GEMINI_DELAY_MS) || 4000; // 4s default for free tier (15 RPM)
-let isPublishing = false; // Lock to prevent concurrent publish runs
 const CACHE_DURATION = (parseInt(process.env.GNEWS_CACHE_MINUTES) || 60) * 60 * 1000;
 const MANUAL_ARTICLES_LIMIT = 0;
 const GNEWS_ARTICLES_LIMIT = 10;
@@ -134,27 +121,7 @@ const articleSchema = new mongoose.Schema({
     expiresAt: { type: Date },
     author_id: mongoose.Schema.Types.ObjectId,
     author_name: String,
-    summary: { type: String, default: '' },
-    isRSS: { type: Boolean, default: false }  // true = auto-fetched from RSS, forces AI-D tab
-}, { timestamps: true });
-
-// UPCOMING / QUEUED ARTICLES (For 8-Day Auto-Upload)
-const upcomingArticleSchema = new mongoose.Schema({
-    title: { type: String, required: true },
-    content: { type: String, required: true },
-    image: String,
-    source: { type: String, default: 'Centrinsic NPT' },
-    category: { type: String, default: 'General' },
-    originalLink: { type: String, default: '' },
-    isManual: { type: Boolean, default: true },
-    status: { type: String, enum: ['draft', 'published'], default: 'published' },
-    expiresAt: { type: Date },
-    author_id: mongoose.Schema.Types.ObjectId,
-    author_name: String,
-    summary: { type: String, default: '' },
-    targetDate: { type: Date, required: true },
-    dayLabel: { type: String },
-    isRSS: { type: Boolean, default: false }
+    summary: { type: String, default: '' }
 }, { timestamps: true });
 
 const bookmarkSchema = new mongoose.Schema({
@@ -171,7 +138,6 @@ const userEmailSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 const Article = mongoose.model('Article', articleSchema);
-const UpcomingArticle = mongoose.model('UpcomingArticle', upcomingArticleSchema);
 const Bookmark = mongoose.model('Bookmark', bookmarkSchema);
 const UserEmail = mongoose.model('UserEmail', userEmailSchema);
 
@@ -232,16 +198,13 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-// Admin password check (standalone) — FIXED
+// Admin password check (standalone)
 const checkAdminPassword = (passwordInput) => {
     if (!ADMIN_PASSWORD || !passwordInput) return false;
     try {
         const input = String(passwordInput).trim();
         const expected = String(ADMIN_PASSWORD).trim();
-        
-        // Use timing-safe comparison with direct string match first
         if (input.length !== expected.length) return false;
-        
         const provided = crypto.createHash('sha256').update(Buffer.from(input)).digest();
         const expectedHash = crypto.createHash('sha256').update(Buffer.from(expected)).digest();
         return crypto.timingSafeEqual(provided, expectedHash);
@@ -254,15 +217,6 @@ const checkAdminPassword = (passwordInput) => {
 // COMBINED: Password OR OTP
 const adminAuthMiddleware = async (req, res, next) => {
     const adminPassword = req.headers['x-admin-password'] || req.query.admin_password;
-
-    // Debug log
-    if (adminPassword) {
-        console.log('🔐 Admin password attempt received');
-        console.log('   ADMIN_PASSWORD env exists:', !!ADMIN_PASSWORD);
-        console.log('   Check result:', checkAdminPassword(adminPassword));
-    }
-
-
 
     if (adminPassword && checkAdminPassword(adminPassword)) {
         const adminUser = await User.findOne({ email: "centrinsicnpt@gmail.com" });
@@ -294,444 +248,11 @@ const adminAuthMiddleware = async (req, res, next) => {
 };
 
 // ============================================
-// RSS FEEDS CONFIGURATION (FREE — NO API KEY)
-// ============================================
-const RSS_FEEDS = [
-    // World / General (12)
-    { name: 'BBC News', url: 'http://feeds.bbci.co.uk/news/rss.xml', category: 'World' },
-    { name: 'BBC World', url: 'http://feeds.bbci.co.uk/news/world/rss.xml', category: 'World' },
-    { name: 'Guardian World', url: 'https://www.theguardian.com/world/rss', category: 'World' },
-    { name: 'Guardian UK', url: 'https://www.theguardian.com/uk/rss', category: 'World' },
-    { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'World' },
-    { name: 'NPR News', url: 'https://feeds.npr.org/1001/rss.xml', category: 'World' },
-    { name: 'NYT Home', url: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', category: 'World' },
-    { name: 'NYT World', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', category: 'World' },
-    { name: 'USA Today', url: 'http://rssfeeds.usatoday.com/usatoday-NewsTopStories', category: 'World' },
-    { name: 'ABC News', url: 'https://abcnews.go.com/abcnews/topstories', category: 'World' },
-    { name: 'CBS News', url: 'https://www.cbsnews.com/latest/rss/main', category: 'World' },
-    { name: 'Politico', url: 'https://www.politico.com/rss/politicopicks.xml', category: 'World' },
-
-    // India (6)
-    { name: 'Times of India', url: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms', category: 'India' },
-    { name: 'TOI India', url: 'https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms', category: 'India' },
-    { name: 'The Hindu', url: 'https://www.thehindu.com/news/national/?service=rss', category: 'India' },
-    { name: 'Hindu Business', url: 'https://www.thehindu.com/business/?service=rss', category: 'Business' },
-    { name: 'Economic Times', url: 'https://economictimes.indiatimes.com/rssfeedstopstories.cms', category: 'Business' },
-    { name: 'Business Standard', url: 'https://www.business-standard.com/rss/latest.rss', category: 'Business' },
-
-    // Technology (10)
-    { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', category: 'Technology' },
-    { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml', category: 'Technology' },
-    { name: 'Engadget', url: 'https://www.engadget.com/rss.xml', category: 'Technology' },
-    { name: 'Ars Technica', url: 'http://feeds.arstechnica.com/arstechnica/index', category: 'Technology' },
-    { name: 'Wired', url: 'https://www.wired.com/feed/rss', category: 'Technology' },
-    { name: 'Gizmodo', url: 'https://gizmodo.com/rss', category: 'Technology' },
-    { name: 'CNET', url: 'https://www.cnet.com/rss/news/', category: 'Technology' },
-    { name: '9to5Mac', url: 'https://9to5mac.com/feed/', category: 'Technology' },
-    { name: '9to5Google', url: 'https://9to5google.com/feed/', category: 'Technology' },
-    { name: 'Android Police', url: 'https://www.androidpolice.com/feed/', category: 'Technology' },
-
-    // Sports (6)
-    { name: 'ESPN', url: 'https://www.espn.com/espn/rss/news', category: 'Sports' },
-    { name: 'ESPN Cricinfo', url: 'https://www.espncricinfo.com/rss/content/story/feeds/0.xml', category: 'Sports' },
-    { name: 'BBC Sport', url: 'http://feeds.bbci.co.uk/sport/rss.xml', category: 'Sports' },
-    { name: 'Guardian Sport', url: 'https://www.theguardian.com/sport/rss', category: 'Sports' },
-    { name: 'NYT Sports', url: 'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml', category: 'Sports' },
-    { name: 'Sky Sports', url: 'https://www.skysports.com/rss/12040', category: 'Sports' },
-
-    // Business (5)
-    { name: 'Guardian Business', url: 'https://www.theguardian.com/business/rss', category: 'Business' },
-    { name: 'CNBC', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html', category: 'Business' },
-    { name: 'Fortune', url: 'https://fortune.com/feed/', category: 'Business' },
-    { name: 'Business Insider', url: 'https://www.businessinsider.com/rss', category: 'Business' },
-    { name: 'MarketWatch', url: 'https://www.marketwatch.com/rss/topstories', category: 'Business' },
-
-    // Science (5)
-    { name: 'Guardian Science', url: 'https://www.theguardian.com/science/rss', category: 'Science' },
-    { name: 'Science Daily', url: 'https://www.sciencedaily.com/rss/all.xml', category: 'Science' },
-    { name: 'Space.com', url: 'https://www.space.com/feeds/all', category: 'Science' },
-    { name: 'Phys.org', url: 'https://phys.org/rss-feed/', category: 'Science' },
-    { name: 'ScienceAlert', url: 'https://www.sciencealert.com/rss', category: 'Science' },
-
-    // Entertainment (5)
-    { name: 'Deadline', url: 'https://deadline.com/feed/', category: 'Entertainment' },
-    { name: 'Hollywood Reporter', url: 'https://www.hollywoodreporter.com/feed/', category: 'Entertainment' },
-    { name: 'IGN', url: 'https://www.ign.com/rss/articles/feed?tags=games,movies,tv', category: 'Entertainment' },
-    { name: 'Polygon', url: 'https://www.polygon.com/rss/index.xml', category: 'Entertainment' },
-    { name: 'Kotaku', url: 'https://kotaku.com/rss', category: 'Entertainment' },
-];
-
-// Fetch RSS articles
-async function fetchRSSArticles(targetCount = 35, globalSeenLinks = null, skipOG = false) {
-    const allArticles = [];
-    const errors = [];
-    const seenLinks = globalSeenLinks || new Set();
-    let dupesSkipped = 0;
-    let imagesFixed = 0;
-    let feedsAttempted = 0;
-
-    // Shuffle so we hit different sources each run
-    const shuffledFeeds = [...RSS_FEEDS].sort(() => Math.random() - 0.5);
-
-    for (const feed of shuffledFeeds) {
-        // Fetch up to 2x target to allow for dupes downstream
-        if (allArticles.length >= targetCount * 2) break;
-        feedsAttempted++;
-
-        let retries = 2;
-        let success = false;
-
-        while (retries >= 0 && !success) {
-            try {
-                const feedData = await rssParser.parseURL(feed.url);
-                // Grab more items per feed (was 7, now 20)
-                const items = feedData.items.slice(0, 20);
-
-                for (const item of items) {
-                    if (allArticles.length >= targetCount * 2) break;
-
-                    const link = item.link || item.guid || '';
-                    if (seenLinks.has(link)) { dupesSkipped++; continue; }
-                    seenLinks.add(link);
-
-                    let content = item.content || item.contentSnippet || item.summary || item.description || 'No content available';
-                    content = content.replace(/<<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                    if (content.length < 100) content = item.title + '. ' + content;
-                    if (content.length > 1200) content = content.substring(0, 1200) + '...';
-
-                    // Fast path: skip OG fetching during bulk queueing
-                    let imageUrl = extractImageFromRSS(item);
-                    if (!imageUrl && link && !skipOG) {
-                        imageUrl = await fetchOGImage(link);
-                        if (imageUrl) imagesFixed++;
-                    }
-                    if (!imageUrl) {
-                        imageUrl = getFallbackImage(feed.category);
-                    }
-
-                    allArticles.push({
-                        title: item.title || 'Untitled',
-                        content: content,
-                        source: feed.name,
-                        category: feed.category,
-                        image: imageUrl,
-                        originalLink: link,
-                        isRSS: true
-                    });
-                }
-                success = true;
-            } catch (err) {
-                retries--;
-                if (retries < 0) {
-                    errors.push(`${feed.name}: ${err.message}`);
-                } else {
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-            }
-        }
-    }
-
-    console.log(`📡 RSS fetched: ${allArticles.length} articles (${errors.length} errors, ${dupesSkipped} dupes skipped, ${imagesFixed} OG images, ${feedsAttempted} feeds tried)`);
-    if (errors.length > 0) console.log('   Errors:', errors.slice(0, 5).join(', '));
-    return allArticles;
-}
-
-// Queue RSS articles for 8 days (35 per day)
-async function queueRSSFor8Days() {
-    const perDay = 35;
-    const days = 8;
-    const maxAttemptsPerDay = 3;
-
-    // Use IST date as base so Day 1 = tomorrow in India time
-    const istDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
-    const [m, d, y] = istDateStr.split('/');
-    const baseDate = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
-
-    console.log(`\n📅 Queueing RSS articles for ${days} days (${perDay}/day)...`);
-    console.log(`   Base date (IST): ${baseDate.toDateString()}`);
-    console.log(`🤖 Gemini AI rewrite: ${GEMINI_API_KEY ? '✅ Enabled' : '❌ Disabled (add GEMINI_API_KEY to .env)'}`);
-
-    // GLOBAL seen links across ALL days — prevents cross-day duplicates
-    const globalSeenLinks = new Set();
-    let totalQueued = 0;
-
-    for (let day = 0; day < days; day++) {
-        const targetDate = new Date(baseDate);
-        targetDate.setDate(targetDate.getDate() + day);  // Day 1 = today
-        targetDate.setHours(0, 0, 0, 0);
-
-        let dayQueued = 0;
-        let daySkipped = 0;
-        let attempts = 0;
-
-        // Keep fetching until we have 35 non-duplicates or exhaust attempts
-        while (dayQueued < perDay && attempts < maxAttemptsPerDay) {
-            attempts++;
-            const needed = perDay - dayQueued;
-            const fetchTarget = Math.max(needed * 3, 25); // fetch 3× what we still need
-
-            console.log(`   📡 Day ${day + 1} attempt ${attempts}: need ${needed} more, fetching ~${fetchTarget}`);
-
-            const fetched = await fetchRSSArticles(fetchTarget, globalSeenLinks, true);
-            if (fetched.length === 0) {
-                console.log(`   ⚠️ Day ${day + 1}: zero articles returned, breaking`);
-                break;
-            }
-
-            for (const article of fetched) {
-                if (dayQueued >= perDay) break;
-
-                // DUPLICATE CHECK
-                const isDup = await isDuplicateArticle(article.title, article.originalLink);
-                if (isDup) {
-                    daySkipped++;
-                    console.log(`   ⏭️ Skipped duplicate: ${article.title.substring(0, 50)}...`);
-                    continue;
-                }
-
-                // AI Rewrite to ~170 words
-                let finalContent = article.content;
-                const originalLength = article.content?.length || 0;
-
-                if (GEMINI_API_KEY && geminiModel) {
-                    try {
-                        finalContent = await rewriteSummaryWithGemini(article.title, article.content);
-                        const newLength = finalContent?.length || 0;
-                        const wordCount = finalContent?.split(/\s+/)?.filter(w => w.length > 0)?.length || 0;
-                        console.log(`   🤖 [${dayQueued + 1}/35] AI summary: ${wordCount} words, ${newLength} chars | ${article.title.substring(0, 40)}...`);
-                        // Rate limit safety
-                        if (dayQueued < perDay - 1) await new Promise(r => setTimeout(r, GEMINI_DELAY_MS));
-                    } catch (e) {
-                        console.log(`   ⚠️ AI rewrite failed for: ${article.title.substring(0, 50)} — using original (${originalLength} chars)`);
-                    }
-                } else {
-                    console.log(`   ⏭️ No Gemini key, using original content (${originalLength} chars)`);
-                }
-
-                await UpcomingArticle.create({
-                    title: article.title,
-                    content: finalContent,
-                    summary: finalContent,
-                    image: article.image,
-                    source: article.source,
-                    category: article.category,
-                    originalLink: article.originalLink,
-                    isManual: true,
-                    status: 'published',
-                    targetDate: targetDate,
-                    dayLabel: `Day ${day + 1}`,
-                    isRSS: true,
-                    author_name: 'RSS Auto-Fetch'
-                });
-                dayQueued++;
-                totalQueued++;
-            }
-
-            console.log(`   📊 Day ${day + 1} attempt ${attempts}: ${dayQueued}/35 queued (${daySkipped} skipped)`);
-            await new Promise(r => setTimeout(r, 1500));
-        }
-
-        console.log(`   ✅ Day ${day + 1} (${targetDate.toDateString()}): ${dayQueued} articles queued`);
-    }
-
-    console.log(`🎉 Total queued: ${totalQueued} articles across ${days} days\n`);
-}
-
-
-// ============================================
-// GEMINI AI SUMMARY REWRITE (~170 WORDS)
-// ============================================
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-3.5-flash' }) : null;
-
-async function rewriteSummaryWithGemini(title, content) {
-    if (!geminiModel) {
-        console.log('   ⚠️ Gemini model not initialized — check GEMINI_API_KEY');
-        return content;
-    }
-
-    try {
-        const prompt = `Rewrite the following news article into a professional, factual summary of exactly 150-170 words. Preserve all key facts, names, dates, and important quotes. Use clear journalistic language. Do not add opinions or information not in the original text. Output plain text only — no markdown, no headers, no bullet points.
-
-TITLE: ${title}
-
-ARTICLE: ${content.substring(0, 4000)}
-
-SUMMARY:`;
-
-        // Correct API format for @google/generative-ai package
-        const result = await geminiModel.generateContent(prompt);
-        const response = await result.response;
-        let summary = response.text().trim();
-
-        // Word count enforcement — hard cap at ~170 words
-        const words = summary.split(/\s+/).filter(w => w.length > 0);
-        if (words.length > 175) {
-            summary = words.slice(0, 170).join(' ') + '...';
-        }
-
-        console.log(`   ✅ Gemini returned ${words.length} words`);
-        return summary;
-    } catch (err) {
-        console.error('❌ Gemini rewrite error:', err.message);
-        if (err.message?.includes('API key')) console.error('   → Check your GEMINI_API_KEY in .env');
-        if (err.message?.includes('quota')) console.error('   → Rate limit exceeded, try again later');
-        return content;
-    }
-}
-
-// ============================================
-// DUPLICATE FILTER & BETTER IMAGE EXTRACTION
-// ============================================
-
-const CATEGORY_FALLBACK_IMAGES = {
-    'World': 'https://images.unsplash.com/photo-1523995462485-3a17e36c6c80?w=800&q=80',
-    'India': 'https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=800&q=80',
-    'Technology': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80',
-    'Sports': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80',
-    'Business': 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80',
-    'Science': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80',
-    'Entertainment': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
-    'General': 'https://images.unsplash.com/photo-1504711434969-e33886168db5?w=800&q=80'
-};
-
-function normalizeTitle(title) {
-    if (!title) return '';
-    return title.toLowerCase()
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function titleSimilarity(a, b) {
-    if (!a || !b) return 0;
-    const wordsA = new Set(normalizeTitle(a).split(' ').filter(w => w.length > 2));
-    const wordsB = new Set(normalizeTitle(b).split(' ').filter(w => w.length > 2));
-    if (wordsA.size === 0 || wordsB.size === 0) return 0;
-    const intersection = [...wordsA].filter(x => wordsB.has(x));
-    const union = new Set([...wordsA, ...wordsB]);
-    return intersection.length / union.size;
-}
-
-async function isDuplicateArticle(title, originalLink) {
-    if (!title || title.length < 10) return true; // Too short = likely invalid
-
-    // 1. Exact URL match
-    if (originalLink) {
-        const existingUrl = await UpcomingArticle.findOne({ originalLink })
-                         || await Article.findOne({ originalLink });
-        if (existingUrl) return true;
-    }
-
-    // 2. Exact title match
-    const existingTitle = await UpcomingArticle.findOne({ title })
-                       || await Article.findOne({ title });
-    if (existingTitle) return true;
-
-    // 3. Fuzzy title match in last 30 days — RAISED to 0.88 (was 0.82)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const recentUpcoming = await UpcomingArticle.find({ createdAt: { $gte: thirtyDaysAgo } }).select('title');
-    const recentArticles = await Article.find({ createdAt: { $gte: thirtyDaysAgo } }).select('title');
-    const allTitles = [...recentUpcoming, ...recentArticles].map(a => a.title);
-
-    for (const existing of allTitles) {
-        if (titleSimilarity(title, existing) > 0.88) return true;
-    }
-
-    return false;
-}
-
-function extractImageFromRSS(item) {
-    // 1. Standard enclosure
-    if (item.enclosure?.url) return item.enclosure.url;
-    if (item.enclosure?.['@url']) return item.enclosure['@url'];
-
-    // 2. media:content (various formats)
-    let mediaContent = item['media:content'];
-    if (!mediaContent && item['media:group']) {
-        mediaContent = item['media:group']['media:content'];
-    }
-    if (mediaContent) {
-        const contents = Array.isArray(mediaContent) ? mediaContent : [mediaContent];
-        for (const m of contents) {
-            const url = m?.$?.url || m?.url || m?.['@url'] || m?.$?.['@url'];
-            if (url && !url.includes('tracking') && !url.includes('pixel') && !url.includes('1x1')) {
-                return url;
-            }
-        }
-    }
-
-    // 3. media:thumbnail
-    let thumb = item['media:thumbnail'];
-    if (!thumb && item['media:group']) {
-        thumb = item['media:group']['media:thumbnail'];
-    }
-    if (thumb) {
-        const thumbs = Array.isArray(thumb) ? thumb : [thumb];
-        for (const t of thumbs) {
-            const url = t?.$?.url || t?.url || t?.['@url'];
-            if (url) return url;
-        }
-    }
-
-    // 4. itunes:image
-    if (item['itunes:image']?.href) return item['itunes:image'].href;
-    if (item['itunes:image']?.$?.href) return item['itunes:image'].$.href;
-
-    // 5. Extract from HTML content (content:encoded, description, content, summary)
-    const htmlContent = item['content:encoded'] || item.content || item.description || item.summary || '';
-    const imgMatch = htmlContent.match(/<<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
-    if (imgMatch) return imgMatch[1];
-
-    // 6. Broader regex for raw image URLs in text
-    const broadMatch = htmlContent.match(/https?:\/\/[^\s"<>]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s"<>]*)?/i);
-    if (broadMatch) return broadMatch[0];
-
-    // 7. Image in CDATA or other fields
-    if (item.image?.url) return item.image.url;
-
-    return null;
-}
-
-async function fetchOGImage(url) {
-    if (!url) return null;
-    try {
-        const response = await axios.get(url, {
-            timeout: 8000,
-            maxRedirects: 5,
-            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CentrinsicBot/1.0)' }
-        });
-        const html = response.data;
-        // og:image
-        let ogMatch = html.match(/<<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-                   || html.match(/<<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-        // twitter:image
-        if (!ogMatch) {
-            ogMatch = html.match(/<<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
-                     || html.match(/<<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
-        }
-        if (ogMatch) {
-            let imgUrl = ogMatch[1].trim();
-            if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
-            if (imgUrl.startsWith('/')) {
-                const base = new URL(url);
-                imgUrl = `${base.protocol}//${base.host}${imgUrl}`;
-            }
-            return imgUrl;
-        }
-        return null;
-    } catch (e) {
-        return null;
-    }
-}
-
-function getFallbackImage(category) {
-    return CATEGORY_FALLBACK_IMAGES[category] || CATEGORY_FALLBACK_IMAGES['General'];
-}
-
-// ============================================
 // GNEWS FETCH
 // ============================================
+const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
+const GNEWS_BASE_URL = 'https://gnews.io/api/v4';
+
 async function fetchGNewsArticles(targetLimit = GNEWS_ARTICLES_LIMIT) {
     const now = Date.now();
     if (gnewsCache.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
@@ -870,7 +391,7 @@ app.delete('/api/admin/delete-all-news', adminAuthMiddleware, async (req, res) =
                     if (uploadIndex !== -1) {
                         let afterUpload = article.image.substring(uploadIndex + 8);
                         afterUpload = afterUpload.replace(/^v\d+\//, '');
-                        const publicId = afterUpload.replace(/\.[^/.]+$/, '');
+                        const publicId = afterUpload.replace(/\.[^\/.]+$/, '');
                         await cloudinary.uploader.destroy(publicId);
                     }
                 } catch (err) {
@@ -890,105 +411,6 @@ app.get('/api/admin/articles', adminAuthMiddleware, async (req, res) => {
     try {
         const articles = await Article.find().sort({ createdAt: -1 });
         res.json({ success: true, count: articles.length, articles });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// ── 8-DAY RSS QUEUE SYSTEM ──
-
-// Trigger RSS fetch for 8 days
-app.post('/api/admin/fetch-rss-8days', adminAuthMiddleware, async (req, res) => {
-    try {
-        const existing = await UpcomingArticle.countDocuments();
-        if (existing > 100) {
-            return res.json({ 
-                success: true, 
-                message: 'Already queued', 
-                totalQueued: existing,
-                daysQueued: Math.ceil(existing / 35)
-            });
-        }
-
-        await queueRSSFor8Days();
-
-        const total = await UpcomingArticle.countDocuments();
-        res.json({ 
-            success: true, 
-            totalQueued: total,
-            daysQueued: 8,
-            message: 'RSS articles queued successfully'
-        });
-    } catch (err) {
-        console.error('RSS 8-day fetch error:', err);
-        res.status(500).json({ success: false, error: err.message });
-    }
-});
-
-// View queue
-app.get('/api/admin/queue', adminAuthMiddleware, async (req, res) => {
-    try {
-        const queue = await UpcomingArticle.find().sort({ targetDate: 1, createdAt: -1 });
-        res.json({ success: true, count: queue.length, queue });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Queue upload (manual)
-app.post('/api/admin/queue-article', adminAuthMiddleware, upload.single('image'), async (req, res) => {
-    const { title, content, source, category, originalLink, expiresAt, targetDate, dayLabel } = req.body;
-    if (!title || !content || !targetDate) {
-        return res.status(400).json({ error: 'Title, content, and targetDate required' });
-    }
-    try {
-        const imageUrl = req.file ? req.file.path : '';
-        const article = await UpcomingArticle.create({
-            title, content, image: imageUrl,
-            source: source || 'Centrinsic NPT',
-            category: category || 'General',
-            originalLink: originalLink || req.body['original link'] || '',
-            isManual: true, status: 'published',
-            expiresAt: expiresAt ? new Date(expiresAt) : undefined,
-            author_id: req.userId,
-            author_name: req.userName || 'Admin',
-            targetDate: new Date(targetDate),
-            dayLabel: dayLabel || ''
-        });
-        res.json({ success: true, queuedArticleId: article._id, image: imageUrl, article });
-    } catch (err) {
-        console.error('Queue upload error:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Delete from queue
-app.delete('/api/admin/queue/:id', adminAuthMiddleware, async (req, res) => {
-    try {
-        const q = await UpcomingArticle.findById(req.params.id);
-        if (!q) return res.status(404).json({ error: 'Not found' });
-        if (q.image && q.image.includes('cloudinary')) {
-            try {
-                const idx = q.image.indexOf('/upload/');
-                if (idx !== -1) {
-                    let after = q.image.substring(idx + 8).replace(/^v\d+\//, '');
-                    const publicId = after.replace(/\.[^/.]+$/, '');
-                    await cloudinary.uploader.destroy(publicId);
-                }
-            } catch (e) {}
-        }
-        await UpcomingArticle.findByIdAndDelete(req.params.id);
-        res.json({ success: true, message: 'Removed from queue' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Clear entire queue
-app.post('/api/admin/clear-queue', adminAuthMiddleware, async (req, res) => {
-    try {
-        await UpcomingArticle.deleteMany({});
-        res.json({ success: true, message: 'Queue cleared' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -1168,7 +590,7 @@ app.delete('/api/articles/:id', authMiddleware, async (req, res) => {
                 if (uploadIndex !== -1) {
                     let afterUpload = article.image.substring(uploadIndex + 8);
                     afterUpload = afterUpload.replace(/^v\d+\//, '');
-                    const publicId = afterUpload.replace(/\.[^/.]+$/, '');
+                    const publicId = afterUpload.replace(/\.[^\/.]+$/, '');
                     await cloudinary.uploader.destroy(publicId);
                     console.log('🗑 Cloudinary image deleted:', publicId);
                 }
@@ -1209,6 +631,101 @@ app.get('/api/user-emails', async (req, res) => {
 });
 
 // ============================================
+// AUTO-DELETE AT 11:59 PM IST
+// ============================================
+const DELETE_HOUR = 23, DELETE_MINUTE = 59;
+const DELETE_TIMEZONE = process.env.DELETE_TIMEZONE || 'Asia/Kolkata';
+let autoDeleteLog = { lastRun: null, lastDeletedCount: 0, lastError: null, totalRuns: 0 };
+
+async function deleteAllManualNews() {
+    console.log('\n🗑️ ========== AUTO-DELETE STARTED ==========');
+    try {
+        if (mongoose.connection.readyState !== 1) {
+            autoDeleteLog.lastError = 'MongoDB not connected';
+            return;
+        }
+        const articles = await Article.find({ isManual: true });
+        console.log(`   Found ${articles.length} manual articles`);
+        if (articles.length > 0) {
+            let imgCount = 0;
+            for (const a of articles) {
+                if (a.image && a.image.includes('cloudinary')) {
+                    try {
+                        const idx = a.image.indexOf('/upload/');
+                        if (idx !== -1) {
+                            let after = a.image.substring(idx + 8).replace(/^v\d+\//, '');
+                            const publicId = after.replace(/\.[^\/.]+$/, '');
+                            const r = await cloudinary.uploader.destroy(publicId);
+                            if (r.result === 'ok') { imgCount++; console.log(`   ✅ Image deleted: ${publicId}`); }
+                        }
+                    } catch (e) { console.log(`   ⚠️ Image delete failed:`, e?.message); }
+                }
+            }
+            const result = await Article.deleteMany({ isManual: true });
+            await Bookmark.deleteMany({});
+            autoDeleteLog = {
+                lastRun: new Date().toISOString(),
+                lastDeletedCount: result.deletedCount,
+                lastError: null,
+                totalRuns: autoDeleteLog.totalRuns + 1
+            };
+            console.log(`   ✅ Deleted ${result.deletedCount} articles, ${imgCount} images`);
+        } else {
+            autoDeleteLog.lastRun = new Date().toISOString();
+            autoDeleteLog.lastDeletedCount = 0;
+            autoDeleteLog.totalRuns++;
+            console.log('   ℹ️ No manual articles to delete');
+        }
+    } catch (err) {
+        console.error('❌ Auto-delete error:', err.message);
+        autoDeleteLog.lastError = err.message;
+    }
+}
+
+setInterval(() => {
+    const now = new Date();
+    const local = new Intl.DateTimeFormat('en-US', { timeZone: DELETE_TIMEZONE, hour: 'numeric', minute: 'numeric', hour12: false }).format(now);
+    const [h, m] = local.split(':').map(Number);
+    if (h === DELETE_HOUR && m === DELETE_MINUTE) {
+        const todayIST = new Intl.DateTimeFormat('en-US', { timeZone: DELETE_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+        const lastIST = autoDeleteLog.lastRun 
+            ? new Intl.DateTimeFormat('en-US', { timeZone: DELETE_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(autoDeleteLog.lastRun))
+            : null;
+        if (lastIST === todayIST) {
+            console.log(`⏰ Already ran today (${todayIST}), skipping`);
+            return;
+        }
+        console.log(`⏰ Auto-delete triggered at ${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE} | Today: ${todayIST} | Last: ${lastIST || 'never'}`);
+        deleteAllManualNews();
+    }
+}, 60 * 1000);
+
+app.get('/api/admin/auto-delete-status', adminAuthMiddleware, async (req, res) => {
+    const now = new Date();
+    const localTime = new Intl.DateTimeFormat('en-US', {
+        timeZone: DELETE_TIMEZONE, hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(now);
+    res.json({
+        autoDelete: {
+            scheduledTime: `${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE}`,
+            currentTimeInZone: localTime,
+            lastRun: autoDeleteLog.lastRun,
+            lastDeletedCount: autoDeleteLog.lastDeletedCount,
+            lastError: autoDeleteLog.lastError,
+            totalRuns: autoDeleteLog.totalRuns
+        }
+    });
+});
+
+app.post('/api/admin/trigger-auto-delete', adminAuthMiddleware, async (req, res) => {
+    try {
+        console.log('🔧 Manual auto-delete triggered');
+        await deleteAllManualNews();
+        res.json({ success: true, message: 'Auto-delete triggered', deletedCount: autoDeleteLog.lastDeletedCount, lastRun: autoDeleteLog.lastRun });
+    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// ============================================
 // DEBUG ROUTES — Password OR OTP
 // ============================================
 if (DEBUG) {
@@ -1229,7 +746,6 @@ if (DEBUG) {
                     users: await User.countDocuments(),
                     useremails: await UserEmail.countDocuments(),
                     articles: await Article.countDocuments(),
-                    upcomingarticles: await UpcomingArticle.countDocuments(),
                     bookmarks: await Bookmark.countDocuments()
                 }
             });
@@ -1274,16 +790,19 @@ if (DEBUG) {
                 <br><button onclick="fetch('/api/admin/refresh-gnews${pw}',{method:'POST',headers:{'x-admin-password':'${pwHeader}'}}).then(()=>location.reload())">🔄 Force Refresh GNews</button>
             </div>
             <div class="card">
-                <h3>8-Day Queue System</h3>
-                <button onclick="fetch('/api/admin/fetch-rss-8days${pw}',{method:'POST',headers:{'x-admin-password':'${pwHeader}'}}).then(r=>r.json()).then(d=>alert(d.message||d.error)).catch(e=>alert(e.message))">📡 Fetch & Queue 8 Days RSS</button>
-                <button onclick="location.href='/api/admin/queue${pw}'">📅 View Queue</button>
-                <button onclick="location.href='/api/admin/auto-delete-status${pw}'">⏰ Auto-Delete Status</button>
+                <h3>Auto-Delete</h3>
+                <div class="info-row"><span>Scheduled:</span><strong>${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE}</strong></div>
+                <div class="info-row"><span>Last Run:</span><strong>${autoDeleteLog.lastRun || 'Never'}</strong></div>
+                <div class="info-row"><span>Last Deleted:</span><strong>${autoDeleteLog.lastDeletedCount || 0} articles</strong></div>
+                <div class="info-row"><span>Total Runs:</span><strong>${autoDeleteLog.totalRuns}</strong></div>
+                <br><button onclick="fetch('/api/admin/trigger-auto-delete${pw}',{method:'POST',headers:{'x-admin-password':'${pwHeader}'}}).then(r=>r.json()).then(d=>alert(d.message)).catch(e=>alert(e.message))">🗑️ Trigger Auto-Delete Now</button>
+                <button onclick="location.href='/api/admin/auto-delete-status${pw}'">📊 View Auto-Delete Status</button>
             </div>
             <div class="card">
                 <h3>Quick Actions</h3>
                 <button onclick="location.href='/api/debug/db-status${pw}'">Check DB Status</button>
                 <button onclick="location.href='/api/debug/list-users${pw}'">List All Users</button>
-                <button onclick="location.href='/api/admin/articles${pw}'">List Manual Articles</button>
+                <button onclick="location.href='/api/admin/articles${pw}'">List All Articles</button>
                 <button onclick="location.href='/api/articles'">View Combined Feed</button>
                 <button onclick="location.href='/api/admin/cache-status${pw}'">Cache Details</button>
                 <button onclick="location.href='/api/admin/keep-alive-status${pw}'">Keep-Alive Status</button>
@@ -1291,7 +810,6 @@ if (DEBUG) {
             <div class="card">
                 <h3>News Sources</h3>
                 <p>✅ GNews API: ${GNEWS_API_KEY ? 'Configured' : 'Not Configured'}</p>
-                <p>✅ RSS Feeds: 49 free sources (no API key)</p>
                 <p>✅ Manual Articles: MongoDB (Unlimited)</p>
                 <p>📦 Cache Duration: ${CACHE_DURATION / 60000} min</p>
                 <p>🔁 GNews: Single request per cache window</p>
@@ -1315,471 +833,6 @@ app.use((err, req, res, next) => {
     console.error('Error:', err);
     if (err instanceof multer.MulterError) return res.status(400).json({ error: 'File upload error: ' + err.message });
     res.status(500).json({ error: err.message || 'Internal server error' });
-});
-
-// ============================================
-// AUTO-DELETE AT 11:57 PM IST + AUTO-PUBLISH WITH DELAY
-// ============================================
-const DELETE_HOUR = 23, DELETE_MINUTE = 57;
-const DELETE_TIMEZONE = process.env.DELETE_TIMEZONE || 'Asia/Kolkata';
-// ⏰ DELAY before publishing next day's news (in minutes)
-// Set to 30 = 12:27 AM, 60 = 12:57 AM, 90 = 1:27 AM
-const PUBLISH_DELAY_MINUTES = parseInt(process.env.PUBLISH_DELAY_MINUTES) || 33;  // default: 33 min (12:30 AM)
-let autoDeleteLog = { lastRun: null, lastDeletedCount: 0, lastError: null, totalRuns: 0 };
-let publishScheduleLog = { nextPublishTime: null, lastPublishTime: null, lastPublishedCount: 0 };
-
-// ============================================
-// CHANGE #1: FIXED publishQueuedArticles — Publishes articles for TODAY
-// ============================================
-async function publishQueuedArticles() {
-    if (isPublishing) {
-        console.log('⏳ Publish already in progress, skipping');
-        return;
-    }
-    isPublishing = true;
-
-    try {
-    const now = new Date();
-
-    // Find the EARLIEST targetDate in the queue (timezone-agnostic)
-    const earliest = await UpcomingArticle.findOne().sort({ targetDate: 1 }).select('targetDate');
-    if (!earliest) {
-        console.log('📅 No queued articles found in UpcomingArticle collection');
-        publishScheduleLog.lastPublishTime = new Date().toISOString();
-        publishScheduleLog.lastPublishedCount = 0;
-        return;
-    }
-
-    // Normalize to midnight→end-of-day for that targetDate
-    const targetDay = new Date(earliest.targetDate);
-    targetDay.setHours(0, 0, 0, 0);
-    const endOfTargetDay = new Date(targetDay);
-    endOfTargetDay.setHours(23, 59, 59, 999);
-
-    console.log(`📅 Publishing queued articles for targetDate: ${targetDay.toDateString()}`);
-    console.log(`   Query range: ${targetDay.toISOString()} → ${endOfTargetDay.toISOString()}`);
-
-    const queued = await UpcomingArticle.find({
-        targetDate: { $gte: targetDay, $lte: endOfTargetDay },
-        status: 'published'
-    });
-
-    console.log(`   Found ${queued.length} articles matching targetDate range`);
-
-    if (queued.length === 0) {
-        console.log('   ⚠️ No articles matched — checking earliest articles as fallback...');
-        // Fallback: publish ONLY the earliest 35 articles (one day max)
-        const allQueued = await UpcomingArticle.find({ status: 'published' }).sort({ targetDate: 1 }).limit(35);
-        if (allQueued.length === 0) {
-            console.log('   ❌ Queue is completely empty');
-            publishScheduleLog.lastPublishTime = new Date().toISOString();
-            publishScheduleLog.lastPublishedCount = 0;
-            return;
-        }
-        console.log(`   🔄 Fallback: publishing ${allQueued.length} earliest articles from queue`);
-        for (const q of allQueued) {
-            await Article.create({
-                title: q.title,
-                content: q.content,
-                summary: q.summary || q.content,
-                image: q.image,
-                source: q.source,
-                category: q.category,
-                originalLink: q.originalLink,
-                isManual: true,
-                status: 'published',
-                expiresAt: q.expiresAt,
-                author_id: q.author_id,
-                author_name: q.author_name || 'RSS Auto-Fetch'
-            });
-        }
-        // Only delete the specific articles we published
-        await UpcomingArticle.deleteMany({ _id: { $in: allQueued.map(q => q._id) } });
-        publishScheduleLog.lastPublishTime = new Date().toISOString();
-        publishScheduleLog.lastPublishedCount = allQueued.length;
-        console.log(`   ✅ Fallback published ${allQueued.length} articles`);
-        return;
-    }
-
-    for (const q of queued) {
-        await Article.create({
-            title: q.title,
-            content: q.content,
-            summary: q.summary || q.content,
-            image: q.image,
-            source: q.source,
-            category: q.category,
-            originalLink: q.originalLink,
-            isManual: true,
-            status: 'published',
-            expiresAt: q.expiresAt,
-            author_id: q.author_id,
-            author_name: q.author_name || 'RSS Auto-Fetch',
-            isRSS: q.isRSS || false
-        });
-    }
-
-    // Delete published articles from queue
-    await UpcomingArticle.deleteMany({ 
-        targetDate: { $gte: targetDay, $lte: endOfTargetDay } 
-    });
-
-    publishScheduleLog.lastPublishTime = new Date().toISOString();
-    publishScheduleLog.lastPublishedCount = queued.length;
-    console.log(`   ✅ Published ${queued.length} articles for ${targetDay.toDateString()}`);
-    } finally {
-        isPublishing = false;
-    }
-}
-
-async function schedulePublishAfterDelay() {
-    const delayMs = PUBLISH_DELAY_MINUTES * 60 * 1000;
-    const publishTime = new Date(Date.now() + delayMs);
-    publishScheduleLog.nextPublishTime = publishTime.toISOString();
-
-    console.log(`⏳ Auto-publish scheduled for ${publishTime.toLocaleTimeString('en-US', { timeZone: DELETE_TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: true })} (${PUBLISH_DELAY_MINUTES} min delay)`);
-
-    setTimeout(async () => {
-        console.log('🚀 Running scheduled auto-publish (setTimeout)...');
-        await publishQueuedArticles();
-        publishScheduleLog.nextPublishTime = null;
-    }, delayMs);
-}
-
-// ============================================
-// ROBUST PUBLISH CHECK — survives server restarts
-// ============================================
-async function checkAndPublishPending() {
-    if (isPublishing) {
-        console.log('⏳ Publish already in progress, skipping check');
-        return;
-    }
-    try {
-        // Count manual articles currently live
-        const liveCount = await Article.countDocuments({ isManual: true });
-        // Count queued articles
-        const queuedCount = await UpcomingArticle.countDocuments();
-
-        console.log(`🔍 Publish check: ${liveCount} live manual articles, ${queuedCount} queued`);
-
-        // ONLY publish if NO live articles exist (fresh start / after delete)
-        // This prevents double-publishing when articles already exist
-        if (liveCount === 0 && queuedCount > 0) {
-            console.log('🚨 No live articles found but queue has articles — running catch-up publish!');
-            await publishQueuedArticles();
-        } else if (liveCount > 0) {
-            console.log(`✅ ${liveCount} live articles already present — skipping catch-up`);
-        }
-
-        // REMOVED: The hoursSinceLast catch-up was causing multiple days to publish
-        // The auto-delete at 23:57 IST + 33min delay is the ONLY scheduled publish trigger
-    } catch (err) {
-        console.error('❌ checkAndPublishPending error:', err.message);
-    }
-}
-
-async function deleteAllManualNews() {
-    console.log('\n🗑️ ========== AUTO-DELETE STARTED ==========');
-    try {
-        if (mongoose.connection.readyState !== 1) {
-            autoDeleteLog.lastError = 'MongoDB not connected';
-            return;
-        }
-        const articles = await Article.find({ isManual: true });
-        console.log(`   Found ${articles.length} manual articles`);
-        if (articles.length > 0) {
-            let imgCount = 0;
-            for (const a of articles) {
-                if (a.image && a.image.includes('cloudinary')) {
-                    try {
-                        const idx = a.image.indexOf('/upload/');
-                        if (idx !== -1) {
-                            let after = a.image.substring(idx + 8).replace(/^v\d+\//, '');
-                            const publicId = after.replace(/\.[^/.]+$/, '');
-                            const r = await cloudinary.uploader.destroy(publicId);
-                            if (r.result === 'ok') { imgCount++; console.log(`   ✅ Image deleted: ${publicId}`); }
-                        }
-                    } catch (e) { console.log(`   ⚠️ Image delete failed:`, e?.message); }
-                }
-            }
-            const result = await Article.deleteMany({ isManual: true });
-            await Bookmark.deleteMany({});
-            autoDeleteLog = {
-                lastRun: new Date().toISOString(),
-                lastDeletedCount: result.deletedCount,
-                lastError: null,
-                totalRuns: autoDeleteLog.totalRuns + 1
-            };
-            console.log(`   ✅ Deleted ${result.deletedCount} articles, ${imgCount} images`);
-        } else {
-            autoDeleteLog.lastRun = new Date().toISOString();
-            autoDeleteLog.lastDeletedCount = 0;
-            autoDeleteLog.totalRuns++;
-        }
-
-        // 🔥 SCHEDULE AUTO-PUBLISH with configurable delay
-        await schedulePublishAfterDelay();
-
-    } catch (err) {
-        console.error('❌ Auto-delete error:', err.message);
-        autoDeleteLog.lastError = err.message;
-    }
-}
-
-setInterval(() => {
-    const now = new Date();
-    const local = new Intl.DateTimeFormat('en-US', { timeZone: DELETE_TIMEZONE, hour: 'numeric', minute: 'numeric', hour12: false }).format(now);
-    const [h, m] = local.split(':').map(Number);
-    if (h === DELETE_HOUR && m === DELETE_MINUTE) {
-        // Use IST date for comparison, not UTC date
-        const todayIST = new Intl.DateTimeFormat('en-US', { timeZone: DELETE_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-        const lastIST = autoDeleteLog.lastRun 
-            ? new Intl.DateTimeFormat('en-US', { timeZone: DELETE_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(autoDeleteLog.lastRun))
-            : null;
-        if (lastIST === todayIST) {
-            console.log(`⏰ Already ran today (${todayIST}), skipping`);
-            return;
-        }
-        console.log(`⏰ Auto-delete triggered at ${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE} | Today: ${todayIST} | Last: ${lastIST || 'never'}`);
-        deleteAllManualNews();
-    }
-}, 60 * 1000);
-
-app.get('/api/admin/auto-delete-status', adminAuthMiddleware, async (req, res) => {
-    const now = new Date();
-    const localTime = new Intl.DateTimeFormat('en-US', {
-        timeZone: DELETE_TIMEZONE, hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit'
-    }).format(now);
-    res.json({
-        autoDelete: {
-            scheduledTime: `${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE}`,
-            currentTimeInZone: localTime,
-            lastRun: autoDeleteLog.lastRun, lastDeletedCount: autoDeleteLog.lastDeletedCount,
-            lastError: autoDeleteLog.lastError, totalRuns: autoDeleteLog.totalRuns
-        },
-        autoPublish: {
-            delayMinutes: PUBLISH_DELAY_MINUTES,
-            nextPublishTime: publishScheduleLog.nextPublishTime,
-            lastPublishTime: publishScheduleLog.lastPublishTime,
-            lastPublishedCount: publishScheduleLog.lastPublishedCount,
-            estimatedPublishTime: `${DELETE_HOUR}:${String(DELETE_MINUTE + PUBLISH_DELAY_MINUTES).padStart(2, '0')} ${DELETE_TIMEZONE}`
-        }
-    });
-});
-
-app.post('/api/admin/trigger-auto-delete', adminAuthMiddleware, async (req, res) => {
-    try {
-        console.log('🔧 Manual auto-delete triggered');
-        await deleteAllManualNews();
-        res.json({ success: true, message: 'Auto-delete triggered', deletedCount: autoDeleteLog.lastDeletedCount, lastRun: autoDeleteLog.lastRun });
-    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
-});
-
-app.post('/api/admin/trigger-publish', adminAuthMiddleware, async (req, res) => {
-    try {
-        console.log('🔧 Manual publish triggered');
-        await publishQueuedArticles();
-        res.json({ 
-            success: true, 
-            message: 'Publish triggered', 
-            lastPublishTime: publishScheduleLog.lastPublishTime,
-            lastPublishedCount: publishScheduleLog.lastPublishedCount
-        });
-    } catch (err) { 
-        res.status(500).json({ success: false, error: err.message }); 
-    }
-});
-
-// RESTORE missing days — publish specific day(s) back to live articles
-app.post('/api/admin/restore-day', adminAuthMiddleware, async (req, res) => {
-    try {
-        const { dayOffset } = req.body; // 0 = today, 1 = tomorrow, etc. Or use 'all' for all remaining
-
-        if (dayOffset === 'all') {
-            // Publish ALL remaining queued articles (emergency restore)
-            const allQueued = await UpcomingArticle.find({ status: 'published' }).sort({ targetDate: 1 });
-            if (allQueued.length === 0) {
-                return res.json({ success: true, message: 'No queued articles to restore' });
-            }
-            for (const q of allQueued) {
-                await Article.create({
-                    title: q.title,
-                    content: q.content,
-                    summary: q.summary || q.content,
-                    image: q.image,
-                    source: q.source,
-                    category: q.category,
-                    originalLink: q.originalLink,
-                    isManual: true,
-                    status: 'published',
-                    expiresAt: q.expiresAt,
-                    author_id: q.author_id,
-                    author_name: q.author_name || 'RSS Auto-Fetch',
-                    isRSS: q.isRSS || false
-                });
-            }
-            await UpcomingArticle.deleteMany({ _id: { $in: allQueued.map(q => q._id) } });
-            return res.json({ 
-                success: true, 
-                message: `Restored ${allQueued.length} articles`,
-                restoredCount: allQueued.length
-            });
-        }
-
-        // Restore specific day by offset
-        const targetDay = new Date();
-        targetDay.setHours(0, 0, 0, 0);
-        targetDay.setDate(targetDay.getDate() + (dayOffset || 0));
-        const endOfDay = new Date(targetDay);
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const toRestore = await UpcomingArticle.find({
-            targetDate: { $gte: targetDay, $lte: endOfDay },
-            status: 'published'
-        });
-
-        if (toRestore.length === 0) {
-            return res.json({ success: true, message: `No articles found for day offset ${dayOffset}` });
-        }
-
-        for (const q of toRestore) {
-            await Article.create({
-                title: q.title,
-                content: q.content,
-                summary: q.summary || q.content,
-                image: q.image,
-                source: q.source,
-                category: q.category,
-                originalLink: q.originalLink,
-                isManual: true,
-                status: 'published',
-                expiresAt: q.expiresAt,
-                author_id: q.author_id,
-                author_name: q.author_name || 'RSS Auto-Fetch',
-                isRSS: q.isRSS || false
-            });
-        }
-        await UpcomingArticle.deleteMany({ _id: { $in: toRestore.map(q => q._id) } });
-
-        res.json({ 
-            success: true, 
-            message: `Restored ${toRestore.length} articles for ${targetDay.toDateString()}`,
-            restoredCount: toRestore.length,
-            dayOffset: dayOffset
-        });
-    } catch (err) { 
-        res.status(500).json({ success: false, error: err.message }); 
-    }
-});
-
-// RESET & REORGANIZE: Move ALL live articles back to queue, then redistribute evenly across 8 days
-app.post('/api/admin/reset-and-reorganize', adminAuthMiddleware, async (req, res) => {
-    try {
-        console.log('🔄 RESET & REORGANIZE started...');
-
-        // Step 1: Get all live manual articles
-        const liveArticles = await Article.find({ isManual: true });
-        console.log(`   Found ${liveArticles.length} live articles to move back to queue`);
-
-        // Step 2: Get all queued articles
-        const queuedArticles = await UpcomingArticle.find({ status: 'published' });
-        console.log(`   Found ${queuedArticles.length} queued articles`);
-
-        // Combine all articles
-        const allArticles = [...liveArticles, ...queuedArticles];
-        console.log(`   Total articles to reorganize: ${allArticles.length}`);
-
-        if (allArticles.length === 0) {
-            return res.json({ success: true, message: 'No articles to reorganize' });
-        }
-
-        // Step 3: Clear both collections
-        await Article.deleteMany({ isManual: true });
-        await UpcomingArticle.deleteMany({});
-        console.log('   Cleared live and queued collections');
-
-        // Step 4: Redistribute across 8 days starting from TODAY (May 23)
-        const perDay = 35;
-        const days = 8;
-        const istDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
-        const [m, d, y] = istDateStr.split('/');
-        const baseDate = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
-
-        let articleIndex = 0;
-        let totalQueued = 0;
-
-        for (let day = 0; day < days; day++) {
-            const targetDate = new Date(baseDate);
-            targetDate.setDate(targetDate.getDate() + day);  // Day 1 = today
-            targetDate.setHours(0, 0, 0, 0);
-
-            const dayArticles = allArticles.slice(articleIndex, articleIndex + perDay);
-            articleIndex += perDay;
-
-            for (const article of dayArticles) {
-                await UpcomingArticle.create({
-                    title: article.title,
-                    content: article.content,
-                    summary: article.summary || article.content,
-                    image: article.image,
-                    source: article.source || 'RSS Auto-Fetch',
-                    category: article.category || 'General',
-                    originalLink: article.originalLink || '',
-                    isManual: true,
-                    status: 'published',
-                    targetDate: targetDate,
-                    dayLabel: `Day ${day + 1}`,
-                    isRSS: article.isRSS || false,
-                    author_name: article.author_name || 'RSS Auto-Fetch'
-                });
-                totalQueued++;
-            }
-
-            console.log(`   📅 Day ${day + 1} (${targetDate.toDateString()}): ${dayArticles.length} articles`);
-        }
-
-        console.log(`✅ Reorganization complete: ${totalQueued} articles across ${days} days`);
-
-        res.json({
-            success: true,
-            message: `Reorganized ${totalQueued} articles across ${days} days`,
-            totalArticles: totalQueued,
-            daysOrganized: days,
-            perDay: perDay,
-            startDate: baseDate.toDateString()
-        });
-
-    } catch (err) {
-        console.error('❌ Reset & reorganize error:', err.message);
-        res.status(500).json({ success: false, error: err.message });
-    }
-});
-
-app.get('/api/admin/publish-status', adminAuthMiddleware, async (req, res) => {
-    try {
-        const liveCount = await Article.countDocuments({ isManual: true });
-        const queuedCount = await UpcomingArticle.countDocuments();
-        const earliest = await UpcomingArticle.findOne().sort({ targetDate: 1 }).select('targetDate dayLabel');
-
-        // Get day-by-day breakdown
-        const dayBreakdown = await UpcomingArticle.aggregate([
-            { $match: { status: 'published' } },
-            { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$targetDate' } }, count: { $sum: 1 }, dayLabel: { $first: '$dayLabel' } } },
-            { $sort: { _id: 1 } }
-        ]);
-
-        res.json({
-            liveManualArticles: liveCount,
-            queuedArticles: queuedCount,
-            earliestTargetDate: earliest ? { date: earliest.targetDate, dayLabel: earliest.dayLabel } : null,
-            dayBreakdown: dayBreakdown,
-            lastPublish: publishScheduleLog,
-            autoDelete: autoDeleteLog,
-            todayIST: new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' })
-        });
-    } catch (err) { 
-        res.status(500).json({ success: false, error: err.message }); 
-    }
 });
 
 // ============================================
@@ -1809,28 +862,6 @@ app.get('/api/admin/keep-alive-status', adminAuthMiddleware, (req, res) => {
 });
 
 // ============================================
-// CHANGE #2: AUTO-REFILL QUEUE WHEN LOW (Camp Mode)
-// Runs every 6 hours to check if queue needs refilling
-// ============================================
-async function checkAndRefillQueue() {
-    try {
-        const count = await UpcomingArticle.countDocuments();
-        console.log(`📊 Queue check: ${count} articles remaining`);
-        
-        if (count < 100) {  // Less than ~3 days worth left
-            console.log(`🚨 Queue low! Auto-refilling 8 days...`);
-            await queueRSSFor8Days();
-            const newCount = await UpcomingArticle.countDocuments();
-            console.log(`✅ Queue refilled! Now ${newCount} articles`);
-        } else {
-            console.log(`✅ Queue healthy, no action needed`);
-        }
-    } catch (err) {
-        console.error('❌ Auto-refill error:', err.message);
-    }
-}
-
-// ============================================
 // START
 // ============================================
 app.listen(PORT, async () => {
@@ -1838,81 +869,11 @@ app.listen(PORT, async () => {
     console.log('🚀 CENTRINSIC NPT SERVER STARTED');
     console.log(`Port:             ${PORT}`);
     console.log(`GNews API:        ${GNEWS_API_KEY ? '✅' : '❌'}`);
-    console.log(`RSS Feeds:        ✅ 49 free sources`);
     console.log(`Manual Articles:  ♾️  Unlimited`);
     console.log(`GNews Articles:   ${GNEWS_ARTICLES_LIMIT} per fetch`);
     console.log(`Cache Duration:   ${CACHE_DURATION / 60000} min`);
     console.log(`Auto-delete:      ${DELETE_HOUR}:${String(DELETE_MINUTE).padStart(2, '0')} ${DELETE_TIMEZONE}`);
-    console.log(`Auto-publish:     ✅ After delete (${PUBLISH_DELAY_MINUTES} min delay)`);
     console.log(`Keep-alive:       ✅ 14 min`);
     console.log(`Admin Password:   ${ADMIN_PASSWORD ? '✅ Configured' : '❌ NOT SET — add ADMIN_PASSWORD to .env!'}`);
-    console.log(`Auto-refill:      ✅ Every 6 hours if queue < 100`);
-    console.log(`Gemini AI:        ${GEMINI_API_KEY ? '✅' : '❌'} ${GEMINI_API_KEY ? '(~170 words summary)' : '(add GEMINI_API_KEY to .env)'}`);
-    console.log(`Gemini Delay:     ${GEMINI_DELAY_MS}ms (${(GEMINI_DELAY_MS/1000).toFixed(1)}s) between articles`);
-    console.log(`Gemini Key Length: ${GEMINI_API_KEY ? GEMINI_API_KEY.length : 0} chars`);
-    console.log(`Duplicate Filter: ✅ URL + fuzzy title match (30-day window, 0.88 threshold)`);
-    console.log(`Image Extraction: ✅ RSS → OG tags → Category fallback`);
-    console.log(`Robust Publish:   ✅ Startup check + 30-min interval`);
     console.log('========================================');
-
-    // Wait for MongoDB to be ready, then run startup publish check
-    setTimeout(async () => {
-        await checkAndPublishPending();
-    }, 5000);
-
-    // EMERGENCY RESTORE: If queue has articles but live articles exist,
-    // restore missing days automatically (prevents data loss on redeploy)
-    setTimeout(async () => {
-        try {
-            const liveCount = await Article.countDocuments({ isManual: true });
-            const queuedCount = await UpcomingArticle.countDocuments();
-
-            // If we have live articles AND queued articles, check if we need to restore
-            if (liveCount > 0 && queuedCount > 0) {
-                const earliestQueued = await UpcomingArticle.findOne().sort({ targetDate: 1 });
-                const latestLive = await Article.findOne({ isManual: true }).sort({ createdAt: -1 });
-
-                if (earliestQueued && latestLive) {
-                    const queuedDate = new Date(earliestQueued.targetDate).toDateString();
-                    const liveDate = latestLive.createdAt ? new Date(latestLive.createdAt).toDateString() : 'unknown';
-
-                    console.log(`🔄 Restore check: Live=${liveCount}, Queued=${queuedCount}`);
-                    console.log(`   Earliest queued: ${queuedDate} | Latest live: ${liveDate}`);
-
-                    // If queue has articles for dates that should have been published, restore them
-                    const daysBehind = Math.floor((Date.now() - new Date(earliestQueued.targetDate).getTime()) / (1000 * 60 * 60 * 24));
-                    if (daysBehind >= 0) {
-                        console.log(`⚠️ Queue is ${daysBehind} days behind — articles may need restoration`);
-                        console.log(`   Use POST /api/admin/restore-day with {"dayOffset":"all"} to restore all`);
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('Restore check error:', e.message);
-        }
-    }, 10000);
-
-    // Test Gemini on startup
-    if (GEMINI_API_KEY && geminiModel) {
-        setTimeout(async () => {
-            try {
-                const testResult = await geminiModel.generateContent('Say "Gemini is working" in 5 words or less.');
-                const testText = (await testResult.response.text()).trim();
-                console.log(`🤖 Gemini test: ${testText}`);
-            } catch (e) {
-                console.error('🤖 Gemini test FAILED:', e.message);
-                console.error('   → Model may be deprecated. Current working model: gemini-3.5-flash');
-                console.error('   → Check your GEMINI_API_KEY at https://aistudio.google.com/app/apikey');
-            }
-        }, 8000);
-    } else {
-        console.log('🤖 Gemini: No API key or model not initialized');
-    }
-
-    // Run publish check every 30 minutes (catches missed publishes)
-    setInterval(checkAndPublishPending, 30 * 60 * 1000);
-
-    // Start auto-refill checks
-    setTimeout(checkAndRefillQueue, 10000); // First check after 10 seconds
-    setInterval(checkAndRefillQueue, 6 * 60 * 60 * 1000); // Then every 6 hours
 });
