@@ -392,127 +392,117 @@
       </div>
 
       <!-- ══ UPLOAD AI-D ══ -->
-      <div class="panel" id="panel-upload-aid">
-        <div class="section-header">
-          <h3>🔵 Upload AI-D Article</h3>
-          <button class="btn btn-ghost btn-sm" onclick="resetForm('aid')">🔁 Reset</button>
-        </div>
-        <div class="upload-card blue">
-          <div class="upload-card-header">
-            <div class="upload-card-icon blue">🔵</div>
-            <div>
-              <div style="font-weight:700;font-size:16px;color:var(--accent);">Detailed AI Card (AI-D)</div>
-              <div style="font-size:13px;color:var(--muted);">Full detailed articles with image shown in AI-D tab.</div>
-            </div>
-          </div>
-          
-          <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
-            <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📝 Bulk Paste Parser</div>
-            <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
-              Paste <strong>all articles at once</strong> — the system detects each article block and queues them. Review article 1, click <strong>Publish</strong>, and the next article auto-loads with the next image.
-            </div>
-            <textarea id="aid-bulkPaste" placeholder="Paste full block here... 1. Title Source: ... Category: ... Original Link: ... Title: ... Content: ... (words)  2. Next Title Source: ..."
-              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px 14px;font-size:13px;font-family:'DM Mono',monospace;min-height:160px;resize:vertical;outline:none;"></textarea>
-            <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
-              <button type="button" class="btn btn-primary btn-sm" onclick="parseAIDArticle()">🔍 Parse All Articles</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="clearArticleQueue()">Clear Queue</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('aid-bulkPaste').value=''">Clear Text</button>
-            </div>
-            <div id="aid-parseFeedback" style="margin-top:8px;font-size:12px;color:var(--accent2);display:none;"></div>
+<div class="panel" id="panel-upload-aid">
+  <div class="section-header">
+    <h3>🔵 Upload AI-D Article</h3>
+    <button class="btn btn-ghost btn-sm" onclick="resetForm('aid')">🔁 Reset</button>
+  </div>
+  <div class="upload-card blue">
+    <div class="upload-card-header">
+      <div class="upload-card-icon blue">🔵</div>
+      <div>
+        <div style="font-weight:700;font-size:16px;color:var(--accent);">Detailed AI Card (AI-D)</div>
+        <div style="font-size:13px;color:var(--muted);">Full detailed articles with image shown in AI-D tab.</div>
+      </div>
+    </div>
 
-            <div id="aid-articleQueueBar" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-top:12px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                <div style="font-size:13px;color:var(--text);min-width:0;">
-                  📰 <strong id="aid-articleQueueCounter" style="color:var(--accent);">Article 1 of 1</strong>
-                  <div id="aid-articleQueueTitle" style="color:var(--muted);margin-top:4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;">—</div>
-                </div>
-                <div style="display:flex;gap:8px;flex-shrink:0;">
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="prevArticleQueue()">⬅ Prev</button>
-                  <button type="button" class="btn btn-primary btn-sm" onclick="nextArticleQueue()">Next ➡</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div style="background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
-            <div style="font-size:12px;font-weight:800;color:var(--accent2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🖼️ Auto Image Queue</div>
-            <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
-              The system auto-detects <strong style="color:var(--text);">today's date</strong> and only loads images for today (e.g., <code style="color:var(--accent2);">19-may-1</code>, <code style="color:var(--accent2);">19-may-2</code>...). 
-              The system will auto-attach the next image when you publish — no need to pick manually each time.
-            </div>
-            <input type="file" id="aid-queueInput" multiple accept="image/*" style="display:none;" onchange="loadImageQueue(this, 'aid')" />
-            <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-              <button type="button" class="btn btn-success btn-sm" onclick="document.getElementById('aid-queueInput').click()">📁 Load Image Queue</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="clearImageQueue('aid')">Clear Queue</button>
-            </div>
-            <div id="aid-queueStatus" style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.6;"></div>
-            <img id="aid-queuePreview" class="image-preview" style="display:none;margin-top:10px;max-height:120px;" alt="Next queued image" />
-          </div>
+    <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📝 Bulk Paste Parser</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+        Paste <strong>all articles at once</strong> — the system detects each article block and queues them. Review article 1, click <strong>Publish</strong>, and the next article auto-loads with the next image.
+      </div>
+      <textarea id="aid-bulkPaste" placeholder="Paste full block here... 1. Title Source: ... Category: ... Original Link: ... Title: ... Content: ... (words)  2. Next Title Source: ..."
+        style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px 14px;font-size:13px;font-family:'DM Mono',monospace;min-height:160px;resize:vertical;outline:none;"></textarea>
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary btn-sm" onclick="parseAIDArticle()">🔍 Parse All Articles</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="clearArticleQueue()">Clear Queue</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('aid-bulkPaste').value=''">Clear Text</button>
+      </div>
+      <div id="aid-parseFeedback" style="margin-top:8px;font-size:12px;color:var(--accent2);display:none;"></div>
 
-          
-          <div class="form-group">
-            <label>Article Title *</label>
-            <input type="text" id="aid-title" placeholder="Enter a clear, descriptive headline..." />
+      <div id="aid-articleQueueBar" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-top:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:13px;color:var(--text);min-width:0;">
+            📰 <strong id="aid-articleQueueCounter" style="color:var(--accent);">Article 1 of 1</strong>
+            <div id="aid-articleQueueTitle" style="color:var(--muted);margin-top:4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;">—</div>
           </div>
-          <div class="form-group">
-            <label>Content / Body *</label>
-            <textarea id="aid-content" placeholder="Full article content..." style="min-height:200px;"></textarea>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Source</label>
-              <input type="text" id="aid-source" placeholder="e.g. Times of India, Reuters..." />
-            </div>
-            <div class="form-group">
-              <label>Sub-Category</label>
-              <select id="aid-subcategory">
-                <option value="General">General</option>
-                <option value="Technology">Technology</option>
-                <option value="Business">Business</option>
-                <option value="Science">Science</option>
-                <option value="Sports">Sports</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Health">Health</option>
-                <option value="Politics">Politics</option>
-                <option value="World">World</option>
-                <option value="India">India</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Original Article Link (optional)</label>
-            <input type="url" id="aid-link" placeholder="https://..." />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Auto-Expire Date (optional)</label>
-              <input type="datetime-local" id="aid-expiry" />
-            </div>
-            <div class="form-group">
-              <label>Status</label>
-              <select id="aid-status">
-                <option value="published">Published</option>
-                <option value="draft">Draft</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Article Image</label>
-            <div class="image-drop" id="aid-imageDrop">
-              <input type="file" id="aid-image" accept="image/*" onchange="previewImage(this,'aid')" />
-              <div class="drop-icon">🖼️</div>
-              <div class="drop-text">Click to upload image</div>
-              <div class="drop-sub">JPG, PNG, WEBP — max 5MB</div>
-            </div>
-            <img id="aid-imagePreview" class="image-preview" alt="Preview" />
-          </div>
-          <div style="display:flex;gap:12px;margin-top:8px;">
-            <button class="btn btn-primary" id="aid-uploadBtn" onclick="uploadArticle('aid')" style="flex:1;justify-content:center;">🔵 Publish AI-D Article</button>
-            <button class="btn btn-ghost" onclick="resetForm('aid')">Cancel</button>
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="prevArticleQueue()">⬅ Prev</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="nextArticleQueue()">Next ➡</button>
           </div>
         </div>
       </div>
+    </div>
 
+    <div style="background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:800;color:var(--accent2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🖼️ Auto Image Queue</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+        The system auto-detects <strong style="color:var(--text);">today's date</strong> and only loads images for today (e.g., <code style="color:var(--accent2);">19-may-1</code>, <code style="color:var(--accent2);">19-may-2</code>...). 
+        The system will auto-attach the next image when you publish — no need to pick manually each time.
+      </div>
+      <input type="file" id="aid-queueInput" multiple accept="image/*" style="display:none;" onchange="loadImageQueue(this, 'aid')" />
+      <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-success btn-sm" onclick="document.getElementById('aid-queueInput').click()">📁 Load Image Queue</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="clearImageQueue('aid')">Clear Queue</button>
+      </div>
+      <div id="aid-queueStatus" style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.6;"></div>
+      <img id="aid-queuePreview" class="image-preview" style="display:none;margin-top:10px;max-height:120px;" alt="Next queued image" />
+    </div>
+
+    <div class="form-group">
+      <label>Article Title *</label>
+      <input type="text" id="aid-title" placeholder="Enter a clear, descriptive headline..." />
+    </div>
+    <div class="form-group">
+      <label>Content / Body *</label>
+      <textarea id="aid-content" placeholder="Full article content..." style="min-height:200px;"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Source</label>
+        <input type="text" id="aid-source" placeholder="e.g. Times of India, Reuters..." />
+      </div>
+      <div class="form-group">
+        <label>Sub-Category</label>
+        <input type="text" id="aid-category" placeholder="e.g. sports, entrepreneur, business..." />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Original Article Link (optional)</label>
+      <input type="url" id="aid-link" placeholder="https://..." />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Auto-Expire Date (optional)</label>
+        <input type="datetime-local" id="aid-expiry" />
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="aid-status">
+          <option value="published">Published</option>
+          <option value="draft">Draft</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Article Image</label>
+      <div class="image-drop" id="aid-imageDrop">
+        <input type="file" id="aid-image" accept="image/*" onchange="previewImage(this,'aid')" />
+        <div class="drop-icon">🖼️</div>
+        <div class="drop-text">Click to upload image</div>
+        <div class="drop-sub">JPG, PNG, WEBP — max 5MB</div>
+      </div>
+      <img id="aid-imagePreview" class="image-preview" alt="Preview" />
+    </div>
+
+    <!-- UPDATED BUTTON ROW WITH AUTO + SHIFT+ENTER SUPPORT -->
+    <div style="display:flex;gap:12px;margin-top:8px;align-items:center;">
+      <button class="btn btn-primary" id="aid-uploadBtn" onclick="uploadArticle('aid')" style="flex:1;justify-content:center;">🔵 Publish AI-D Article</button>
+      <button class="btn btn-ghost" id="aid-autoBtn" onclick="toggleAutoPublish()" style="white-space:nowrap;">🤖 Auto</button>
+      <button class="btn btn-ghost" onclick="resetForm('aid')">Cancel</button>
+    </div>
+  </div>
+</div>
       <!-- ══ UPLOAD 60 SEC BULLETIN DIGEST ══ -->
       <div class="panel" id="panel-upload-60sec">
         <div class="section-header">
@@ -2636,6 +2626,43 @@ function showToast(msg, type = '') {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (t.className = ''), 3500);
 }
+
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTO-PUBLISH TOGGLE & KEYBOARD SHORTCUT
+// ═══════════════════════════════════════════════════════════════════
+window.autoPublishMode = false;
+
+function toggleAutoPublish() {
+  window.autoPublishMode = !window.autoPublishMode;
+  const btn = document.getElementById('aid-autoBtn');
+  if (window.autoPublishMode) {
+    btn.style.background = 'var(--accent)';
+    btn.style.color = '#fff';
+    btn.style.border = '1px solid var(--accent)';
+    btn.innerHTML = '🤖 Auto: ON';
+    showToast('🤖 Auto-publish mode ON — articles will publish automatically', 'success');
+    log('Auto-publish mode enabled', 'info');
+  } else {
+    btn.style.background = 'transparent';
+    btn.style.color = 'var(--muted)';
+    btn.style.border = '1px solid var(--border)';
+    btn.innerHTML = '🤖 Auto';
+    showToast('🤖 Auto-publish mode OFF', '');
+    log('Auto-publish mode disabled', 'info');
+  }
+}
+
+// Shift+Enter shortcut to publish AI-D article
+document.addEventListener('keydown', function(e) {
+  const aidPanel = document.getElementById('panel-upload-aid');
+  if (!aidPanel || !aidPanel.classList.contains('active')) return;
+  
+  if (e.shiftKey && e.key === 'Enter') {
+    e.preventDefault();
+    uploadArticle('aid');
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // SERVER CONNECTION TEST
