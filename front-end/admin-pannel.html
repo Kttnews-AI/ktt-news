@@ -233,6 +233,7 @@
     .scheduler-info { grid-template-columns: 1fr; }
   }
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -411,7 +412,7 @@
             <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
               Paste <strong>all articles at once</strong> — the system detects each article block and queues them. Review article 1, click <strong>Publish</strong>, and the next article auto-loads with the next image.
             </div>
-            <textarea id="aid-bulkPaste" placeholder="Paste full block here... Article 1. Title Source: ... Category: ... Original Link: ... Title: ... Content: ...  Article 2. Next Title Source: ..."
+            <textarea id="aid-bulkPaste" placeholder="Paste full block here... 1. Title Source: ... Category: ... Original Link: ... Title: ... Content: ... (words)  2. Next Title Source: ..."
               style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px 14px;font-size:13px;font-family:'DM Mono',monospace;min-height:160px;resize:vertical;outline:none;"></textarea>
             <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
               <button type="button" class="btn btn-primary btn-sm" onclick="parseAIDArticle()">🔍 Parse All Articles</button>
@@ -464,8 +465,19 @@
               <input type="text" id="aid-source" placeholder="e.g. Times of India, Reuters..." />
             </div>
             <div class="form-group">
-              <label>Category</label>
-              <input type="text" id="aid-category" placeholder="e.g. sports entreprenuer business" />
+              <label>Sub-Category</label>
+              <select id="aid-subcategory">
+                <option value="General">General</option>
+                <option value="Technology">Technology</option>
+                <option value="Business">Business</option>
+                <option value="Science">Science</option>
+                <option value="Sports">Sports</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Health">Health</option>
+                <option value="Politics">Politics</option>
+                <option value="World">World</option>
+                <option value="India">India</option>
+              </select>
             </div>
           </div>
           <div class="form-group">
@@ -495,9 +507,10 @@
             </div>
             <img id="aid-imagePreview" class="image-preview" alt="Preview" />
           </div>
-          <div style="display:flex;gap:12px;margin-top:8px;">
-            <button class="btn btn-primary" id="aid-uploadBtn" onclick="uploadArticle('aid')" style="flex:1;justify-content:center;">🔵 Publish AI-D Article</button>
-            <button class="btn btn-ghost" onclick="resetForm('aid')">Cancel</button>
+          <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="aid-uploadBtn" onclick="uploadArticle('aid')" style="flex:1;justify-content:center;min-width:140px;">🔵 Publish AI-D Article</button>
+            <button class="btn btn-success" id="aid-autoPublishBtn" onclick="autoPublishAID()" style="flex:1;justify-content:center;min-width:140px;">🤖 Auto Publish</button>
+            <button class="btn btn-ghost" onclick="resetForm('aid')" style="min-width:80px;">Cancel</button>
           </div>
         </div>
       </div>
@@ -1784,9 +1797,13 @@ async function uploadArticle(prefix) {
   
   try {
     log(`POST /api/articles with category: ${category}`, 'info');
+    const uploadHeaders = {};
+    if (authToken) uploadHeaders['Authorization'] = `Bearer ${authToken}`;
+    if (adminPassword) uploadHeaders['x-admin-password'] = adminPassword;
+
     const response = await fetch(`${API_BASE}/api/articles`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${authToken}` },
+      headers: uploadHeaders,
       body: formData
     });
     
@@ -1807,27 +1824,11 @@ async function uploadArticle(prefix) {
         consumeQueuedImage(prefix);
       }
 
-            // If article queue exists, auto-advance
+      // If article queue exists, auto-advance
       if (prefix === 'aid' && window.articleQueue && window.articleQueue.length > 0) {
         autoAdvanceArticleQueue();
-        if (window.autoPublishMode) {
-          showToast('🤖 Auto-publishing next article in 2 seconds...', '');
-          log('Auto mode: scheduling next publish in 2s', 'info');
-          setTimeout(() => uploadArticle('aid'), 2000);
-        }
       } else {
         resetForm(prefix);
-        if (prefix === 'aid' && window.autoPublishMode) {
-          window.autoPublishMode = false;
-          const btn = document.getElementById('aid-autoBtn');
-          if (btn) {
-            btn.style.background = 'transparent';
-            btn.style.color = 'var(--muted)';
-            btn.style.border = '1px solid var(--border)';
-            btn.innerHTML = '🤖 Auto';
-          }
-          showToast('🎉 Queue complete — Auto mode turned OFF', 'success');
-        }
       }
       
       loadDashboard();
@@ -2149,9 +2150,13 @@ async function confirmDeleteSingle() {
   document.getElementById('deleteSingleModal').classList.remove('open');
   if (!deleteTargetId) return;
   try {
+    const deleteHeaders = {};
+    if (authToken) deleteHeaders['Authorization'] = `Bearer ${authToken}`;
+    if (adminPassword) deleteHeaders['x-admin-password'] = adminPassword;
+
     const r = await fetch(`${API_BASE}/api/articles/${deleteTargetId}`, {
       method:'DELETE',
-      headers:{'Authorization':`Bearer ${authToken}`}
+      headers: deleteHeaders
     });
     const data = await r.json();
     if (data.success) {
@@ -2643,41 +2648,6 @@ function showToast(msg, type = '') {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// AUTO-PUBLISH TOGGLE & KEYBOARD SHORTCUT
-// ═══════════════════════════════════════════════════════════════════
-window.autoPublishMode = false;
-
-function toggleAutoPublish() {
-  window.autoPublishMode = !window.autoPublishMode;
-  const btn = document.getElementById('aid-autoBtn');
-  if (window.autoPublishMode) {
-    btn.style.background = 'var(--accent)';
-    btn.style.color = '#fff';
-    btn.style.border = '1px solid var(--accent)';
-    btn.innerHTML = '🤖 Auto: ON';
-    showToast('🤖 Auto-publish mode ON — articles will publish automatically', 'success');
-    log('Auto-publish mode enabled', 'info');
-  } else {
-    btn.style.background = 'transparent';
-    btn.style.color = 'var(--muted)';
-    btn.style.border = '1px solid var(--border)';
-    btn.innerHTML = '🤖 Auto';
-    showToast('🤖 Auto-publish mode OFF', '');
-    log('Auto-publish mode disabled', 'info');
-  }
-}
-
-// Shift+Enter shortcut to publish AI-D article
-document.addEventListener('keydown', function(e) {
-  const aidPanel = document.getElementById('panel-upload-aid');
-  if (!aidPanel || !aidPanel.classList.contains('active')) return;
-  
-  if (e.shiftKey && e.key === 'Enter') {
-    e.preventDefault();
-    uploadArticle('aid');
-  }
-});
-// ═══════════════════════════════════════════════════════════════════
 // SERVER CONNECTION TEST
 // ═══════════════════════════════════════════════════════════════════
 async function testServerConnection() {
@@ -2719,6 +2689,61 @@ setInterval(() => {
     loadCacheStatus();
   }
 }, 60000);
+
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTO PUBLISH FOR AI-D
+// ═══════════════════════════════════════════════════════════════════
+async function autoPublishAID() {
+  const btn = document.getElementById('aid-autoPublishBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Publishing...';
+  }
+
+  log('Auto Publish triggered for AI-D', 'info');
+  showToast('🤖 Auto Publishing...', '');
+
+  // Trigger the normal publish flow
+  const uploadBtn = document.getElementById('aid-uploadBtn');
+  if (uploadBtn && !uploadBtn.disabled) {
+    uploadBtn.click();
+  } else {
+    showToast('Publish button is busy or unavailable', 'error');
+  }
+
+  // Re-enable auto-publish button after a short delay
+  setTimeout(() => {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '🤖 Auto Publish';
+    }
+  }, 3000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CAPS LOCK + ENTER SHORTCUT FOR AI-D PUBLISH
+// Only works when Caps Lock is ON + Enter is pressed in AI-D panel
+// When Caps Lock is OFF, Enter does nothing
+// ═══════════════════════════════════════════════════════════════════
+document.addEventListener('keydown', function(e) {
+  // Only work when AI-D upload panel is active
+  const aidPanel = document.getElementById('panel-upload-aid');
+  if (!aidPanel || !aidPanel.classList.contains('active')) return;
+
+  // Only trigger on Enter key when Caps Lock is ON
+  if (e.key === 'Enter' && e.getModifierState && e.getModifierState('CapsLock')) {
+    e.preventDefault();
+    const publishBtn = document.getElementById('aid-uploadBtn');
+    if (publishBtn && !publishBtn.disabled) {
+      log('Caps Lock + Enter triggered AI-D publish', 'info');
+      showToast('🎹 Caps Lock + Enter → Publishing...', 'success');
+      publishBtn.click();
+    } else {
+      showToast('Publish button is busy', 'error');
+    }
+  }
+});
 
 </script>
 </body>
