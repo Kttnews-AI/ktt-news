@@ -234,6 +234,7 @@
   }
 </style>
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 
@@ -1824,22 +1825,50 @@ async function uploadArticle(prefix) {
         consumeQueuedImage(prefix);
       }
 
-      // If article queue exists, auto-advance
-      if (prefix === 'aid' && window.articleQueue && window.articleQueue.length > 0) {
-        autoAdvanceArticleQueue();
+// Handle article queue and auto-publishing chain
+      if (prefix === 'aid') {
+        const hasMore = autoAdvanceArticleQueue();
+        if (window.isAutoPublishing) {
+          if (hasMore) {
+            setTimeout(() => {
+              if (window.isAutoPublishing) uploadArticle('aid');
+            }, 1500);
+          } else {
+            window.isAutoPublishing = false;
+            const autoBtn = document.getElementById('aid-autoPublishBtn');
+            if (autoBtn) {
+              autoBtn.className = 'btn btn-success';
+              autoBtn.innerHTML = '🤖 Auto Publish';
+            }
+            resetForm(prefix);
+            log('Auto Publish complete all articles published', 'success');
+            showToast('🎉 Auto Publish complete! All articles published.', 'success');
+          }
+        } else if (!hasMore) {
+          resetForm(prefix);
+        }
       } else {
         resetForm(prefix);
       }
-      
+
       loadDashboard();
     } else {
-      const msg = data.error || data.message || 'Upload failed';
+            const msg = data.error || data.message || 'Upload failed';
       log(`Upload failed: ${msg}`, 'error');
       showToast(msg, 'error');
     }
   } catch (e) {
     log(`Upload error: ${e.message}`, 'error');
     showToast('Network error: ' + e.message, 'error');
+    if (window.isAutoPublishing) {
+      window.isAutoPublishing = false;
+      const autoBtn = document.getElementById('aid-autoPublishBtn');
+      if (autoBtn) {
+        autoBtn.className = 'btn btn-success';
+        autoBtn.innerHTML = '🤖 Auto Publish';
+      }
+      log('Auto Publish stopped due to error', 'error');
+    }
   } finally {
     btn.disabled = false;
     const btnLabels = { aid: '🔵 Publish AI-D Article', '60sec': '⚡ Publish 60 Sec Digest', ca: '🔴 Publish Current Affairs', startup: '🚀 Publish Startup Event' };
@@ -2692,33 +2721,53 @@ setInterval(() => {
 
 
 // ═══════════════════════════════════════════════════════════════════
-// AUTO PUBLISH FOR AI-D
+// AUTO PUBLISH FOR AI-D — Start/Stop toggle with chaining
 // ═══════════════════════════════════════════════════════════════════
-async function autoPublishAID() {
-  const btn = document.getElementById('aid-autoPublishBtn');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>&nbsp;Publishing...';
+window.isAutoPublishing = false;
+
+function autoPublishAID() {
+  // If already auto-publishing, stop it
+  if (window.isAutoPublishing) {
+    window.isAutoPublishing = false;
+    const btn = document.getElementById('aid-autoPublishBtn');
+    if (btn) {
+      btn.className = 'btn btn-success';
+      btn.innerHTML = '🤖 Auto Publish';
+    }
+    showToast('⏹️ Auto Publish stopped', '');
+    log('Auto Publish stopped by user', 'info');
+    return;
   }
 
-  log('Auto Publish triggered for AI-D', 'info');
-  showToast('🤖 Auto Publishing...', '');
+  // Check if there's a current article to publish
+  const title = document.getElementById('aid-title').value.trim();
+  if (!title) {
+    showToast('No article to publish. Fill the form or parse articles first.', 'error');
+    return;
+  }
 
-  // Trigger the normal publish flow
+  window.isAutoPublishing = true;
+  const btn = document.getElementById('aid-autoPublishBtn');
+  if (btn) {
+    btn.className = 'btn btn-danger';
+    btn.innerHTML = '⏹️ Stop Auto Publish';
+  }
+
+  log('Auto Publish started', 'info');
+  showToast('🤖 Auto Publish started — publishing all articles...', 'success');
+
+  // Trigger the first publish
   const uploadBtn = document.getElementById('aid-uploadBtn');
   if (uploadBtn && !uploadBtn.disabled) {
     uploadBtn.click();
   } else {
-    showToast('Publish button is busy or unavailable', 'error');
-  }
-
-  // Re-enable auto-publish button after a short delay
-  setTimeout(() => {
+    window.isAutoPublishing = false;
     if (btn) {
-      btn.disabled = false;
+      btn.className = 'btn btn-success';
       btn.innerHTML = '🤖 Auto Publish';
     }
-  }, 3000);
+    showToast('Publish button is busy or unavailable', 'error');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
