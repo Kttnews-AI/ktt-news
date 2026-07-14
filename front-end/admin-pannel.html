@@ -532,33 +532,25 @@
             </div>
           </div>
 
-          
-          <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
-            <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🤖 Gemini AI Auto-Generator</div>
+                    <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+            <div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🤖 Gemini AI Auto-Generator (Free Tier)</div>
             <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
-              Enter your Gemini API key to automatically fetch today's top 50 most important news and generate a formatted 60 Sec Digest ready to publish.
+              Paste your <strong>Google AI Studio API Key</strong> once. It auto-saves and stays here permanently. Uses free <code style="color:var(--accent2);">gemini-1.5-flash</code> model.
             </div>
-            <div class="form-row">
-              <div class="form-group" style="margin-bottom:0;">
-                <input type="password" id="gemini-api-key" placeholder="Enter Gemini API Key (e.g., AIza...)" style="font-family:'DM Mono',monospace;font-size:13px;" onchange="saveGeminiKey()" />
-              </div>
-              <div class="form-group" style="margin-bottom:0;">
-                <select id="gemini-model" style="font-family:'DM Mono',monospace;font-size:13px;">
-                  <option value="gemini-2.0-flash">gemini-2.0-flash (fast)</option>
-                  <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-                  <option value="gemini-1.5-pro">gemini-1.5-pro (best quality)</option>
-                </select>
-              </div>
+            <div class="form-group" style="margin-bottom:10px;">
+              <input type="text" id="gemini-api-key" placeholder="Paste your API key here (AIza...)" style="font-family:'DM Mono',monospace;font-size:13px;width:100%;" oninput="saveGeminiKey()" />
             </div>
-            <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+            <div id="gemini-key-badge" style="display:none;margin-bottom:10px;">
+              <span class="badge badge-green">✓ API Key Saved</span>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button type="button" class="btn btn-primary btn-sm" onclick="autoGenerate60Sec()">🤖 Auto-Generate 60 Sec Digest</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="autoGenerateAndPublish60Sec()">🚀 Auto-Generate & Publish</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('gemini-api-key').value='';localStorage.removeItem('gemini_api_key');geminiApiKey='';showToast('Gemini API key cleared','')">🗑️ Clear Key</button>
+              <button type="button" class="btn btn-success btn-sm" onclick="autoGenerateAndPublish60Sec()">🚀 Auto-Generate & Publish</button>
             </div>
-            <div id="gemini-status" style="margin-top:10px;font-size:12px;color:var(--muted);display:none;"></div>
+            <div id="gemini-status" style="margin-top:10px;font-size:12px;display:none;"></div>
             <div id="gemini-loading" style="display:none;margin-top:10px;">
               <div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px;"></div>
-              <span style="font-size:13px;color:var(--muted);">Fetching news via Gemini AI...</span>
+              <span style="font-size:13px;color:var(--muted);">Fetching news via Gemini AI (Free Tier)...</span>
             </div>
           </div>
 
@@ -1032,8 +1024,7 @@ window.onload = () => {
   } else {
     log('No credentials found, showing login screen', 'info');
 
-    loadGeminiKey();
-  }
+    loadGeminiKey();  }
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2829,17 +2820,22 @@ document.addEventListener('keydown', function(e) {
 
 
 // ═══════════════════════════════════════════════════════════════════
-// GEMINI AI INTEGRATION — Auto-Generate 60 Sec Digest
+// GEMINI AI INTEGRATION — Auto-Generate 60 Sec Digest (Free Tier)
 // ═══════════════════════════════════════════════════════════════════
 let geminiApiKey = localStorage.getItem('gemini_api_key') || '';
+const GEMINI_MODEL = 'gemini-1.5-flash'; // Free tier model
 
 function saveGeminiKey() {
   const key = document.getElementById('gemini-api-key')?.value.trim() || '';
+  geminiApiKey = key;
   if (key) {
-    geminiApiKey = key;
     localStorage.setItem('gemini_api_key', key);
-    showToast('Gemini API key saved', 'success');
-    log('Gemini API key saved', 'success');
+    const badge = document.getElementById('gemini-key-badge');
+    if (badge) badge.style.display = 'block';
+  } else {
+    localStorage.removeItem('gemini_api_key');
+    const badge = document.getElementById('gemini-key-badge');
+    if (badge) badge.style.display = 'none';
   }
 }
 
@@ -2847,12 +2843,15 @@ function loadGeminiKey() {
   const key = localStorage.getItem('gemini_api_key') || '';
   geminiApiKey = key;
   const input = document.getElementById('gemini-api-key');
-  if (input && key) input.value = key;
+  if (input) {
+    input.value = key;
+    const badge = document.getElementById('gemini-key-badge');
+    if (badge) badge.style.display = key ? 'block' : 'none';
+  }
 }
 
 async function callGeminiAPI(prompt) {
-  const model = document.getElementById('gemini-model')?.value || 'gemini-2.0-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`;
 
   const body = {
     contents: [{
@@ -2899,17 +2898,16 @@ async function autoGenerate60Sec() {
       if (statusEl) {
         statusEl.style.display = 'block';
         statusEl.style.color = 'var(--danger)';
-        statusEl.textContent = '❌ No API key provided. Get one from https://aistudio.google.com/app/apikey';
+        statusEl.innerHTML = '❌ No API key. Get a FREE key from <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent);">Google AI Studio</a>';
       }
       return;
     }
     localStorage.setItem('gemini_api_key', geminiApiKey);
+    const badge = document.getElementById('gemini-key-badge');
+    if (badge) badge.style.display = 'block';
   }
 
-  if (statusEl) {
-    statusEl.style.display = 'none';
-    statusEl.textContent = '';
-  }
+  if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
   if (loadingEl) loadingEl.style.display = 'block';
 
   const today = new Date();
@@ -2959,22 +2957,19 @@ Entertainment & Culture
 Make sure to cover exactly the most important 50 news items total across all sections. Use the << marker at the end of each point if needed. Keep each point concise (max 2 sentences). Prioritize breaking news from today (${dateStr}).`;
 
   try {
-    log('Calling Gemini API for 60 Sec auto-generation...', 'info');
+    log('Calling Gemini API (free tier: gemini-1.5-flash) for 60 Sec auto-generation...', 'info');
     const generatedText = await callGeminiAPI(prompt);
     log('Gemini API response received', 'success');
 
-    // Auto-fill title
     const titleInput = document.getElementById('60sec-title');
     if (titleInput) titleInput.value = `Daily Digest — ${dateStr}`;
 
-    // Auto-fill content
     const contentInput = document.getElementById('60sec-content');
     if (contentInput) {
       contentInput.value = generatedText;
       update60SecPreview();
     }
 
-    // Auto-set source
     const sourceInput = document.getElementById('60sec-source');
     if (sourceInput && !sourceInput.value) sourceInput.value = 'Gemini AI / Centrinsic NPT';
 
@@ -3017,7 +3012,6 @@ async function autoGenerateAndPublish60Sec() {
     }
   }, 800);
 }
-
 </script>
 </body>
 </html>
