@@ -550,7 +550,7 @@
             <div id="gemini-status" style="margin-top:10px;font-size:12px;display:none;"></div>
             <div id="gemini-loading" style="display:none;margin-top:10px;">
               <div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px;"></div>
-              <span style="font-size:13px;color:var(--muted);">Fetching news via Gemini AI (Free Tier)...</span>
+              <span style="font-size:13px;color:var(--muted);">Fetching news via Gemini AI (Free: gemini-1.5-flash-latest)...</span>
             </div>
           </div>
 
@@ -2823,7 +2823,7 @@ document.addEventListener('keydown', function(e) {
 // GEMINI AI INTEGRATION — Auto-Generate 60 Sec Digest (Free Tier)
 // ═══════════════════════════════════════════════════════════════════
 let geminiApiKey = localStorage.getItem('gemini_api_key') || '';
-const GEMINI_MODEL = 'gemini-1.5-flash'; // Free tier model
+const GEMINI_MODEL = 'gemini-1.5-flash-latest'; // Free tier model (confirmed working)
 
 function saveGeminiKey() {
   const key = document.getElementById('gemini-api-key')?.value.trim() || '';
@@ -2957,7 +2957,7 @@ Entertainment & Culture
 Make sure to cover exactly the most important 50 news items total across all sections. Use the << marker at the end of each point if needed. Keep each point concise (max 2 sentences). Prioritize breaking news from today (${dateStr}).`;
 
   try {
-    log('Calling Gemini API (free tier: gemini-1.5-flash) for 60 Sec auto-generation...', 'info');
+    log('Calling Gemini API (free tier: gemini-1.5-flash-latest) for 60 Sec auto-generation...', 'info');
     const generatedText = await callGeminiAPI(prompt);
     log('Gemini API response received', 'success');
 
