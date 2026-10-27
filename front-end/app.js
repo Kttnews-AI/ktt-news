@@ -121,6 +121,8 @@ function initializeApp() {
 function setupHistoryHandling() {
     // Handle browser back button (for web/PWA)
     window.addEventListener('popstate', (e) => {
+        const preview = document.getElementById('sharePreview');
+        if (preview?.open) { preview.close(); return; }
         console.log("🔙 POPSTATE EVENT:", e.state);
         if (e.state && e.state.screen) {
             handleBackNavigation(e.state.screen);
@@ -139,29 +141,37 @@ function setupHistoryHandling() {
 function setupMobileBackButton() {
     console.log("🚀 Setting up mobile back button handler...");
     
-    // Capacitor/Cordova back button
-    if (window.Capacitor?.Plugins?.App) {
+    // Native bridges can become available after this script has loaded.
+    const attachNativeBack = async () => {
+        if (window.kttNativeBackAttached || window.kttNativeBackPending) return;
+        const cap = window.Capacitor;
+        let plugin = cap?.Plugins?.App;
+        if (!plugin && cap?.isPluginAvailable?.('App')) plugin = cap.registerPlugin?.('App');
+        if (!plugin?.addListener) return;
+        window.kttNativeBackPending = true;
         try {
-            window.Capacitor.Plugins.App.addListener('backButton', (e) => {
-                console.log("🔙 CAPACITOR BACK BUTTON", e);
-                // Prevent default exit
-                e?.preventDefault?.();
-                handleMobileBack();
-            });
+            await plugin.addListener('backButton', () => handleMobileBack());
+            window.kttNativeBackAttached = true;
         } catch (err) {
-            console.warn("⚠️ Capacitor setup error:", err);
+            console.warn('Native Back handler unavailable; the APK needs the App plugin.', err);
+        } finally {
+            window.kttNativeBackPending = false;
         }
-    }
-    
-    // Cordova specific
-    if (window.cordova) {
-        document.addEventListener('backbutton', (e) => {
-            console.log("🔙 CORDOVA BACK BUTTON");
-            e.preventDefault();
-            handleMobileBack();
-        }, false);
-    }
-    
+    };
+    attachNativeBack();
+    window.addEventListener('load', attachNativeBack, { once: true });
+    document.addEventListener('deviceready', attachNativeBack, { once: true });
+    let attempts = 0;
+    const retry = setInterval(() => {
+        if (window.kttNativeBackAttached || ++attempts > 20) clearInterval(retry);
+        else attachNativeBack();
+    }, 500);
+    // Register before Cordova's deviceready, rather than checking for it too early.
+    document.addEventListener('backbutton', e => {
+        e.preventDefault();
+        handleMobileBack();
+    }, false);
+
     // Android WebView back button (using history API) — SAFE for file://
     window.addEventListener('hashchange', (e) => {
         console.log("🔙 HASH CHANGE:", e.oldURL, "->", e.newURL);
@@ -174,6 +184,8 @@ function setupMobileBackButton() {
 }
 
 function handleMobileBack() {
+    const preview = document.getElementById('sharePreview');
+    if (preview?.open) { preview.close(); return; }
     const currentScreen = getCurrentScreenId();
     console.log("🔙 BACK BUTTON - Current:", currentScreen);
     
@@ -197,7 +209,7 @@ function handleMobileBack() {
             break;
         case 'about':
             // On about screen, stay there (don't exit app)
-            showToast("Press back again to exit");
+            showToast("You are on the welcome screen");
             return;
         case 'home':
             // On home screen, stay there (don't exit app)
@@ -1817,7 +1829,7 @@ async function shareArticleScreenshot(article, target) {
         showToast('Preparing screenshot…');
         if (!window.html2canvas) throw new Error('Screenshot service unavailable');
         card = document.createElement('div');
-        card.style.cssText = 'position:absolute;left:-10000px;top:0;width:390px;padding:24px;background:#fff;color:#151515;font-size:16px;line-height:1.6;';
+        card.style.cssText = 'position:absolute;left:-10000px;top:0;width:390px;padding:24px;box-sizing:border-box;overflow:hidden;background:#fff;color:#151515;font:16px/1.6 Arial,sans-serif;overflow-wrap:anywhere;';
         const heading = document.createElement('h2');
         heading.textContent = 'Centrinsic NPT';
         card.append(heading);
@@ -1826,6 +1838,10 @@ async function shareArticleScreenshot(article, target) {
             clone.querySelectorAll('button,select,input,script').forEach(el => el.remove());
             clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
             clone.removeAttribute('id');
+            clone.style.maxWidth = '100%';
+            clone.querySelectorAll('img').forEach(img => {
+                img.style.cssText += ';display:block;width:100%;max-width:100%;height:auto;object-fit:contain;';
+            });
             card.append(clone);
         } else {
             const headline = document.createElement('h3');
@@ -1845,12 +1861,28 @@ async function shareArticleScreenshot(article, target) {
         const imageURL = URL.createObjectURL(blob);
         const dialog = document.createElement('dialog');
         dialog.id = 'sharePreview';
+        // Keep this usable even when a phone still has the old stylesheet cached.
+        dialog.style.cssText = 'position:fixed;inset:0;margin:auto;width:calc(100% - 24px);max-width:440px;max-height:85vh;max-height:85dvh;box-sizing:border-box;overflow:auto;overscroll-behavior:contain;padding:16px;border:0;border-radius:16px;background:#fff;color:#171717;font:16px/1.4 Arial,sans-serif;';
         dialog.innerHTML = '<h2>Share screenshot</h2><p>The screenshot includes the app link.</p><img alt="Screenshot preview"><div><button type="button" data-send>Share image + link</button> <a download="centrinsic-news.png">Download image</a> <button type="button" data-copy>Copy app link</button> <button type="button" data-close>Close</button></div><p role="status"></p>';
-        dialog.querySelector('img').src = imageURL;
+        const previewImage = dialog.querySelector('img');
+        previewImage.src = imageURL;
+        previewImage.style.cssText = 'display:block;width:100%;max-width:100%;height:auto;max-height:42vh;object-fit:contain;margin:12px 0;background:#f3f4f6;';
+        const actions = dialog.querySelector('div');
+        dialog.insertBefore(actions, previewImage);
+        actions.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;';
+        dialog.querySelectorAll('button,a').forEach(control => {
+            control.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;max-width:100%;padding:10px 12px;border:1px solid #c7c7cc;border-radius:8px;background:#f2f2f7;color:#171717;text-decoration:none;font:600 14px/1.3 Arial,sans-serif;touch-action:manipulation;cursor:pointer;';
+        });
+        dialog.querySelector('[data-send]').style.cssText += 'width:100%;background:#007aff;color:#fff;border-color:#007aff;';
+        dialog.querySelector('[data-close]').setAttribute('autofocus', '');
         dialog.querySelector('a').href = imageURL;
         dialog.querySelector('[data-close]').onclick = () => dialog.close();
         dialog.querySelector('[data-copy]').onclick = () => copyToClipboard(appLink);
-        dialog.addEventListener('close', () => { URL.revokeObjectURL(imageURL); dialog.remove(); }, { once: true });
+        dialog.addEventListener('close', () => {
+            URL.revokeObjectURL(imageURL);
+            dialog.remove();
+            if (history.state?.sharePreview) history.back();
+        }, { once: true });
         const send = dialog.querySelector('[data-send]');
         send.onclick = async () => {
             send.disabled = true;
@@ -1878,6 +1910,9 @@ async function shareArticleScreenshot(article, target) {
         };
         document.body.append(dialog);
         dialog.showModal();
+        dialog.scrollTop = 0;
+        try { history.pushState({ screen: getCurrentScreenId(), sharePreview: true }, '', location.href); }
+        catch (err) { console.warn('Preview history unavailable', err); }
     } catch (err) {
         showToast('Screenshot unavailable. Please try again.');
         console.warn('Screenshot sharing failed:', err);
