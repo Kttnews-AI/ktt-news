@@ -91,7 +91,7 @@ body {
     -webkit-font-smoothing: antialiased;
     font-size: 16px;
     overscroll-behavior-y: none;
-    touch-action: pan-y;
+    touch-action: pan-x pan-y pinch-zoom;
     position: relative;
     min-height: 100vh;
     min-height: -webkit-fill-available;
@@ -2172,3 +2172,7 @@ button {
 .empty-state p {
     font-size: 14px;
 }
+#sharePreview { margin: auto; width: min(94vw, 480px); max-height: 90dvh; overflow: auto; padding: 20px; border: 0; border-radius: 16px; background: var(--card); color: var(--text); }
+#sharePreview::backdrop { background: rgba(0,0,0,.65); }
+#sharePreview img { display: block; width: 100%; margin: 12px 0; }
+#sharePreview button, #sharePreview a { display: inline-block; min-height: 44px; padding: 12px; margin: 4px 0; touch-action: manipulation; }
