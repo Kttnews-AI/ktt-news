@@ -41,6 +41,7 @@ function initApp() {
     // Setup back button first thing
     setupMobileBackButton();
     setupHistoryHandling();
+    setupSwipeNavigation();
     
     initializeApp();
     exportAllFunctions();
@@ -414,9 +415,9 @@ function attachLogoutListener() {
     const newBtn = logoutBtn.cloneNode(true);
     logoutBtn.parentNode.replaceChild(newBtn, logoutBtn);
     
-    // Multiple event handlers to ensure it works on all devices
+    newBtn.removeAttribute('onclick');
     newBtn.addEventListener('click', (e) => { e.preventDefault(); logout(); });
-    newBtn.addEventListener('touchstart', (e) => { e.preventDefault(); logout(); });
+
 }
 
 function attachClearAllListener() {
@@ -427,9 +428,9 @@ function attachClearAllListener() {
     const newBtn = clearBtn.cloneNode(true);
     clearBtn.parentNode.replaceChild(newBtn, clearBtn);
     
-    // Multiple event handlers to ensure it works on all devices
+    newBtn.removeAttribute('onclick');
     newBtn.addEventListener('click', (e) => { e.preventDefault(); clearAll(); });
-    newBtn.addEventListener('touchstart', (e) => { e.preventDefault(); clearAll(); });
+
 }
 
 function setupOtherListeners() {
@@ -1273,35 +1274,8 @@ function renderStartupEvents(articles) {
 async function shareStartupEvent(articleId) {
     const article = articlesCache.get(articleId) || allArticles.find(a => String(a._id||a.id||a.articleId).replace(/[^a-zA-Z0-9-]/g,'') === articleId);
     if (!article) return;
-    
-    const title     = article.title || "Startup Event";
-    const regLink   = article.registrationLink || article.registration_url || article.signupUrl || article.url || '';
-    const venue     = article.venue || article.location || 'Location TBA';
-    const eventDate = article.eventDate || article.event_date || article.date || 'Upcoming';
-    const eventType = article.eventType || article.type || '';
-    
-    let shareText = `🚀 ${title}`;
-    if (eventType) shareText += ` | ${eventType}`;
-    shareText += `\n\n📅 ${eventDate}\n📍 ${venue}`;
-    if (regLink) shareText += `\n\n✍️ Register: ${regLink}`;
-    shareText += `\n\n📲 More startup events on Centrinsic NPT:\nhttps://centrinsicnpt.com`;
-
-    if (window.Capacitor?.Plugins?.Share) {
-        try { 
-            await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: 'https://centrinsicnpt.com' }); 
-            return; 
-        }
-        catch(e) { if ((e?.message||'').toLowerCase().includes('cancel')) return; }
-    }
-    if (navigator.share) {
-        try { 
-            await navigator.share({ title, text: shareText }); 
-            return; 
-        }
-        catch(e) { if (e.name === 'AbortError') return; }
-    }
-    copyToClipboard(shareText);
-    showToast('🔗 Event link copied!');
+    const content = document.getElementById('startupContent_' + articleId);
+    await shareArticleScreenshot(article, content?.parentElement);
 }
 
 /* ============================================
@@ -1394,18 +1368,8 @@ async function translateDigestContent(articleId, targetLang, contentPrefix, sele
 async function share60SecDigest(articleId) {
     const article = articlesCache.get(articleId) || allArticles.find(a => String(a._id||a.id||a.articleId).replace(/[^a-zA-Z0-9-]/g,'') === articleId);
     if (!article) return;
-    const title     = article.title || "Today's Digest";
-    const shareText = `⚡ ${title}\n\n📲 Read today's digest on Centrinsic NPT:\nhttps://centrinsicnpt.com`;
-    if (window.Capacitor?.Plugins?.Share) {
-        try { await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: 'https://centrinsicnpt.com' }); return; }
-        catch(e) { if ((e?.message||'').toLowerCase().includes('cancel')) return; }
-    }
-    if (navigator.share) {
-        try { await navigator.share({ title, text: shareText }); return; }
-        catch(e) { if (e.name === 'AbortError') return; }
-    }
-    copyToClipboard(shareText);
-    showToast('🔗 Link copied!');
+    const content = document.getElementById('digestContent_' + articleId);
+    await shareArticleScreenshot(article, content?.parentElement);
 }
 
 function open60SecBulletin(articleId) {
@@ -1838,70 +1802,88 @@ function saveCurrentArticle() {
 }
 
 async function shareCurrentArticle() {
-    if (!currentArticle) return;
-    const title     = currentArticle.title || "Check out this article";
-    const appLink   = "https://centrinsicnpt.com";
-    const content   = currentArticle.content ? currentArticle.content.substring(0, 200) + '...' : '';
-    const shareText = `📰 ${title}\n\n${content}\n\n📲 Read more on Centrinsic NPT:\n${appLink}`;
-    const imageUrl  = getImageUrl(currentArticle.image);
-    const shareBtn  = document.getElementById('shareBtn');
-    if (shareBtn) { 
-        shareBtn.innerHTML = '⏳ Sharing...'; 
-        shareBtn.disabled = true; 
-    }
+    if (currentArticle) await shareArticleScreenshot(currentArticle, document.getElementById('articleBody'));
+}
+
+let screenshotShareBusy = false;
+async function shareArticleScreenshot(article, target) {
+    if (screenshotShareBusy || document.getElementById('sharePreview')) return;
+    screenshotShareBusy = true;
+    const title = article.title || 'Centrinsic NPT';
+    const appLink = 'https://centrinsicnpt.com';
+    const text = `${title}\n\nRead more on Centrinsic NPT: ${appLink}`;
+    let card;
     try {
-        if (window.Capacitor?.Plugins?.Share) {
-            const { Share, Filesystem } = window.Capacitor.Plugins;
-            let fileUri = null;
-            if (imageUrl && Filesystem) {
-                try {
-                    const imgBlob = await (await fetch(imageUrl)).blob();
-                    const base64  = await new Promise((res, rej) => { 
-                        const r = new FileReader(); 
-                        r.onload = () => res(r.result.split(',')[1]); 
-                        r.onerror = rej; 
-                        r.readAsDataURL(imgBlob); 
-                    });
-                    const fileName = `centrinsic_${Date.now()}.jpg`;
-                    await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
-                    const uriResult = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
-                    fileUri = uriResult.uri;
-                } catch(e) {}
-            }
-            if (fileUri) { 
-                await Share.share({ title, text: shareText, url: appLink, files: [fileUri] }); 
-            }
-            else { 
-                await Share.share({ title, text: shareText, url: appLink }); 
-            }
-            return;
+        showToast('Preparing screenshot…');
+        if (!window.html2canvas) throw new Error('Screenshot service unavailable');
+        card = document.createElement('div');
+        card.style.cssText = 'position:absolute;left:-10000px;top:0;width:390px;padding:24px;background:#fff;color:#151515;font-size:16px;line-height:1.6;';
+        const heading = document.createElement('h2');
+        heading.textContent = 'Centrinsic NPT';
+        card.append(heading);
+        if (target) {
+            const clone = target.cloneNode(true);
+            clone.querySelectorAll('button,select,input,script').forEach(el => el.remove());
+            clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+            clone.removeAttribute('id');
+            card.append(clone);
+        } else {
+            const headline = document.createElement('h3');
+            headline.textContent = title;
+            const body = document.createElement('p');
+            body.textContent = article.content || article.description || '';
+            card.append(headline, body);
         }
-        if (navigator.share) { 
-            try { 
-                await navigator.share({ title, text: shareText, url: appLink }); 
-                return; 
-            } catch(e) { 
-                if (e.name === 'AbortError') return; 
-            } 
-        }
-        copyToClipboard(shareText);
-        showToast('🔗 Link copied!');
+        const footer = document.createElement('p');
+        footer.textContent = appLink;
+        card.append(footer);
+        document.body.append(card);
+        const canvas = await html2canvas(card, { useCORS: true, allowTaint: false, backgroundColor: '#ffffff', scale: 2, imageTimeout: 5000 });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('Could not create screenshot');
+        const file = new File([blob], 'centrinsic-news.png', { type: 'image/png' });
+        const imageURL = URL.createObjectURL(blob);
+        const dialog = document.createElement('dialog');
+        dialog.id = 'sharePreview';
+        dialog.innerHTML = '<h2>Share screenshot</h2><p>The screenshot includes the app link.</p><img alt="Screenshot preview"><div><button type="button" data-send>Share image + link</button> <a download="centrinsic-news.png">Download image</a> <button type="button" data-copy>Copy app link</button> <button type="button" data-close>Close</button></div><p role="status"></p>';
+        dialog.querySelector('img').src = imageURL;
+        dialog.querySelector('a').href = imageURL;
+        dialog.querySelector('[data-close]').onclick = () => dialog.close();
+        dialog.querySelector('[data-copy]').onclick = () => copyToClipboard(appLink);
+        dialog.addEventListener('close', () => { URL.revokeObjectURL(imageURL); dialog.remove(); }, { once: true });
+        const send = dialog.querySelector('[data-send]');
+        send.onclick = async () => {
+            send.disabled = true;
+            try {
+                const native = window.Capacitor?.isNativePlatform?.();
+                const plugins = window.Capacitor?.Plugins;
+                if (native && plugins?.Share && plugins?.Filesystem) {
+                    const data = canvas.toDataURL('image/png').split(',')[1];
+                    const path = `centrinsic-${Date.now()}.png`;
+                    const saved = await plugins.Filesystem.writeFile({ path, data, directory: 'CACHE' });
+                    try { await plugins.Share.share({ title, text, files: [saved.uri] }); }
+                    finally { await plugins.Filesystem.deleteFile({ path, directory: 'CACHE' }).catch(() => {}); }
+                } else if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                    await navigator.share({ title, text, files: [file] });
+                } else {
+                    dialog.querySelector('[role="status"]').textContent = 'Image sharing is unavailable here. Download the screenshot and copy the app link below.';
+                    return;
+                }
+                dialog.close();
+            } catch (err) {
+                if (err.name !== 'AbortError' && !/cancel/i.test(err.message || '')) {
+                    dialog.querySelector('[role="status"]').textContent = 'Sharing failed. Try again, or download the screenshot and copy the link.';
+                }
+            } finally { send.disabled = false; }
+        };
+        document.body.append(dialog);
+        dialog.showModal();
     } catch (err) {
-        const msg = (err?.message || err?.errorMessage || '').toLowerCase();
-        if (msg.includes('cancel') || err?.name === 'AbortError') return;
-        if (window.Capacitor?.Plugins?.Share) { 
-            try { 
-                await window.Capacitor.Plugins.Share.share({ title, text: shareText, url: appLink }); 
-                return; 
-            } catch(e) {} 
-        }
-        copyToClipboard(shareText);
-        showToast('🔗 Link copied!');
+        showToast('Screenshot unavailable. Please try again.');
+        console.warn('Screenshot sharing failed:', err);
     } finally {
-        if (shareBtn) { 
-            shareBtn.innerHTML = '📤 Share'; 
-            shareBtn.disabled = false; 
-        }
+        card?.remove();
+        screenshotShareBusy = false;
     }
 }
 
@@ -1953,16 +1935,42 @@ function bindMobileButtons() {
     const logoutBtn = document.getElementById("logoutButton");
     if (logoutBtn) {
         logoutBtn.onclick = () => logout();
-        logoutBtn.addEventListener('click', () => logout());
-        logoutBtn.addEventListener('touchstart', () => logout());
+
+
     }
     
     const deleteBtn = document.getElementById("deleteDataButton");
     if (deleteBtn) {
         deleteBtn.onclick = () => clearAll();
-        deleteBtn.addEventListener('click', () => clearAll());
-        deleteBtn.addEventListener('touchstart', () => clearAll());
+
+
     }
 }
 
 console.log("✅ Centrinsic NPT — Mobile Back Button + Dynamic Tab + Startup Events");
+// Observe horizontal touch swipes without cancelling vertical scrolling or zoom.
+function setupSwipeNavigation() {
+    let start = null;
+    document.addEventListener('touchstart', e => {
+        start = null;
+        if (e.touches.length !== 1 || e.target.closest('button,a,input,textarea,select,dialog,.tab-buttons')) return;
+        const touch = e.touches[0];
+        start = { x: touch.clientX, y: touch.clientY, time: Date.now(), screen: getCurrentScreenId() };
+    }, { passive: true });
+    document.addEventListener('touchcancel', () => { start = null; }, { passive: true });
+    document.addEventListener('touchend', e => {
+        const origin = start;
+        start = null;
+        if (!origin || e.touches.length || !e.changedTouches.length || origin.screen !== getCurrentScreenId()) return;
+        const touch = e.changedTouches[0];
+        const dx = touch.clientX - origin.x, dy = touch.clientY - origin.y;
+        if (Date.now() - origin.time > 700 || Math.abs(dx) < 75 || Math.abs(dx) < Math.abs(dy) * 2) return;
+        // Leave edge swipes to the operating system's back gesture.
+        if (origin.x < 30 || origin.x > window.innerWidth - 30) return;
+        if (origin.screen === 'home') {
+            const tabs = getDynamicTabOrder(allArticles);
+            const next = tabs.indexOf(currentTab) + (dx < 0 ? 1 : -1);
+            if (next >= 0 && next < tabs.length) switchTab(tabs[next]);
+        }
+    }, { passive: true });
+}
